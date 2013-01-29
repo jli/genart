@@ -1,3 +1,5 @@
+/* @pjs globalKeyEvents="true"; */
+
 // FIXME pjs: displayWidth and displayHeight undefined
 boolean fullscreen = false;
 int w = 800; // pixel bounds. overwritten if fullscreen
@@ -64,6 +66,7 @@ void setup() {
   vs = new PVector[wn][hn];
   tmp_vs = new PVector[wn][hn];
   size(w, h);
+  frameRate(30);
   redo();
 }
 
