@@ -10,9 +10,9 @@ int hn;
 PVector[][] vs;
 PVector[][] tmp_vs;
 
-int max_tracers = 500;
-PVector[] tracer_pos = new PVector[max_tracers];
-PVector[] tracer_vel = new PVector[max_tracers];
+int max_tracers; // on the order of wn*hn
+PVector[] tracer_pos;
+PVector[] tracer_vel;
 int ntracers = 0;
 
 float update_self_weight = 0.9; // higher -> slower neighbor averaging
@@ -65,6 +65,9 @@ void setup() {
   hn = h/gap;
   vs = new PVector[wn][hn];
   tmp_vs = new PVector[wn][hn];
+  max_tracers = wn*hn*2;
+  tracer_pos = new PVector[max_tracers];
+  tracer_vel = new PVector[max_tracers];
   size(w, h);
   frameRate(30);
   redo();
