@@ -1,6 +1,7 @@
-boolean fullscreen = true;
-int w = 500; // pixel bounds. overwritten if fullscreen
-int h = 500;
+// FIXME pjs: displayWidth and displayHeight undefined
+boolean fullscreen = false;
+int w = 800; // pixel bounds. overwritten if fullscreen
+int h = 600;
 int gap = 50; // must evenly divide w and h
 int wn; // index bounds
 int hn;
@@ -27,7 +28,7 @@ void stroke_red(int r) { stroke(r, 100, 230); }
 
 int round_down(int x, int mult) { return x - (x % mult); }
 
-// processing.js doesn't have random2D!
+// FIXME pjs: no random2D!
 PVector random_vector() {
   //PVector.random2D();
   PVector v = new PVector(random(-1, 1), random(-1, 1), 0.);
@@ -107,11 +108,21 @@ void average(int ix, int iy, PVector[][] dst, PVector[][] src) {
   // 9 neighbors plus self. weight self by update_self_weight, split rest for neighbors
   float neighbor_weight = (1 - update_self_weight) / 9;
   dst[ix][iy].limit(update_self_weight);
-  PVector[] neighbors = neighbors(ix, iy, src);
-  for (int i = 0; i < neighbors.length; ++i) {
-    PVector n = neighbors[i];
+  // FIXME pjs: when "ns" named "neighbors", failtime
+  PVector[] ns = neighbors(ix, iy, src);
+  for (int i = 0; i < ns.length; ++i) {
+    PVector n = ns[i];
     dst[ix][iy].add(n.x * neighbor_weight, n.y * neighbor_weight, 0);
   }
+}
+
+// FIXME pjs: no .rotate
+// R = [cos  -sin]
+//     [sin   cos]
+PVector rotate(PVector v, float rads) {
+  float c = cos(rads);
+  float s = sin(rads);
+  return new PVector(c*v.x - s*v.y, s*v.x + c*v.y);
 }
 
 void arrow(float x, float y, PVector dir) {
@@ -119,10 +130,12 @@ void arrow(float x, float y, PVector dir) {
   float mult = gap/5;
   float pointx = x + dir.x*mult;
   float pointy = y + dir.y*mult;
-  PVector arm1 = new PVector(dir.x, dir.y);
-  PVector arm2 = new PVector(dir.x, dir.y);
-  arm1.rotate(arm_angle);
-  arm2.rotate(-arm_angle);
+  //PVector arm1 = new PVector(dir.x, dir.y);
+  //PVector arm2 = new PVector(dir.x, dir.y);
+  //arm1.rotate(arm_angle);
+  //arm2.rotate(-arm_angle);
+  PVector arm1 = rotate(dir, arm_angle);
+  PVector arm2 = rotate(dir, -arm_angle);
   line(x - dir.x*mult, y - dir.y*mult, pointx, pointy);
   line(pointx, pointy, pointx - arm1.x*mult, pointy - arm1.y*mult);
   line(pointx, pointy, pointx - arm2.x*mult, pointy - arm2.y*mult);
