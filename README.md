@@ -4,4 +4,4 @@ Dabbling.
 
 ## License
 
-Copyright (C) YEARNOW WTFPL
+Copyright (C) WTFPL
