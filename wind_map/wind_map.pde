@@ -1,7 +1,7 @@
 /* @pjs globalKeyEvents="true"; */
 
 // FIXME pjs: displayWidth and displayHeight undefined
-boolean fullscreen = false;
+boolean fullscreen = true;
 boolean ghostride = true;
 int w = 800; // pixel bounds. overwritten if fullscreen
 int h = 600;
@@ -40,10 +40,12 @@ PVector random_vector() {
   return v;
 }
 
-void randomize_tracers() {
-  for (int i = 0; i < max_tracers; ++i) {
-    tracer_pos[i] = new PVector(random(0, w), random(0, h));
-    tracer_vel[i] = new PVector(0, 0);
+void randomize_tracers(int n) {
+  // i only used for running the loop
+  for (int i = 0; i < n; ++i) {
+    tracer_pos[ntracers] = new PVector(random(0, w), random(0, h));
+    tracer_vel[ntracers] = new PVector(0, 0);
+    ntracers = (ntracers + 1) % max_tracers;
   }
 }
 
@@ -53,7 +55,7 @@ void redo() {
       vs[ix][iy] = random_vector();
 
   if (ghostride) {
-      randomize_tracers();
+    randomize_tracers(max_tracers);
   } else {
     ntracers = 0;
     for (int i=0; i<max_tracers; ++i) {
@@ -179,6 +181,7 @@ void draw() {
   }
 
   // tracers
+  if (ghostride) { randomize_tracers(1); }
   for (int i = 0; i < max_tracers; ++i) {
     if (tracer_pos[i] == null) { continue; }
     else {
@@ -219,7 +222,7 @@ void keyPressed() {
       redo();
       break;
     case 'p':
-      randomize_tracers();
+      randomize_tracers(max_tracers);
       break;
   }
 }
