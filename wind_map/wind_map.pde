@@ -2,9 +2,10 @@
 
 // FIXME pjs: displayWidth and displayHeight undefined
 boolean fullscreen = false;
+boolean ghostride = true;
 int w = 800; // pixel bounds. overwritten if fullscreen
 int h = 600;
-int gap = 50; // must evenly divide w and h
+int gap = 30; // must evenly divide w and h
 int wn; // index bounds
 int hn;
 PVector[][] vs;
@@ -15,12 +16,13 @@ PVector[] tracer_pos;
 PVector[] tracer_vel;
 int ntracers = 0;
 
-float update_self_weight = 0.9; // higher -> slower neighbor averaging
-float rot_considered_change = 0.001; // lower -> longer runs before randomizing
+float update_self_weight = 0.75; // higher -> slower neighbor averaging
+float rot_considered_change = 0.002; // lower -> longer runs before randomizing
+float tracer_size = gap/5;
 float tracer_speed_mult = 10;
 float tracer_vel_self_weight = 0.8; // higher -> slower acceleration
 float max_tracer_red_vel = 12; // velocity when tracer is most red
-int max_arrow_weight = 5;
+int max_arrow_weight = gap/10;
 float max_arrow_weight_rad = 0.05; // weight tops out for this rotation
 float max_arrow_red_rad = 0.005; // max redness for this rotation
 
@@ -38,9 +40,8 @@ PVector random_vector() {
   return v;
 }
 
-void randomize_tracers(int n) {
-  n = constrain(n, 0, max_tracers);
-  for (int i = 0; i < n; ++i) {
+void randomize_tracers() {
+  for (int i = 0; i < max_tracers; ++i) {
     tracer_pos[i] = new PVector(random(0, w), random(0, h));
     tracer_vel[i] = new PVector(0, 0);
   }
@@ -51,10 +52,14 @@ void redo() {
     for (int iy = 0; iy < hn; ++iy)
       vs[ix][iy] = random_vector();
 
-  ntracers = 0;
-  for (int i=0; i<max_tracers; ++i) {
-    tracer_pos[i] = null;
-    tracer_vel[i] = null;
+  if (ghostride) {
+      randomize_tracers();
+  } else {
+    ntracers = 0;
+    for (int i=0; i<max_tracers; ++i) {
+      tracer_pos[i] = null;
+      tracer_vel[i] = null;
+    }
   }
 }
 
@@ -65,7 +70,7 @@ void setup() {
   hn = h/gap;
   vs = new PVector[wn][hn];
   tmp_vs = new PVector[wn][hn];
-  max_tracers = wn*hn*2;
+  max_tracers = wn*hn;
   tracer_pos = new PVector[max_tracers];
   tracer_vel = new PVector[max_tracers];
   size(w, h);
@@ -191,7 +196,7 @@ void draw() {
       pos.y = torusify(round(pos.y), 0, h);
       strokeWeight(2);
       stroke_red(floor(map(vel.mag(), 0, max_tracer_red_vel, 0, 255)));
-      ellipse(pos.x, pos.y, gap/4, gap/4);
+      ellipse(pos.x, pos.y, tracer_size, tracer_size);
     }
   }
 
@@ -214,7 +219,7 @@ void keyPressed() {
       redo();
       break;
     case 'p':
-      randomize_tracers(max_tracers);
+      randomize_tracers();
       break;
   }
 }
