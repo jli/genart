@@ -1,7 +1,7 @@
 /* @pjs globalKeyEvents="true"; */
 
 // FIXME pjs: displayWidth and displayHeight undefined
-boolean fullscreen = true;
+boolean fullscreen = false;
 boolean ghostride = true;
 int w = 800; // pixel bounds. overwritten if fullscreen
 int h = 600;
