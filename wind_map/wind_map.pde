@@ -154,7 +154,20 @@ void arrow(float x, float y, PVector dir) {
   line(pointx, pointy, pointx - arm2.x*mult, pointy - arm2.y*mult);
 }
 
+double prev_time = 0;
+int frames = 0;
+
 void draw() {
+    double now = System.currentTimeMillis();
+    double diff = now - prev_time;
+    if (diff > 1000) {
+        float secs = (float) (diff/1000);
+        println("fps: "+frames+"/"+secs+", "+frames/secs);
+        prev_time = now;
+        frames = 0;
+    }
+    ++frames;
+
   boolean changed = false;
   background(5, 10, 20);
 
@@ -174,7 +187,7 @@ void draw() {
       float rads = PVector.angleBetween(p, prev_p);
       if (rads > rot_considered_change) { changed = true; }
       strokeWeight(map(min(rads, max_arrow_weight_rad),
-                   0, max_arrow_weight_rad, 1, max_arrow_weight));
+                       0, max_arrow_weight_rad, 1, max_arrow_weight));
       stroke_red(floor(map(rads, 0, max_arrow_red_rad, 0, 255)));
       arrow(index_to_world(ix), index_to_world(iy), p);
     }
