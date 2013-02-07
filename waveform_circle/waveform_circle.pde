@@ -28,15 +28,17 @@ void setup() {
   // 6r < big-dim
   w = fullscreen ? displayWidth : w;
   h = fullscreen ? displayHeight : h;
-  radius_base = w/9;
-  wave_max = radius_base/1.2;
+  radius_base = w/8;
+  wave_max = radius_base*1.;
   radius_max = radius_base + wave_max;
   size(w, h);
+  strokeWeight(5);
+
   minim = new Minim(this);
   if (file == null) {
-    source = minim.getLineIn();
+    source = minim.getLineIn(2, 2048);
   } else {
-    source = minim.loadFile(file);
+    source = minim.loadFile(file, 2048);
     ((AudioPlayer)source).play();
     ((AudioPlayer)source).loop();
   }
@@ -48,7 +50,8 @@ PVector ouro_point(float val, float angle, float mult) {
   // y = xprev*sin(theta) + y*cos(theta);
   float sig = radius_base + min(val*mult, wave_max);
   // as if rotating a vector at (0, -sig)
-  return new PVector(sig * sin(angle), -sig * cos(angle));
+  // - in x value to mirror across y axis
+  return new PVector(-sig * sin(angle), -sig * cos(angle));
 }
 
 void draw() {
