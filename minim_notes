@@ -1,0 +1,13 @@
+minim http://code.compartmental.net/tools/minim/
+
+To use:
+* delete <processing>/modes/java/libraries/minim/ (older version)
+* unzip downloaded minim to <sketchbook>/libraries/
+
+Wacky pulseaudio madness:
+* find /usr/lib/jvm -name pulse-java.jar
+* copy to <processing>/java/lib/ext/
+* find /usr/lib/jvm -name libpulse-java.so
+* copy to <processing>/java/lib/i386/
+https://forum.processing.org/topic/why-can-t-i-play-more-than-one-audiosample
+
