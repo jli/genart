@@ -9,20 +9,24 @@ String file = null;
 //String file = "torvalds-says-linux.wav";
 
 boolean fullscreen = false;
-int w = 800;
+int spectro_size = 15;
+int w = 800; // rounded down to multiple of spectro_size
 int h = 600;
 float radius_base;
 float wave_max;
 float radius_max;
+
+int wn; // spectro size/bounds
+int hn;
+int bands_per_val;
 float[][] spectro;
 int spectro_x = 0;
-int sw;
-int sh;
-int spectro_pix;
 
 color bg = color(#DDDDDD);
 color red = color(225, 10, 50);
 color blue = color(50, 10, 225);
+
+int round_down(int x, int mult) { return x - (x % mult); }
 
 void setup() {
   // FIXME do something awesome here
@@ -31,8 +35,11 @@ void setup() {
   // m := r/2
   // 2r < small-dim
   // 6r < big-dim
-  w = fullscreen ? displayWidth : w;
-  h = fullscreen ? displayHeight : h;
+  w = round_down(fullscreen ? displayWidth : w, spectro_size);
+  h = round_down(fullscreen ? displayHeight : h, spectro_size);
+  wn = w/spectro_size;
+  hn = h/spectro_size;
+  spectro = new float[wn][hn];
   radius_base = w/9;
   wave_max = radius_base/1.2;
   radius_max = radius_base + wave_max;
@@ -49,12 +56,8 @@ void setup() {
   }
   fft = new FFT(source.bufferSize(), source.sampleRate());
 
-  // cleanup!
-  sh = min(h, fft.specSize());
-  spectro_pix = 10;
-  sw = w / spectro_pix;
-  spectro = new float[sw][sh];
-  println("sh, sw, pix " + sh + "," + sw+"," + spectro_pix);
+  // int division - might lose a sample. oh well.
+  bands_per_val = fft.specSize() / hn;
 }
 
 PVector ouro_point(float val, float angle, float mult) {
@@ -72,24 +75,26 @@ void draw() {
   PVector p2;
   float theta_frac;
 
-  for (int i = 0; i < sh; ++i) {
-    spectro[spectro_x][i] = fft.getBand(i);
+  for (int iy = 0; iy < hn; ++iy) {
+    float band_sum = 0;
+    int spect_i = iy * bands_per_val;
+    int excl_bound = min(spect_i + bands_per_val, fft.specSize());
+    // bandn is bands_per_val, or less when near end of spectrum
+    int bandn = excl_bound - spect_i;
+    for (int i = spect_i; i < excl_bound; ++i)
+      band_sum += fft.getBand(i);
+    spectro[spectro_x][iy] = band_sum / bandn;
   }
-  spectro_x = (spectro_x + 1) % sw;
+  spectro_x = (spectro_x + 1) % wn;
 
-  // cleanup!
-  strokeWeight(spectro_pix);
-  for (int x = 0; x < sw; ++x) {
-    for (int y = 0; y < sh; y += spectro_pix) {
-      float spectro_sum = 0;
-      for (int i = 0; i < spectro_pix; ++i) {
-        int ii = i + y;
-        if (ii >= sh) break;
-        else spectro_sum += spectro[x][ii];
-      }
-      float alpha = map(spectro_sum/spectro_pix, 0, 10, 0, 255);
+  strokeWeight(spectro_size);
+  for (int ix = 0; ix < wn; ++ix) {
+    for (int iy = 0; iy < hn; ++iy) {
+      float spectro_val = spectro[ix][iy];
+      float alpha = map(spectro_val, 0, 10, 0, 255);
       stroke(10, 10, 240, alpha);
-      point(x * spectro_pix, h-y);
+      int center_adj = spectro_size/2;
+      point(ix * spectro_size + center_adj, h - iy * spectro_size - center_adj);
     }
   }
 
