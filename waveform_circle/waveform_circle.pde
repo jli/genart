@@ -9,13 +9,14 @@ int fft_spec_size; // hax
 String file = null;
 //String file = "torvalds-says-linux.wav";
 
-boolean fullscreen = false;
-int spectro_size = 15;
+boolean fullscreen = true;
+int spectro_size = 30;
 int w = 800; // rounded down to multiple of spectro_size
 int h = 600;
 float radius_base;
 float wave_max;
 float radius_max;
+float circle_weight = 2;
 
 int wn; // spectro size/bounds
 int hn;
@@ -27,7 +28,7 @@ float spectro_fade = 0.95;
 color bg = color(#DDDDDD);
 color red = color(225, 10, 50);
 color blue = color(50, 10, 225);
-void spectro_stroke(float alpha) { stroke(215, 10, 225, alpha); }
+void spectro_stroke(float alpha) { stroke(155, 10, 165, alpha); }
 
 int round_down(int x, int mult) { return x - (x % mult); }
 
@@ -47,7 +48,7 @@ void setup() {
   wave_max = radius_base/1.2;
   radius_max = radius_base + wave_max;
 
-  frameRate(30);
+  //frameRate(30);
   size(w, h);
 
   minim = new Minim(this);
@@ -64,12 +65,16 @@ void setup() {
 
   // int division - might lose a sample. oh well.
   bands_per_val = max(fft_spec_size / hn, 1);
+
+  println("w, h, wn, hn. "+w+", "+h+", "+wn+", "+hn);
+  println("radius-base, wave-max, radius-max. "
+          +radius_base+", "+wave_max+", "+radius_max);
 }
 
 PVector ouro_point(float val, float angle, float mult) {
   // x = x*cos(theta) - y*sin(theta);
   // y = xprev*sin(theta) + y*cos(theta);
-  float sig = radius_base + min(val*mult, wave_max);
+  float sig = radius_base + val*mult; //min(val*mult, wave_max);
   // as if rotating a vector at (0, -sig)
   // - in x value to mirror across y axis
   return new PVector(-sig * sin(angle), -sig * cos(angle));
@@ -109,14 +114,14 @@ void draw() {
   }
 
   // draw spectrum and waveform circles
-  strokeWeight(5);
+  strokeWeight(circle_weight);
   // FIXME log scale
   fft.forward(source.mix);
   theta_frac = TWO_PI / fft_spec_size;
   for (int i = 0; i < fft_spec_size; ++i) {
     stroke(blue);
-    p1 = ouro_point(fft.getBand(i), theta_frac * i, 2);
-    p2 = ouro_point(fft.getBand(i+1), theta_frac * (i+1), 2);
+    p1 = ouro_point(fft.getBand(i), theta_frac * i, 0.7);
+    p2 = ouro_point(fft.getBand(i+1), theta_frac * (i+1), 0.7);
     line(w/2 - radius_max + p1.x, h/2 - p1.y,
          w/2 - radius_max + p2.x, h/2 - p2.y);
   }
