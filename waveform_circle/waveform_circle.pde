@@ -46,11 +46,13 @@ void setup() {
 
   frameRate(30);
   size(w, h);
+  strokeWeight(5);
+
   minim = new Minim(this);
   if (file == null) {
-    source = minim.getLineIn();
+    source = minim.getLineIn(2, 2048);
   } else {
-    source = minim.loadFile(file);
+    source = minim.loadFile(file, 2048);
     ((AudioPlayer)source).play();
     ((AudioPlayer)source).loop();
   }
@@ -65,7 +67,8 @@ PVector ouro_point(float val, float angle, float mult) {
   // y = xprev*sin(theta) + y*cos(theta);
   float sig = radius_base + min(val*mult, wave_max);
   // as if rotating a vector at (0, -sig)
-  return new PVector(sig * sin(angle), -sig * cos(angle));
+  // - in x value to mirror across y axis
+  return new PVector(-sig * sin(angle), -sig * cos(angle));
 }
 
 void draw() {
