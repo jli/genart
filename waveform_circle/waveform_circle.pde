@@ -22,10 +22,12 @@ int hn;
 int bands_per_val;
 float[][] spectro;
 int spectro_x = 0;
+float spectro_fade = 0.95;
 
 color bg = color(#DDDDDD);
 color red = color(225, 10, 50);
 color blue = color(50, 10, 225);
+void spectro_stroke(float alpha) { stroke(215, 10, 225, alpha); }
 
 int round_down(int x, int mult) { return x - (x % mult); }
 
@@ -58,7 +60,7 @@ void setup() {
   }
   fft = new FFT(source.bufferSize(), source.sampleRate());
 
-  fft_spec_size = fft.specSize() / 3; // hax
+  fft_spec_size = fft.specSize() / 7; // hax
 
   // int division - might lose a sample. oh well.
   bands_per_val = max(fft_spec_size / hn, 1);
@@ -80,6 +82,7 @@ void draw() {
   PVector p2;
   float theta_frac;
 
+  // save spectrogram data for current sample
   for (int iy = 0; iy < hn; ++iy) {
     float band_sum = 0;
     int spect_i = iy * bands_per_val;
@@ -92,17 +95,20 @@ void draw() {
   }
   spectro_x = (spectro_x + 1) % wn;
 
+  // draw spectrogram
   strokeWeight(spectro_size);
+  int center_adj = spectro_size/2;
   for (int ix = 0; ix < wn; ++ix) {
     for (int iy = 0; iy < hn; ++iy) {
       float spectro_val = spectro[ix][iy];
       float alpha = map(min(spectro_val, 50), 0, 50, 0, 230);
-      stroke(30, 250, 50, alpha);
-      int center_adj = spectro_size/2;
+      spectro_stroke(alpha);
       point(ix * spectro_size + center_adj, h - iy * spectro_size - center_adj);
+      spectro[ix][iy] *= spectro_fade; // fade out
     }
   }
 
+  // draw spectrum and waveform circles
   strokeWeight(5);
   // FIXME log scale
   fft.forward(source.mix);
