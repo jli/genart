@@ -4,6 +4,7 @@ import ddf.minim.analysis.*; // FFT
 Minim minim;
 AudioSource source;
 FFT fft;
+int fft_spec_size; // hax
 // null for mic input
 String file = null;
 //String file = "torvalds-says-linux.wav";
@@ -46,7 +47,6 @@ void setup() {
 
   frameRate(30);
   size(w, h);
-  strokeWeight(5);
 
   minim = new Minim(this);
   if (file == null) {
@@ -58,8 +58,10 @@ void setup() {
   }
   fft = new FFT(source.bufferSize(), source.sampleRate());
 
+  fft_spec_size = fft.specSize() / 3; // hax
+
   // int division - might lose a sample. oh well.
-  bands_per_val = fft.specSize() / hn;
+  bands_per_val = max(fft_spec_size / hn, 1);
 }
 
 PVector ouro_point(float val, float angle, float mult) {
@@ -81,7 +83,7 @@ void draw() {
   for (int iy = 0; iy < hn; ++iy) {
     float band_sum = 0;
     int spect_i = iy * bands_per_val;
-    int excl_bound = min(spect_i + bands_per_val, fft.specSize());
+    int excl_bound = min(spect_i + bands_per_val, fft_spec_size);
     // bandn is bands_per_val, or less when near end of spectrum
     int bandn = excl_bound - spect_i;
     for (int i = spect_i; i < excl_bound; ++i)
@@ -94,19 +96,18 @@ void draw() {
   for (int ix = 0; ix < wn; ++ix) {
     for (int iy = 0; iy < hn; ++iy) {
       float spectro_val = spectro[ix][iy];
-      float alpha = map(spectro_val, 0, 10, 0, 255);
-      stroke(10, 10, 240, alpha);
+      float alpha = map(min(spectro_val, 50), 0, 50, 0, 230);
+      stroke(30, 250, 50, alpha);
       int center_adj = spectro_size/2;
       point(ix * spectro_size + center_adj, h - iy * spectro_size - center_adj);
     }
   }
 
-  strokeWeight(2);
+  strokeWeight(5);
   // FIXME log scale
   fft.forward(source.mix);
-  int spec_size = fft.specSize() / 3; // hax
-  theta_frac = TWO_PI / spec_size;
-  for (int i = 0; i < spec_size; ++i) {
+  theta_frac = TWO_PI / fft_spec_size;
+  for (int i = 0; i < fft_spec_size; ++i) {
     stroke(blue);
     p1 = ouro_point(fft.getBand(i), theta_frac * i, 2);
     p2 = ouro_point(fft.getBand(i+1), theta_frac * (i+1), 2);
