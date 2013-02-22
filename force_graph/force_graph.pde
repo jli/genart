@@ -1,12 +1,11 @@
-import java.util.HashSet;
-
 boolean fullscreen = false;
 int w = 500;
 int h = 500;
 
 Node[] nodes;
 Node[] nodes_aux;
-HashSet<PVector> edges;
+// pjs compat. values currently unused
+HashMap<PVector,Float> edges;
 
 // probability of link between any node pair
 float link_prob = 0.07;
@@ -64,14 +63,14 @@ boolean happened(float probability) { return random(0,1) < probability; }
 void random_init(int nnodes) {
   nodes = new Node[nnodes];
   nodes_aux = new Node[nnodes];
-  edges = new HashSet();
+  edges = new HashMap();
   for (int i = 0; i < nodes.length; ++i) {
     nodes[i] = new Node();
     nodes_aux[i] = new Node();
     for (int j = i+1; j < nodes.length; ++j) {
       float this_link_prob = lerp(link_prob, 1, happened(super_node_prob) ? 0.5 : 0);
       if (happened(this_link_prob))
-        edges.add(new PVector(i, j));
+        edges.put(new PVector(i, j), 1.);
     }
   }
 }
@@ -84,6 +83,13 @@ void setup() {
   random_init(nnodes);
   size(w,h);
   frameRate(20);
+}
+
+// FIXME PVector.lerp missing from latest pjs. patched in trunk.
+PVector pvector_lerp(PVector a, PVector b, float amt) {
+  return new PVector(lerp(a.x, b.x, amt),
+                     lerp(a.y, b.y, amt),
+                     lerp(a.z, b.z, amt));
 }
 
 void draw() {
@@ -102,7 +108,7 @@ void draw() {
     }
 
     // attracted to linked nodes. spring force, ~distance
-    for (PVector edge : edges) {
+    for (PVector edge : edges.keySet()) {
       int other_index;
       if (int(edge.x) == i) other_index = int(edge.y);
       else if (int(edge.y) == i) other_index = int(edge.x);
@@ -116,7 +122,7 @@ void draw() {
 
     vel.mult(update_damping);
     Node aux = nodes_aux[i];
-    aux.vel = PVector.lerp(vel, n.vel, update_momentum);
+    aux.vel = pvector_lerp(vel, n.vel, update_momentum);
     // this /shouldn't/ be necessary...
     //fix_nan(aux.vel);
     aux.pos = PVector.add(n.pos, aux.vel);
@@ -132,7 +138,7 @@ void draw() {
   stroke(39, 74, 250, 128);
 
   // edges
-  for (PVector edge : edges) {
+  for (PVector edge : edges.keySet()) {
     Node a = nodes[int(edge.x)];
     Node b = nodes[int(edge.y)];
     line(a.pos.x, a.pos.y, b.pos.x, b.pos.y);

@@ -1,0 +1,35 @@
+<html><head><title>force graph</title>
+<style>
+body { color: #bbb; background: #050505; font-family: sans; }
+a:link,a:visited { color: #ddd; }
+a:hover,a:focus { color: #fff; }
+a:active { color: #fff; text-decoration: bold; }
+canvas { outline: 0px; margin: auto; display: block; }
+#content {
+  margin: 1em auto 0px auto; padding: 1em;
+  width: @@WIDTH@@; min-width: 300px;
+  overflow: auto;
+  background: #252525;
+}
+#copy { font-size: xx-small; }
+</style></head><body>
+<div id="content">
+  <canvas data-processing-sources="force_graph.pde">your browser doesn't support canvas :(</canvas>
+  <noscript>javascript is required :(</noscript>
+  <h1>force graph</h1>
+  <p>
+    Basic <a href="https://en.wikipedia.org/wiki/Force-directed_graph_drawing">force-directed layout</a>. More to come!<br>
+    <strong>r</strong> to randomize nodes and edges.
+  </p>
+  <p>
+    built with <a href="http://processing.org/">processing</a>
+    and <a href="http://processingjs.org/">processing.js</a>
+  </p>
+  <span id="copy">
+    <a href="https://github.com/jli/processing-sketches">src.</a>
+    &copy; <a href="http://circularly.org/">jli</a>
+    <a href="http://www.wtfpl.net/txt/copying/">WTFPL</a>
+  </span>
+</div>
+<script src="processing-1.4.1.min.js"></script>
+</body></html>
