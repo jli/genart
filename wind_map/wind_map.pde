@@ -72,7 +72,7 @@ void setup() {
   hn = h/gap;
   vs = new PVector[wn][hn];
   tmp_vs = new PVector[wn][hn];
-  max_tracers = wn*hn;
+  max_tracers = wn*hn / 4;
   tracer_pos = new PVector[max_tracers];
   tracer_vel = new PVector[max_tracers];
   size(w, h);
@@ -154,20 +154,7 @@ void arrow(float x, float y, PVector dir) {
   line(pointx, pointy, pointx - arm2.x*mult, pointy - arm2.y*mult);
 }
 
-double prev_time = 0;
-int frames = 0;
-
 void draw() {
-    double now = System.currentTimeMillis();
-    double diff = now - prev_time;
-    if (diff > 1000) {
-        float secs = (float) (diff/1000);
-        println("fps: "+frames+"/"+secs+", "+frames/secs);
-        prev_time = now;
-        frames = 0;
-    }
-    ++frames;
-
   boolean changed = false;
   background(5, 10, 20);
 
