@@ -8,13 +8,17 @@ Node[] nodes;
 Node[] nodes_aux;
 HashSet<PVector> edges;
 
+// probability of link between any node pair
+float link_prob = 0.07;
+// probability of node being more highly connected
+float super_node_prob = 0.05;
+
 float node_repel = 5000;
 float link_attract = 0.05;
 // scale force
 float update_damping = 0.4;
 // weight given to old velocity. bigger means more gradual updating. range (0,1)
 float update_momentum = 0.9;
-float random_link_prob = 0.25;
 
 int node_size;
 color bg = color(20,20,20);
@@ -22,6 +26,7 @@ color bg = color(20,20,20);
 // todo
 // click-drag nodes
 // changeable params
+// central gravity
 // variable size nodes?
 // weighted edges?
 // more interesting edges
@@ -54,6 +59,8 @@ void fix_nan(PVector v) {
   if (Float.isNaN(v.z)) v.z = 0;
 }
 
+boolean happened(float probability) { return random(0,1) < probability; }
+
 void random_init(int nnodes) {
   nodes = new Node[nnodes];
   nodes_aux = new Node[nnodes];
@@ -61,9 +68,11 @@ void random_init(int nnodes) {
   for (int i = 0; i < nodes.length; ++i) {
     nodes[i] = new Node();
     nodes_aux[i] = new Node();
-    for (int j = i+1; j < nodes.length; ++j)
-      if (random(0, 1) < random_link_prob)
+    for (int j = i+1; j < nodes.length; ++j) {
+      float this_link_prob = lerp(link_prob, 1, happened(super_node_prob) ? 0.5 : 0);
+      if (happened(this_link_prob))
         edges.add(new PVector(i, j));
+    }
   }
 }
 
@@ -71,7 +80,7 @@ void setup() {
   w = fullscreen ? displayWidth : w;
   h = fullscreen ? displayHeight : h;
   node_size = w*h/18000;
-  int nnodes = w*h/10000;
+  int nnodes = w*h/7000;
   random_init(nnodes);
   size(w,h);
   frameRate(20);
