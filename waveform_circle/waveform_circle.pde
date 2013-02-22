@@ -9,8 +9,8 @@ int fft_spec_size; // hax
 String file = null;
 //String file = "torvalds-says-linux.wav";
 
-boolean fullscreen = true;
-int spectro_size = 30;
+boolean fullscreen = false;
+int spectro_size = 10;
 int w = 800; // rounded down to multiple of spectro_size
 int h = 600;
 float radius_base;
