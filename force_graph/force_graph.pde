@@ -1,6 +1,8 @@
 boolean fullscreen = false;
-int w = 500;
-int h = 500;
+int w;
+int h;
+int default_w = 500;
+int default_h = 500;
 
 Node[] nodes;
 Node[] nodes_aux;
@@ -81,14 +83,24 @@ void random_init(int nnodes) {
   }
 }
 
+void setup_sizes(int new_w, int new_h) {
+  w = new_w;
+  h = new_h;
+  node_size = min((w + h) / 75, 20);
+  strokeWeight((w + h) / 500);
+}
+
 void setup() {
-  w = fullscreen ? displayWidth : w;
-  h = fullscreen ? displayHeight : h;
-  node_size = w*h/18000;
-  int nnodes = w*h/7000;
+  setup_sizes(fullscreen ? displayWidth : default_w,
+              fullscreen ? displayHeight : default_h);
+  int nnodes = (w+h)/25;
   random_init(nnodes);
+
   size(w,h);
+  frame.setResizable(true);
   frameRate(20);
+
+  stroke(39, 74, 250, 175);
 }
 
 // FIXME PVector.lerp missing from latest pjs. patched in trunk.
@@ -104,6 +116,9 @@ Object random_key(HashMap m) {
 }
 
 void draw() {
+  if (w != width || h != height)
+    setup_sizes(width, height);
+
   if (randomize_edge_mode && happened(randomize_edge_prob)) {
     int a = int(random(0, nodes.length-1));
     int b = int(random(a+1, nodes.length-1));
@@ -173,9 +188,6 @@ void draw() {
   // drawing
   background(bg);
 
-  strokeWeight(2);
-  stroke(39, 74, 250, 175);
-
   // edges
   for (PVector edge : edges.keySet()) {
     Node a = nodes[int(edge.x)];
@@ -202,12 +214,18 @@ void draw() {
 
 void keyPressed() {
   switch(key) {
-    case 'r':
-      random_init(nodes.length);
-      break;
-    case 'e':
-      randomize_edge_mode = !randomize_edge_mode;
-      break;
+  case 'N': node_repel *= 1.1; break;
+  case 'n': node_repel /= 1.1; break;
+  case 'L': link_attract *= 1.1; break;
+  case 'l': link_attract /= 1.1; break;
+  case 'G': gravity_attract *= 1.1; break;
+  case 'g': gravity_attract /= 1.1; break;
+  case 'D': update_damping *= 1.1; break;
+  case 'd': update_damping /= 1.1; break;
+  case 'M': update_momentum = min(update_momentum * 1.1, 1); break;
+  case 'm': update_momentum /= 1.1; break;
+  case 'r': random_init(nodes.length); break;
+  case 'e': randomize_edge_mode = !randomize_edge_mode; break;
   }
 }
 
