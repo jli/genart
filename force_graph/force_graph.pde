@@ -15,15 +15,16 @@ float super_node_prob = 0.05;
 float node_repel = 5000;
 float link_attract = 0.05;
 // scale force
-float update_damping = 0.4;
+float update_damping = 0.6;
 // weight given to old velocity. bigger means more gradual updating. range (0,1)
 float update_momentum = 0.9;
+
+Integer selected_node;
 
 int node_size;
 color bg = color(20,20,20);
 
 // todo
-// click-drag nodes
 // changeable params
 // central gravity
 // variable size nodes?
@@ -131,6 +132,12 @@ void draw() {
   nodes = nodes_aux;
   nodes_aux = prev;
 
+  if (selected_node != null) {
+    Node s = nodes[selected_node];
+    s.pos.x = mouseX;
+    s.pos.y = mouseY;
+  }
+
   // drawing
   background(bg);
 
@@ -147,7 +154,14 @@ void draw() {
   // nodes
   for (int i = 0; i < nodes.length; ++i) {
     Node n = nodes[i];
+    boolean selected = selected_node != null && i == selected_node;
+    if (selected) {
+      pushStyle();
+      strokeWeight(5);
+      stroke(250, 39, 74, 128);
+    }
     ellipse(n.pos.x, n.pos.y, node_size, node_size);
+    if (selected) popStyle();
   }
 }
 
@@ -157,4 +171,24 @@ void keyPressed() {
       random_init(nodes.length);
       break;
   }
+}
+
+void mousePressed() {
+  PVector mouse = new PVector(mouseX, mouseY);
+  int closest = 0;
+  float dist = mouse.dist(nodes[closest].pos);
+  for (int i = 1; i < nodes.length; ++i) {
+    float ndist = mouse.dist(nodes[i].pos);
+    if (ndist < dist) {
+      closest = i;
+      dist = ndist;
+    }
+  }
+  selected_node = closest;
+  nodes[closest].pos = mouse;
+  nodes[closest].vel.x = nodes[closest].vel.y = 0;
+}
+
+void mouseReleased() {
+  selected_node = null;
 }
