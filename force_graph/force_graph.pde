@@ -11,16 +11,19 @@ HashMap<PVector,Float> edges;
 float link_prob = 0.07;
 // probability of node being more highly connected
 float super_node_prob = 0.05;
+// if any node has velocity magnitude greater than threshold,
+// layouting continues
+float change_threshold = 0.2;
 
 float node_repel = 5000;
 float link_attract = 0.05;
 float gravity_attract = 0.03;
 // scale force
-float update_damping = 0.6;
+float update_damping = 0.8;
 // weight given to old velocity. bigger means more gradual updating. range (0,1)
-float update_momentum = 0.9;
+float update_momentum = 0.1;
 
-Integer selected_node;
+Integer selected_node; // null when nothing selected
 
 int node_size;
 color bg = color(20,20,20);
@@ -94,6 +97,8 @@ PVector pvector_lerp(PVector a, PVector b, float amt) {
 }
 
 void draw() {
+  boolean stable = true;
+
   // layout
   // calculate vels
   for (int i = 0; i < nodes.length; ++i) {
@@ -133,6 +138,8 @@ void draw() {
     // this /shouldn't/ be necessary...
     //fix_nan(aux.vel);
     aux.pos = PVector.add(n.pos, aux.vel);
+    if (aux.vel.mag() > change_threshold)
+      stable = false;
   }
   Node[] prev = nodes;
   nodes = nodes_aux;
@@ -148,7 +155,7 @@ void draw() {
   background(bg);
 
   strokeWeight(2);
-  stroke(39, 74, 250, 128);
+  stroke(39, 74, 250, 175);
 
   // edges
   for (PVector edge : edges.keySet()) {
@@ -169,6 +176,9 @@ void draw() {
     ellipse(n.pos.x, n.pos.y, node_size, node_size);
     if (selected) popStyle();
   }
+
+  // switch up if stabilized
+  if (stable) random_init(nodes.length);
 }
 
 void keyPressed() {
