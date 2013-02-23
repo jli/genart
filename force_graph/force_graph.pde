@@ -14,6 +14,7 @@ float super_node_prob = 0.05;
 
 float node_repel = 5000;
 float link_attract = 0.05;
+float gravity_attract = 0.03;
 // scale force
 float update_damping = 0.6;
 // weight given to old velocity. bigger means more gradual updating. range (0,1)
@@ -26,7 +27,6 @@ color bg = color(20,20,20);
 
 // todo
 // changeable params
-// central gravity
 // variable size nodes?
 // weighted edges?
 // more interesting edges
@@ -120,6 +120,12 @@ void draw() {
       this_vel.mult(link_attract * n.pos.dist(other));
       vel.add(this_vel);
     }
+
+    // central gravity to counteract things drifting off
+    PVector center = new PVector(w/2,h/2);
+    PVector grav = unit_direction(n.pos, center);
+    grav.mult(gravity_attract * n.pos.dist(center));
+    vel.add(grav);
 
     vel.mult(update_damping);
     Node aux = nodes_aux[i];
