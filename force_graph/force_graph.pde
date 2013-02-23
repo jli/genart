@@ -14,6 +14,8 @@ float super_node_prob = 0.05;
 // if any node has velocity magnitude greater than threshold,
 // layouting continues
 float change_threshold = 0.2;
+boolean randomize_edge_mode = false;
+float randomize_edge_prob = 0.4;
 
 float node_repel = 5000;
 float link_attract = 0.05;
@@ -96,7 +98,24 @@ PVector pvector_lerp(PVector a, PVector b, float amt) {
                      lerp(a.z, b.z, amt));
 }
 
+Object random_key(HashMap m) {
+  Object[] keys = m.keySet().toArray();
+  return keys[int(random(0, keys.length))];
+}
+
 void draw() {
+  if (randomize_edge_mode && happened(randomize_edge_prob)) {
+    int a = int(random(0, nodes.length-1));
+    int b = int(random(a+1, nodes.length-1));
+    PVector e = new PVector(a, b);
+    if (!edges.containsKey(e)) {
+      edges.put(e, 1.);
+      PVector kill = (PVector) random_key(edges);
+      if (kill != null)
+        edges.remove(kill);
+    }
+  }
+
   boolean stable = true;
 
   // layout
@@ -185,6 +204,9 @@ void keyPressed() {
   switch(key) {
     case 'r':
       random_init(nodes.length);
+      break;
+    case 'e':
+      randomize_edge_mode = !randomize_edge_mode;
       break;
   }
 }
