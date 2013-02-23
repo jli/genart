@@ -53,7 +53,8 @@ class Node {
 
 PVector random_pos() { return new PVector(random(0, w), random(0, h)); }
 
-PVector unit_direction(PVector from, PVector to) {
+// returns unit vector
+PVector direction(PVector from, PVector to) {
   PVector res = PVector.sub(to, from);
   res.normalize();
   return res;
@@ -86,6 +87,7 @@ void random_init(int nnodes) {
 void setup_sizes(int new_w, int new_h) {
   w = new_w;
   h = new_h;
+  // better functions plz
   node_size = min((w + h) / 75, 20);
   strokeWeight((w + h) / 500);
 }
@@ -97,7 +99,7 @@ void setup() {
   random_init(nnodes);
 
   size(w,h);
-  frame.setResizable(true);
+  if (!fullscreen) frame.setResizable(true);
   frameRate(20);
 
   stroke(39, 74, 250, 175);
@@ -116,9 +118,11 @@ Object random_key(HashMap m) {
 }
 
 void draw() {
+  // resize
   if (w != width || h != height)
     setup_sizes(width, height);
 
+  // randomize edges
   if (randomize_edge_mode && happened(randomize_edge_prob)) {
     int a = int(random(0, nodes.length-1));
     int b = int(random(a+1, nodes.length-1));
@@ -131,19 +135,20 @@ void draw() {
     }
   }
 
+  // layout
   boolean stable = true;
 
-  // layout
   // calculate vels
   for (int i = 0; i < nodes.length; ++i) {
     Node n = nodes[i];
     PVector vel = new PVector();
+
     // repelled by all other nodes. electrostatic force, ~1/distance^2
     for (int j = 0; j < nodes.length; ++j) {
       if (i == j) continue;
       PVector other = nodes[j].pos;
-      PVector this_vel = unit_direction(other, n.pos);
-      this_vel.mult(node_repel / (float)Math.pow(n.pos.dist(other), 2));
+      float repel_scale = node_repel / (float)Math.pow(n.pos.dist(other), 2);
+      PVector this_vel = PVector.mult(direction(other, n.pos), repel_scale);
       vel.add(this_vel);
     }
 
@@ -155,23 +160,24 @@ void draw() {
       else continue;
 
       PVector other = nodes[other_index].pos;
-      PVector this_vel = unit_direction(n.pos, other);
-      this_vel.mult(link_attract * n.pos.dist(other));
+      float edge_scale = link_attract * n.pos.dist(other);
+      PVector this_vel = PVector.mult(direction(n.pos, other), edge_scale);
       vel.add(this_vel);
     }
 
     // central gravity to counteract things drifting off
-    PVector center = new PVector(w/2,h/2);
-    PVector grav = unit_direction(n.pos, center);
-    grav.mult(gravity_attract * n.pos.dist(center));
+    PVector center = new PVector(w/2, h/2);
+    float grav_scale = gravity_attract * n.pos.dist(center);
+    PVector grav = PVector.mult(direction(n.pos, center), grav_scale);
     vel.add(grav);
 
+    // save new pos, vel values in aux
+    // aux switched with nodes after all updates complete
     vel.mult(update_damping);
     Node aux = nodes_aux[i];
     aux.vel = pvector_lerp(vel, n.vel, update_momentum);
-    // this /shouldn't/ be necessary...
-    //fix_nan(aux.vel);
     aux.pos = PVector.add(n.pos, aux.vel);
+
     if (aux.vel.mag() > change_threshold)
       stable = false;
   }
