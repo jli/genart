@@ -16,7 +16,7 @@ int hand_weight_sec = 2;
 int hand_weight_minute = 4;
 int hand_weight_hour = 6;
 boolean dbg = true;
-boolean fast_for_dbg = true;
+boolean dbg_fast_clock = false;
 
 /* options */
 // TODO: better name
@@ -24,9 +24,9 @@ boolean proportional = true;
 boolean are_there_24_hours_in_a_day = true;
 
 /* variable state */
-int second = 0;
-int minute = 0;
-int hour = 0;
+int second = second();
+int minute = minute();
+int hour = hour();
 
 /* helpers */
 int bound(int lower, int upper, int v) {
@@ -53,6 +53,23 @@ void draw() {
   if (dbg) println("-------------------DRAW!", hour, minute, second);
   background(bg);
 
+  if (dbg_fast_clock) {
+    second += 20;
+    if (60 == second) {
+      second = 0;
+      minute += 1;
+      if (60 == minute) {
+        minute = 0;
+        hour = torusify(0, 24, hour + 1);
+      }
+    }
+  } else {
+    second = second();
+    minute = minute();
+    hour = hour();
+  }
+
+
   fill(255);
   text(hour + ":" + minute + ":" + second, 100, 100);
   strokeWeight(clock_weight);
@@ -75,19 +92,10 @@ void draw() {
   PVector hand_pos_hour = clock_hand_position(proportion_hour, hand_len_hour);
   line(clock_center, clock_center, hand_pos_hour.x, hand_pos_hour.y);
 
-  second += fast_for_dbg ? 20 : 1;
-  if (60 == second) {
-    second = 0;
-    minute += 1;
-    if (60 == minute) {
-      minute = 0;
-      hour = torusify(0, 24, hour + 1);
-    }
-  }
 }
 
 void setup() {
   size(size, size);
-  frameRate(fast_for_dbg ? 100 : 1);
+  frameRate(dbg_fast_clock ? 100 : 1);
   stroke(fg);
 }
