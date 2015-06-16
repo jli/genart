@@ -6,19 +6,25 @@
 // TODO: design: hour numbers inset at hour hand radius, minute/second numbers at second hand radius? or too much?
 
 /* consts */
-int size = 600;
-int clock_radius = 200;
+int size = 700;
+int clock_radius = int(size * .48);
 int clock_center = size/2;
+int text_size = 34;
 float hand_len_sec = clock_radius * 0.75;
 float hand_len_minute = clock_radius * 0.65;
 float hand_len_hour = clock_radius * 0.4;
-color fg = #dddddd;
-color bg = #222222;
 
-int clock_weight = 3;
+color fg = #cccccc;
+color bg = #111111;
+int text_alpha = 200;
+int hand_alpha_sec = 180;
+int hand_alpha_minute = 200;
+int hand_alpha_hour = 255;
+
+int clock_weight = 8;
 int hand_weight_sec = 2;
-int hand_weight_minute = 5;
-int hand_weight_hour = 8;
+int hand_weight_minute = 7;
+int hand_weight_hour = 12;
 boolean dbg = true;
 boolean dbg_fast_clock = false;
 
@@ -95,7 +101,7 @@ void draw() {
   background(bg);
   stroke(fg, 255);
 
-  //// clock circle and numbers
+  //// clock circle, numbers, hash marks
 
   // circle
   fill(bg);
@@ -103,7 +109,7 @@ void draw() {
   ellipse(clock_center, clock_center, clock_radius * 2, clock_radius * 2);
 
   // digital display
-  fill(fg);
+  fill(fg, text_alpha);
   // TODO: cleanup: positioning. constantify.
   // text(hour + ":" + minute + ":" + second + ":" + millis, 90, 15);
   text(hour + ":" + minute + ":" + second, 90, 15);
@@ -111,35 +117,38 @@ void draw() {
   // numbers
   for (int i = 0; i < num_hours; ++i) {
     float hour_num_proportion = float(i) / num_hours;
-    PVector position = clock_hand_position(hour_num_proportion, clock_radius*0.85);
+    // TODO: hacky. make it better?
+    float len = clock_radius * (i < 10 ? 0.85 : 0.83);
+    PVector position = clock_hand_position(hour_num_proportion, len);
     text(i, position.x, position.y);
   }
 
   // 5 min hash marks
+  stroke(fg);  // reset opacity
   PVector center = new PVector(clock_center, clock_center);
   for (int i = 0; i < 60; i += 5) {
-    strokeWeight((i % 15 == 0) ? 3 : 1);
+    strokeWeight((i % 15 == 0) ? 4 : 2);
     PVector edge_pos = clock_hand_position(float(i) / 60, clock_radius);
-    PVector inner_pos = PVector.lerp(edge_pos, center, 0.05);
+    PVector inner_pos = PVector.lerp(edge_pos, center, 0.08);
     line(inner_pos.x, inner_pos.y, edge_pos.x, edge_pos.y);
   }
   
 
   //// draw hands
-  stroke(fg, 100);
+  stroke(fg, hand_alpha_sec);
   strokeWeight(hand_weight_sec);
   float proportion_millis = (millis) / 1000.0;
   float proportion_sec = (second + proportion_millis) / 60.0;
   PVector hand_pos_sec = clock_hand_position(proportion_sec, hand_len_sec);
   line(clock_center, clock_center, hand_pos_sec.x, hand_pos_sec.y);
 
-  stroke(fg, 150);
+  stroke(fg, hand_alpha_minute);
   strokeWeight(hand_weight_minute);
   float proportion_minute = (minute + (proportional ? proportion_sec : 0)) / 60.0;
   PVector hand_pos_min = clock_hand_position(proportion_minute, hand_len_minute);
   line(clock_center, clock_center, hand_pos_min.x, hand_pos_min.y);
 
-  stroke(fg, 200);
+  stroke(fg, hand_alpha_hour);
   strokeWeight(hand_weight_hour);
   float proportion_hour = (hour + (proportional ? proportion_minute : 0)) / float(num_hours);
   PVector hand_pos_hour = clock_hand_position(proportion_hour, hand_len_hour);
@@ -150,6 +159,6 @@ void setup() {
   size(size, size);
   frameRate(dbg_fast_clock ? 100 : (milli_precision ? 30 : 1));
   // TODO: cleanup: constantify
-  textSize(20);
+  textSize(text_size);
   textAlign(CENTER, CENTER);
 }
