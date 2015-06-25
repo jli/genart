@@ -13,27 +13,43 @@ int clock_center_x_year = size_h/2;
 int clock_center_x = size_w - size_h/2;
 int clock_center_y = size_h / 2;
 int text_size = 15;
-float hand_len_sec = clock_radius * 0.75;
-float hand_len_minute = clock_radius * 0.65;
-float hand_len_hour = clock_radius * 0.4;
-float hand_len_day = clock_radius * 0.65;
-float hand_len_month = clock_radius * 0.4;
+float hand_len_sec = clock_radius * 0.8 *2;
+float hand_len_minute = clock_radius * 0.6 *2;
+float hand_len_hour = clock_radius * 0.35 *2;
+float hand_len_day = clock_radius * 0.7 *2;
+float hand_len_month = clock_radius * 0.45 *2;
 
 color fg = #cccccc;
 color bg = #111111;
 int text_alpha = 200;
+/*
 int hand_alpha_sec = 180;
 int hand_alpha_minute = 200;
 int hand_alpha_hour = 255;
 int hand_alpha_day = 200;
 int hand_alpha_month = 255;
+*/
+int hand_alpha_sec = 80;
+int hand_alpha_minute = 140;
+int hand_alpha_hour = 220;
+int hand_alpha_day = 150;
+int hand_alpha_month = 230;
+
 
 int clock_weight = 8;
+/*
 int hand_weight_sec = 2;
 int hand_weight_minute = 7;
 int hand_weight_hour = 12;
 int hand_weight_day = 15;
 int hand_weight_month = 20;
+*/
+int hand_weight_sec = 6;
+int hand_weight_minute = 6;
+int hand_weight_hour = 6;
+int hand_weight_day = 4;
+int hand_weight_month = 4;
+
 boolean dbg = true;
 boolean dbg_fast_clock = false;
 
@@ -41,7 +57,7 @@ boolean dbg_fast_clock = false;
 // TODO: better name
 boolean proportional = true;
 boolean are_there_24_hours_in_a_day = true;
-boolean milli_precision = false;
+boolean milli_precision = true;
 
 /* variable state */
 int millis = 0;
@@ -82,32 +98,57 @@ int days_in_month(int year, int month) {
   }
 }
 
-PVector clock_hand_position(float proportion, float hand_len, boolean year_clock) {
+String month_name(int month) {
+  switch(month) {
+    case 1: return "jan";
+    case 2: return "feb";
+    case 3: return "mar";
+    case 4: return "apr";
+    case 5: return "may";
+    case 6: return "jun";
+    case 7: return "jul";
+    case 8: return "aug";
+    case 9: return "sep";
+    case 10: return "oct";
+    case 11: return "nov";
+    case 12: return "dec";
+    default: return "WTF";
+  }
+}
+
+PVector clock_hand_position(float proportion) {
   // negation because clockwise rotation is opposite of math convention
   // +PI/2 because start angle is at top (0,1) not to the right (1,0).
   float angle_rad = -proportion * 2*PI + PI/2;
   // negation for y coordinate because graphics grid is upside down (?!)
-  int center_x = year_clock ? clock_center_x_year : clock_center_x;
-  return new PVector(center_x + hand_len * cos(angle_rad),
-                     clock_center_y - hand_len * sin(angle_rad));
+  return new PVector(cos(angle_rad), -sin(angle_rad));
 }
 
-/* LET'S GO! */
-void draw() {
-  if (dbg) println("-------DRAW!", hour, minute, second, millis);
+void draw_hand(float proportion, PVector center, color c, int alpha, int weight, float hand_len) {
+  stroke(c, alpha);
+  strokeWeight(2);
+  PVector hand_position = clock_hand_position(proportion);
+  /*
+  line(center.x, center.y,
+       center.x + hand_len * hand_position.x,
+       center.y + hand_len * hand_position.y);
+       */
+  fill(c, alpha);
+  arc(center.x, center.y, hand_len, hand_len, -HALF_PI, proportion * TWO_PI - HALF_PI, PIE);
+}
 
-  //// update time
+void advance_clock() {
   month = month();
   day = day();
 
   if (dbg_fast_clock) {
     second += 20;
-    if (60 == second) {
-      second = 0;
+    if (60 <= second) {
       minute += 1;
-      if (60 == minute) {
+      second = 0;
+      if (60 <= minute) {
         minute = 0;
-        hour = torusify(0, 24, hour + 1);
+        hour = torusify(0, 23, hour + 1);
       }
     }
   } else {
@@ -128,6 +169,14 @@ void draw() {
       }
     }
   }
+}
+
+/* LET'S GO! */
+void draw() {
+  //// update time
+  advance_clock();
+
+  if (dbg) println("-------DRAW!", hour, minute, second, millis);
 
   int num_hours = are_there_24_hours_in_a_day ? 24 : 12;
 
@@ -141,86 +190,80 @@ void draw() {
   text(month + "-" + day + " " + hour + ":" + minute + ":" + second, size_w/2, 15);
 
   //// year clock, numbers
+  PVector year_clock_center = new PVector(clock_center_x_year, clock_center_y);
   // circle
   fill(bg);
   strokeWeight(clock_weight);
-  ellipse(clock_center_x_year, clock_center_y, clock_radius * 2, clock_radius * 2);
+  ellipse(year_clock_center.x, year_clock_center.y, clock_radius * 2, clock_radius * 2);
 
-  // draw hands
-  stroke(fg, hand_alpha_day);
-  strokeWeight(hand_weight_day);
+  // hands
   float proportion_day = day * 1.0 / days_in_month(month, year());
-  PVector hand_pos_day = clock_hand_position(proportion_day, hand_len_day, true);
-  line(clock_center_x_year, clock_center_y, hand_pos_day.x, hand_pos_day.y);
+  draw_hand(proportion_day, year_clock_center, fg, hand_alpha_day, hand_weight_day, hand_len_day);
 
-  stroke(fg, hand_alpha_month);
-  strokeWeight(hand_weight_month);
   float proportion_month = (month-1 + (proportional ? proportion_day : 0)) / 12.0;
-  PVector hand_pos_month = clock_hand_position(proportion_month, hand_len_month, true);
-  line(clock_center_x_year, clock_center_y, hand_pos_month.x, hand_pos_month.y);
+  draw_hand(proportion_month, year_clock_center, fg, hand_alpha_month, hand_weight_month, hand_len_month);
 
-  // numbers
+  // months
   fill(fg, text_alpha);
   for (int i = 1; i <= 12; ++i) {
     // -1 so jan is "noon"
     float month_num_proportion = float(i - 1) / 12;
     // TODO: hacky. make it better?
     float len = clock_radius * (i < 10 ? 0.85 : 0.83);
-    PVector position = clock_hand_position(month_num_proportion, len, true);
-    text(i, position.x, position.y);
+    PVector position = clock_hand_position(month_num_proportion);
+    position.mult(len);
+    position.add(year_clock_center);
+    text(month_name(i), position.x, position.y);
   }
 
-  //// clock circle, numbers, hash marks
+  //// day clock circle, numbers, hash marks
+  PVector day_clock_center = new PVector(clock_center_x, clock_center_y);
   // circle
   fill(bg);
   strokeWeight(clock_weight);
-  ellipse(clock_center_x, clock_center_y, clock_radius * 2, clock_radius * 2);
+  ellipse(day_clock_center.x, day_clock_center.y, clock_radius * 2, clock_radius * 2);
 
-  // numbers
+  // hours
   fill(fg, text_alpha);
   for (int i = 0; i < num_hours; ++i) {
     float hour_num_proportion = float(i) / num_hours;
     // TODO: hacky. make it better?
-    float len = clock_radius * (i < 10 ? 0.85 : 0.83);
-    PVector position = clock_hand_position(hour_num_proportion, len, false);
+    float len = clock_radius * (i < 10 ? 0.92 : 0.90);
+    PVector position = clock_hand_position(hour_num_proportion);
+    position.mult(len);
+    position.add(day_clock_center);
     text(i, position.x, position.y);
   }
 
   // 5 min hash marks
+  /*
   stroke(fg);  // reset opacity
   PVector center = new PVector(clock_center_x, clock_center_y);
   for (int i = 0; i < 60; i += 5) {
     strokeWeight((i % 15 == 0) ? 4 : 2);
-    PVector edge_pos = clock_hand_position(float(i) / 60, clock_radius, false);
+    PVector edge_pos = clock_hand_position(float(i) / 60);
+    edge_pos.mult(clock_radius);
+    edge_pos.add(day_clock_center);
     PVector inner_pos = PVector.lerp(edge_pos, center, 0.08);
     line(inner_pos.x, inner_pos.y, edge_pos.x, edge_pos.y);
   }
-  
+  */
 
-  //// draw hands
-  stroke(fg, hand_alpha_sec);
-  strokeWeight(hand_weight_sec);
+  // hands
   float proportion_millis = (millis) / 1000.0;
   float proportion_sec = (second + proportion_millis) / 60.0;
-  PVector hand_pos_sec = clock_hand_position(proportion_sec, hand_len_sec, false);
-  line(clock_center_x, clock_center_y, hand_pos_sec.x, hand_pos_sec.y);
+  draw_hand(proportion_sec, day_clock_center, fg, hand_alpha_sec, hand_weight_sec, hand_len_sec);
 
-  stroke(fg, hand_alpha_minute);
-  strokeWeight(hand_weight_minute);
   float proportion_minute = (minute + (proportional ? proportion_sec : 0)) / 60.0;
-  PVector hand_pos_min = clock_hand_position(proportion_minute, hand_len_minute, false);
-  line(clock_center_x, clock_center_y, hand_pos_min.x, hand_pos_min.y);
+  draw_hand(proportion_minute, day_clock_center, fg, hand_alpha_minute, hand_weight_minute, hand_len_minute);
 
-  stroke(fg, hand_alpha_hour);
-  strokeWeight(hand_weight_hour);
   float proportion_hour = (hour + (proportional ? proportion_minute : 0)) / float(num_hours);
-  PVector hand_pos_hour = clock_hand_position(proportion_hour, hand_len_hour, false);
-  line(clock_center_x, clock_center_y, hand_pos_hour.x, hand_pos_hour.y);
+  draw_hand(proportion_hour, day_clock_center, fg, hand_alpha_hour, hand_weight_hour, hand_len_hour);  
 }
 
 void setup() {
   size(size_w, size_h);
-  frameRate(dbg_fast_clock ? 100 : (milli_precision ? 30 : 1));
+  frameRate(dbg_fast_clock ? 100 : (milli_precision ? 15 : 1));
   // TODO: cleanup: constantify
   textSize(text_size);
   textAlign(CENTER, CENTER);
