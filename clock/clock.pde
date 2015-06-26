@@ -12,12 +12,12 @@ int clock_radius = int(size_h * .48);
 int clock_center_x_year = size_h/2;
 int clock_center_x = size_w - size_h/2;
 int clock_center_y = size_h / 2;
-int text_size = 15;
+int text_size = 12;
 float hand_len_sec = clock_radius * 0.8 *2;
-float hand_len_minute = clock_radius * 0.6 *2;
-float hand_len_hour = clock_radius * 0.35 *2;
+float hand_len_minute = clock_radius * 0.55 *2;
+float hand_len_hour = clock_radius * 0.3 *2;
 float hand_len_day = clock_radius * 0.7 *2;
-float hand_len_month = clock_radius * 0.45 *2;
+float hand_len_month = clock_radius * 0.4 *2;
 
 color fg = #cccccc;
 color bg = #111111;
@@ -32,11 +32,11 @@ int hand_alpha_month = 255;
 int hand_alpha_sec = 80;
 int hand_alpha_minute = 140;
 int hand_alpha_hour = 220;
-int hand_alpha_day = 150;
-int hand_alpha_month = 230;
+int hand_alpha_day = 100;
+int hand_alpha_month = 180;
 
 
-int clock_weight = 8;
+int clock_weight = 1;
 /*
 int hand_weight_sec = 2;
 int hand_weight_minute = 7;
@@ -60,13 +60,14 @@ boolean are_there_24_hours_in_a_day = true;
 boolean milli_precision = true;
 
 /* variable state */
-int millis = 0;
-int global_millis_prev_sec = millis(); // need this to calculate millis
-int second = second();
-int minute = minute();
-int hour = hour();
-int day = day();
-int month = month();
+int gMilli = millis();
+int gMilli_prev_sec = millis(); // needed to calculate gMilli
+int gSecond = second();
+int gMinute = minute();
+int gHour = hour();
+int gDay = day();
+int gMonth = month();
+
 
 /* helpers */
 int bound(int lower, int upper, int v) {
@@ -134,38 +135,39 @@ void draw_hand(float proportion, PVector center, color c, int alpha, int weight,
        center.y + hand_len * hand_position.y);
        */
   fill(c, alpha);
-  arc(center.x, center.y, hand_len, hand_len, -HALF_PI, proportion * TWO_PI - HALF_PI, PIE);
+//  arc(center.x, center.y, hand_len, hand_len, -HALF_PI, proportion * TWO_PI - HALF_PI, PIE);
+  arc(center.x, center.y, hand_len, hand_len, -HALF_PI, proportion * TWO_PI - HALF_PI);
 }
 
 void advance_clock() {
-  month = month();
-  day = day();
+  gMonth = month();
+  gDay = day();
 
   if (dbg_fast_clock) {
-    second += 20;
-    if (60 <= second) {
-      minute += 1;
-      second = 0;
-      if (60 <= minute) {
-        minute = 0;
-        hour = torusify(0, 23, hour + 1);
+    gSecond += 20;
+    if (60 <= gSecond) {
+      gMinute += 1;
+      gSecond = 0;
+      if (60 <= gMinute) {
+        gMinute = 0;
+        gHour = torusify(0, 23, gHour + 1);
       }
     }
   } else {
-    hour = hour();
-    minute = minute();
+    gHour = hour();
+    gMinute = minute();
     
     if (!milli_precision) {
-      second = second();
+      gSecond = second();
     } else {
       int second2 = second();
-      if (second2 != second) {
-        second = second2;
+      if (second2 != gSecond) {
+        gSecond = second2;
         // new second, so reset millis.
-        millis = 0;
-        global_millis_prev_sec = millis();
+        gMilli = 0;
+        gMilli_prev_sec = millis();
       } else {
-        millis = millis() - global_millis_prev_sec;
+        gMilli = millis() - gMilli_prev_sec;
       }
     }
   }
@@ -176,7 +178,7 @@ void draw() {
   //// update time
   advance_clock();
 
-  if (dbg) println("-------DRAW!", hour, minute, second, millis);
+  if (dbg) println("-------DRAW!", gHour, gMinute, gSecond, gMilli);
 
   int num_hours = are_there_24_hours_in_a_day ? 24 : 12;
 
@@ -187,7 +189,8 @@ void draw() {
   fill(fg, text_alpha);
   // TODO: cleanup: positioning. constantify.
   // text(hour + ":" + minute + ":" + second + ":" + millis, 90, 15);
-  text(month + "-" + day + " " + hour + ":" + minute + ":" + second, size_w/2, 15);
+  //text(gMonth + "-" + gDay + " " + gHour + ":" + gMinute + ":" + gSecond, size_w/2, 15);
+  text(nf(gMonth,2) + "-" + nf(gDay,2) + " " + nf(gHour,2) + ":" + nf(gMinute,2) + ":" + nf(gSecond,2), size_w/2, 15);
 
   //// year clock, numbers
   PVector year_clock_center = new PVector(clock_center_x_year, clock_center_y);
@@ -197,10 +200,10 @@ void draw() {
   ellipse(year_clock_center.x, year_clock_center.y, clock_radius * 2, clock_radius * 2);
 
   // hands
-  float proportion_day = day * 1.0 / days_in_month(month, year());
+  float proportion_day = gDay * 1.0 / days_in_month(gMonth, year());
   draw_hand(proportion_day, year_clock_center, fg, hand_alpha_day, hand_weight_day, hand_len_day);
 
-  float proportion_month = (month-1 + (proportional ? proportion_day : 0)) / 12.0;
+  float proportion_month = (gMonth-1 + (proportional ? proportion_day : 0)) / 12.0;
   draw_hand(proportion_month, year_clock_center, fg, hand_alpha_month, hand_weight_month, hand_len_month);
 
   // months
@@ -209,7 +212,7 @@ void draw() {
     // -1 so jan is "noon"
     float month_num_proportion = float(i - 1) / 12;
     // TODO: hacky. make it better?
-    float len = clock_radius * (i < 10 ? 0.85 : 0.83);
+    float len = clock_radius * 0.88;
     PVector position = clock_hand_position(month_num_proportion);
     position.mult(len);
     position.add(year_clock_center);
@@ -250,19 +253,20 @@ void draw() {
   */
 
   // hands
-  float proportion_millis = (millis) / 1000.0;
-  float proportion_sec = (second + proportion_millis) / 60.0;
+  float proportion_millis = gMilli / 1000.0;
+  float proportion_sec = (gSecond + proportion_millis) / 60.0;
   draw_hand(proportion_sec, day_clock_center, fg, hand_alpha_sec, hand_weight_sec, hand_len_sec);
 
-  float proportion_minute = (minute + (proportional ? proportion_sec : 0)) / 60.0;
+  float proportion_minute = (gMinute + (proportional ? proportion_sec : 0)) / 60.0;
   draw_hand(proportion_minute, day_clock_center, fg, hand_alpha_minute, hand_weight_minute, hand_len_minute);
 
-  float proportion_hour = (hour + (proportional ? proportion_minute : 0)) / float(num_hours);
+  float proportion_hour = (gHour + (proportional ? proportion_minute : 0)) / float(num_hours);
   draw_hand(proportion_hour, day_clock_center, fg, hand_alpha_hour, hand_weight_hour, hand_len_hour);  
 }
 
 void setup() {
-  size(size_w, size_h);
+  //size(size_w, size_h);
+  size(1000, 500);
   frameRate(dbg_fast_clock ? 100 : (milli_precision ? 15 : 1));
   // TODO: cleanup: constantify
   textSize(text_size);
