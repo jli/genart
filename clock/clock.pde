@@ -1,9 +1,13 @@
 // TODO: cleanup digital display, make an option
 // TODO: option: draw numbers around face
+// TODO: think about how to make elements more customizable for easy live tweaking.. d3.js instead?
 
-// TODO: design: solid arcs tracing from 0 to current clock hands. different colors.
-// TODO: design: coloring denoting sunrise/set times on clockface
-// TODO: design: hour numbers inset at hour hand radius, minute/second numbers at second hand radius? or too much?
+// design stuff
+// TODO: solid arcs tracing from 0 to current clock hands. different colors.
+// TODO: coloring denoting sunrise/set times on clockface
+// TODO: hour numbers inset at hour hand radius, minute/second numbers at second hand radius? or too much?
+// TODO: full opacity for arcs. no monochrome.
+
 
 /* consts */
 int size_w = 1000;
@@ -13,11 +17,13 @@ int clock_center_x_year = size_h/2;
 int clock_center_x = size_w - size_h/2;
 int clock_center_y = size_h / 2;
 int text_size = 12;
-float hand_len_sec = clock_radius * 0.8 *2;
-float hand_len_minute = clock_radius * 0.55 *2;
-float hand_len_hour = clock_radius * 0.3 *2;
-float hand_len_day = clock_radius * 0.7 *2;
-float hand_len_month = clock_radius * 0.4 *2;
+float hand_len_sec = clock_radius * 0.85 *2;
+float hand_len_minute = clock_radius * 0.65 *2;
+float hand_len_hour = clock_radius * 0.4 *2;
+float hand_len_day = clock_radius * 0.8 *2;
+float hand_len_month = clock_radius * 0.5 *2;
+
+boolean show_clock_circle = false;
 
 color fg = #cccccc;
 color bg = #111111;
@@ -36,7 +42,7 @@ int hand_alpha_day = 100;
 int hand_alpha_month = 180;
 
 
-int clock_weight = 1;
+int clock_weight = 2;
 /*
 int hand_weight_sec = 2;
 int hand_weight_minute = 7;
@@ -196,8 +202,10 @@ void draw() {
   PVector year_clock_center = new PVector(clock_center_x_year, clock_center_y);
   // circle
   fill(bg);
-  strokeWeight(clock_weight);
-  ellipse(year_clock_center.x, year_clock_center.y, clock_radius * 2, clock_radius * 2);
+  if (show_clock_circle) {
+    strokeWeight(clock_weight);
+    ellipse(year_clock_center.x, year_clock_center.y, clock_radius * 2, clock_radius * 2);
+  }
 
   // hands
   float proportion_day = gDay * 1.0 / days_in_month(gMonth, year());
@@ -212,7 +220,7 @@ void draw() {
     // -1 so jan is "noon"
     float month_num_proportion = float(i - 1) / 12;
     // TODO: hacky. make it better?
-    float len = clock_radius * 0.88;
+    float len = clock_radius * 0.93;
     PVector position = clock_hand_position(month_num_proportion);
     position.mult(len);
     position.add(year_clock_center);
@@ -223,15 +231,17 @@ void draw() {
   PVector day_clock_center = new PVector(clock_center_x, clock_center_y);
   // circle
   fill(bg);
-  strokeWeight(clock_weight);
-  ellipse(day_clock_center.x, day_clock_center.y, clock_radius * 2, clock_radius * 2);
+  if (show_clock_circle) {
+    strokeWeight(clock_weight);
+    ellipse(day_clock_center.x, day_clock_center.y, clock_radius * 2, clock_radius * 2);
+  }
 
   // hours
   fill(fg, text_alpha);
   for (int i = 0; i < num_hours; ++i) {
     float hour_num_proportion = float(i) / num_hours;
     // TODO: hacky. make it better?
-    float len = clock_radius * (i < 10 ? 0.92 : 0.90);
+    float len = clock_radius * (i < 10 ? 0.96 : 0.95);
     PVector position = clock_hand_position(hour_num_proportion);
     position.mult(len);
     position.add(day_clock_center);
