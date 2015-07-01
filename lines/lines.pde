@@ -12,8 +12,9 @@
 // - add state. have a vector[n] of lines+opacity, and fade over time.
 
 /* consts */
-int size = 600;
-int stride = size/10;
+// NOTE: change the size() call manually. processing.js :(
+int ksize = 600;
+int stride = ksize/10;
 int stride_half = stride/2;
 float delta_mag_sq_max = sq(stride/2);  // max for origin_delta magnitude
 color bg = #111111;
@@ -62,8 +63,8 @@ void draw() {
   }
 
   // origins[0] still holds latest value. just update that..
-  origins[0].set(torusify(0, size, round(origins[0].x + origin_delta.x)),
-                 torusify(0, size, round(origins[0].y + origin_delta.y)));
+  origins[0].set(torusify(0, ksize, round(origins[0].x + origin_delta.x)),
+                 torusify(0, ksize, round(origins[0].y + origin_delta.y)));
 
   for (int n = 0; n < n_generations; ++n) {
     if (dbg) print("gen #" + n + "; origin: ");
@@ -75,8 +76,8 @@ void draw() {
     // linearly decay opacity
     // TODO: constant-ify?
     stroke(120, 150, 250, 30/(n+1));
-    for (int x = 0; x < size; x += stride) {
-      for (int y = 0; y < size; y += stride) {
+    for (int x = 0; x < ksize; x += stride) {
+      for (int y = 0; y < ksize; y += stride) {
         // TODO: kind of interesting, but a bit weird. think need more
         // state, so points that are off stay off, and fade in/out.
         // hmmm. if (random(0,1) < 0.1)
@@ -87,13 +88,14 @@ void draw() {
 }
 
 void setup() {
-  size(size, size);
+  //size(ksize, ksize);
+  size(600, 600);
   // TODO: constant-ify?
   frameRate(10);
   // TODO: constant-ify?
   strokeWeight(10);
 
   // setup initial origin.
-  origins[0] = new PVector(round(random(stride_half, stride_half + size)),
-                           round(random(stride_half, stride_half + size)));
+  origins[0] = new PVector(round(random(stride_half, stride_half + ksize)),
+                           round(random(stride_half, stride_half + ksize)));
 }

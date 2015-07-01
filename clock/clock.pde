@@ -3,13 +3,13 @@
 // TODO: think about how to make elements more customizable for easy live tweaking.. d3.js instead?
 
 // design stuff
-// TODO: solid arcs tracing from 0 to current clock hands. different colors.
 // TODO: coloring denoting sunrise/set times on clockface
 // TODO: hour numbers inset at hour hand radius, minute/second numbers at second hand radius? or too much?
 // TODO: full opacity for arcs. no monochrome.
 
 
 /* consts */
+// NOTE: change the size() call manually. processing.js :(
 int size_w = 1000;
 int size_h = 500;
 int clock_radius = int(size_h * .48);
