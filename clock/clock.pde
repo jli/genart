@@ -28,18 +28,11 @@ boolean show_clock_circle = false;
 color fg = #cccccc;
 color bg = #111111;
 int text_alpha = 200;
-/*
-int hand_alpha_sec = 180;
-int hand_alpha_minute = 200;
-int hand_alpha_hour = 255;
-int hand_alpha_day = 200;
-int hand_alpha_month = 255;
-*/
-int hand_alpha_sec = 80;
-int hand_alpha_minute = 140;
-int hand_alpha_hour = 220;
-int hand_alpha_day = 100;
-int hand_alpha_month = 180;
+color hand_color_sec = #333333;
+color hand_color_minute = #555555;
+color hand_color_hour = #aaaaaa;
+color hand_color_day = #777777;
+color hand_color_month = #bbbbbb;
 
 
 int clock_weight = 2;
@@ -56,14 +49,14 @@ int hand_weight_hour = 6;
 int hand_weight_day = 4;
 int hand_weight_month = 4;
 
-boolean dbg = true;
+boolean dbg = false;
 boolean dbg_fast_clock = false;
 
 /* options */
 // TODO: better name
 boolean proportional = true;
 boolean are_there_24_hours_in_a_day = true;
-boolean milli_precision = true;
+boolean milli_precision = false;
 
 /* variable state */
 int gMilli = millis();
@@ -131,8 +124,8 @@ PVector clock_hand_position(float proportion) {
   return new PVector(cos(angle_rad), -sin(angle_rad));
 }
 
-void draw_hand(float proportion, PVector center, color c, int alpha, int weight, float hand_len) {
-  stroke(c, alpha);
+void draw_hand(float proportion, PVector center, color c, int weight, float hand_len) {
+  stroke(c);
   strokeWeight(2);
   PVector hand_position = clock_hand_position(proportion);
   /*
@@ -140,7 +133,7 @@ void draw_hand(float proportion, PVector center, color c, int alpha, int weight,
        center.x + hand_len * hand_position.x,
        center.y + hand_len * hand_position.y);
        */
-  fill(c, alpha);
+  fill(c);
 //  arc(center.x, center.y, hand_len, hand_len, -HALF_PI, proportion * TWO_PI - HALF_PI, PIE);
   arc(center.x, center.y, hand_len, hand_len, -HALF_PI, proportion * TWO_PI - HALF_PI);
 }
@@ -162,7 +155,7 @@ void advance_clock() {
   } else {
     gHour = hour();
     gMinute = minute();
-    
+
     if (!milli_precision) {
       gSecond = second();
     } else {
@@ -209,10 +202,9 @@ void draw() {
 
   // hands
   float proportion_day = gDay * 1.0 / days_in_month(gMonth, year());
-  draw_hand(proportion_day, year_clock_center, fg, hand_alpha_day, hand_weight_day, hand_len_day);
-
   float proportion_month = (gMonth-1 + (proportional ? proportion_day : 0)) / 12.0;
-  draw_hand(proportion_month, year_clock_center, fg, hand_alpha_month, hand_weight_month, hand_len_month);
+  draw_hand(proportion_day, year_clock_center, hand_color_day, hand_weight_day, hand_len_day);
+  draw_hand(proportion_month, year_clock_center, hand_color_month, hand_weight_month, hand_len_month);
 
   // months
   fill(fg, text_alpha);
@@ -265,20 +257,17 @@ void draw() {
   // hands
   float proportion_millis = gMilli / 1000.0;
   float proportion_sec = (gSecond + proportion_millis) / 60.0;
-  draw_hand(proportion_sec, day_clock_center, fg, hand_alpha_sec, hand_weight_sec, hand_len_sec);
-
   float proportion_minute = (gMinute + (proportional ? proportion_sec : 0)) / 60.0;
-  draw_hand(proportion_minute, day_clock_center, fg, hand_alpha_minute, hand_weight_minute, hand_len_minute);
-
   float proportion_hour = (gHour + (proportional ? proportion_minute : 0)) / float(num_hours);
-  draw_hand(proportion_hour, day_clock_center, fg, hand_alpha_hour, hand_weight_hour, hand_len_hour);  
+  draw_hand(proportion_sec, day_clock_center, hand_color_sec, hand_weight_sec, hand_len_sec);
+  draw_hand(proportion_minute, day_clock_center, hand_color_minute, hand_weight_minute, hand_len_minute);
+  draw_hand(proportion_hour, day_clock_center, hand_color_hour, hand_weight_hour, hand_len_hour);
 }
 
 void setup() {
   //size(size_w, size_h);
   size(1000, 500);
   frameRate(dbg_fast_clock ? 100 : (milli_precision ? 15 : 1));
-  // TODO: cleanup: constantify
   textSize(text_size);
   textAlign(CENTER, CENTER);
 }
