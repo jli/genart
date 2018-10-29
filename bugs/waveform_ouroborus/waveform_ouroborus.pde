@@ -3,7 +3,8 @@ int h = 500;
 color bg = color(#CCCCCC);
 
 void setup() {
-  size(w, h);
+  size(100, 100);
+  surface.setSize(w, h);
   frameRate(30);
 }
 

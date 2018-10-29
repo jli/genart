@@ -93,12 +93,14 @@ void setup_sizes(int new_w, int new_h) {
 }
 
 void setup() {
+  size(100, 100);
+  surface.setResizable(true);
   setup_sizes(fullscreen ? displayWidth : default_w,
               fullscreen ? displayHeight : default_h);
   int nnodes = (w+h)/25;
+  surface.setSize(w, h);
   random_init(nnodes);
 
-  size(w,h);
   if (!fullscreen) frame.setResizable(true);
   frameRate(20);
 

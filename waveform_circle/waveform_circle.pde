@@ -11,8 +11,8 @@ String file = null;
 
 boolean fullscreen = false;
 int spectro_size = 10;
-int w = 800; // rounded down to multiple of spectro_size
-int h = 600;
+int w = 1400; // rounded down to multiple of spectro_size
+int h = 1000;
 float radius_base;
 float wave_max;
 float radius_max;
@@ -39,8 +39,11 @@ void setup() {
   // m := r/2
   // 2r < small-dim
   // 6r < big-dim
+  size(100, 100);
+  surface.setResizable(true);
   w = round_down(fullscreen ? displayWidth : w, spectro_size);
   h = round_down(fullscreen ? displayHeight : h, spectro_size);
+  surface.setSize(w, h);
   wn = w/spectro_size;
   hn = h/spectro_size;
   spectro = new float[wn][hn];
@@ -48,8 +51,7 @@ void setup() {
   wave_max = radius_base/1.2;
   radius_max = radius_base + wave_max;
 
-  //frameRate(30);
-  size(w, h);
+  frameRate(100);
 
   minim = new Minim(this);
   if (file == null) {
@@ -106,7 +108,8 @@ void draw() {
   for (int ix = 0; ix < wn; ++ix) {
     for (int iy = 0; iy < hn; ++iy) {
       float spectro_val = spectro[ix][iy];
-      float alpha = map(min(spectro_val, 50), 0, 50, 0, 230);
+      // TODO: scaling
+      float alpha = map(min(spectro_val, 50), 0, 10, 0, 255);
       spectro_stroke(alpha);
       point(ix * spectro_size + center_adj, h - iy * spectro_size - center_adj);
       spectro[ix][iy] *= spectro_fade; // fade out
@@ -120,8 +123,9 @@ void draw() {
   theta_frac = TWO_PI / fft_spec_size;
   for (int i = 0; i < fft_spec_size; ++i) {
     stroke(blue);
-    p1 = ouro_point(fft.getBand(i), theta_frac * i, 0.7);
-    p2 = ouro_point(fft.getBand(i+1), theta_frac * (i+1), 0.7);
+    // TODO: scaling
+    p1 = ouro_point(fft.getBand(i), theta_frac * i, 10);
+    p2 = ouro_point(fft.getBand(i+1), theta_frac * (i+1), 10);
     line(w/2 - radius_max + p1.x, h/2 - p1.y,
          w/2 - radius_max + p2.x, h/2 - p2.y);
   }
@@ -130,8 +134,9 @@ void draw() {
   theta_frac = TWO_PI / buf_size;
   for (int i = 0; i < buf_size - 1; ++i) {
     stroke(red);
-    p1 = ouro_point(source.left.get(i), theta_frac * i, wave_max);
-    p2 = ouro_point(source.left.get(i+1), theta_frac * (i+1), wave_max);
+    // TODO: scaling
+    p1 = ouro_point(source.left.get(i), theta_frac * i, wave_max * 5);
+    p2 = ouro_point(source.left.get(i+1), theta_frac * (i+1), wave_max * 5);
     line(w/2 + radius_max + p1.x, h/2 - p1.y,
          w/2 + radius_max + p2.x, h/2 - p2.y);
   }
