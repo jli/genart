@@ -3,8 +3,8 @@
 // FIXME pjs: displayWidth and displayHeight undefined
 boolean fullscreen = false;
 boolean ghostride = true;
-int w = 800; // pixel bounds. overwritten if fullscreen
-int h = 600;
+int w = 1600; // pixel bounds. overwritten if fullscreen
+int h = 1000;
 int gap = 30; // must evenly divide w and h
 int wn; // index bounds
 int hn;
@@ -66,8 +66,11 @@ void redo() {
 }
 
 void setup() {
+  size(100, 100);
+  surface.setResizable(true);
   w = round_down(fullscreen ? displayWidth : w, gap);
   h = round_down(fullscreen ? displayHeight : h, gap);
+  surface.setSize(w, h);
   wn = w/gap;
   hn = h/gap;
   vs = new PVector[wn][hn];
@@ -75,7 +78,6 @@ void setup() {
   max_tracers = wn*hn / 4;
   tracer_pos = new PVector[max_tracers];
   tracer_vel = new PVector[max_tracers];
-  size(w, h);
   frameRate(30);
   redo();
 }
