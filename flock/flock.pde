@@ -1,24 +1,20 @@
 // TODOs:
 // - gets weird at edges. consider bounding at edges, or making distance
 //   computation work across edges.
-// - better neighbor finding.
-// - lerp isn't right.
+// - indication of velocity. triangles instead of circles?
+// - indication when nodes lerp velocities
 
-// Set either full or W and H.
+import java.util.Map;
+
+// Set either full or W&H.
 boolean full = false;
 int W = 800;
 int H = 600;
 boolean debug_neighbors = false;
 boolean debug_distance = false;
 
-float SIZE_MANDARIN = 25;
-float SIZE_MALLARD = 12;
-
-color bluish = color(120, 50, 210);
-color reddish = color(200, 40, 150);
-
-int num_mands = 8;
-int num_mals = 0;
+int num_mands = 20;
+int num_mals = 40;
 
 Duck[] mandarins = new Duck[num_mands];
 Duck[] tmp_mandarins = new Duck[num_mands];
@@ -31,29 +27,31 @@ PVector rand_position() {
 }
 
 float wrap(float x, float upper) {
-  if (x > upper) {
-    return x - upper;
-  } else if (x < 0) {
-    return upper - x;
-  } else {
-    return x;
-  }
+  if (x > upper) { return x - upper; }
+  if (x < 0) { return upper - x; }
+  return x;
 }
 
-// away should be normalized.
+// 'away' should be normalized.
 void draw_triangle(PVector tip, PVector away) {
   PVector base = PVector.add(tip, PVector.mult(away, 5));
   PVector base1 = PVector.add(base, away.copy().mult(3).rotate(90));
   PVector base2 = PVector.add(base, away.copy().mult(3).rotate(-90));
-  triangle(
-    tip.x, tip.y,
-    base1.x, base1.y,
-    base2.x, base2.y);
+  triangle(tip.x, tip.y, base1.x, base1.y, base2.x, base2.y);
 }
 
 class Duck {
-  float SPACE_CLOSE_MULT = 0.8;
-  float SPACE_FAR_MULT = 1.5;
+  int N_NEIGHBORS = 7;
+  color reddish = color(200, 40, 150);
+  color bluish = color(120, 50, 210);
+  // Multipliers for space_need
+  // - SPACE_CLOSE_MULT: push away when another duck within this distance
+  // - SPACE_FAR_MULT: attract when another duck outside this distance
+  // - SPACE_TOO_FAR_MULT: ignore ducks outside this distance
+  float SPACE_CLOSE_MULT = 0.75;
+  float SPACE_FAR_MULT = 1.7;
+  float SPACE_TOO_FAR_MULT = 3;
+
   int id;
   PVector pos;
   PVector vel;
@@ -65,12 +63,12 @@ class Duck {
   Duck(PVector p, PVector v, String t, int i) {
     if (t == "mandarin") {
       c = reddish;
-      space_need = 100;
-      size = SIZE_MANDARIN;
+      space_need = 50;
+      size = 22;
     } else if (t == "mallard") {
       c = bluish;
-      space_need = 25;
-      size = SIZE_MALLARD;
+      space_need = 30;
+      size = 14;
     } else {
       throw new RuntimeException("unrecognized type:" + t);
     }
@@ -87,32 +85,34 @@ class Duck {
     fill(c);
     ellipse(pos.x, pos.y, size, size);
     if (debug_distance) {
-      float close_size = space_need * SPACE_CLOSE_MULT;
-      float far_size = space_need * SPACE_FAR_MULT;
+      float close_diam = 2 * space_need * SPACE_CLOSE_MULT;
+      float far_diam = 2 * space_need * SPACE_FAR_MULT;
+      float too_far_diam = 2 * space_need * SPACE_TOO_FAR_MULT;
       stroke(100, 80);
-      fill(100,25,25,10);
-      ellipse(pos.x, pos.y, close_size, close_size);
-      fill(25,100,25,30);
-      ellipse(pos.x, pos.y, space_need, space_need);
-      fill(25,25,100,10);
-      ellipse(pos.x, pos.y, far_size, far_size);
+      fill(100,25,25,10); ellipse(pos.x, pos.y, close_diam, close_diam);
+      fill(25,100,25,10); ellipse(pos.x, pos.y, far_diam, far_diam);
+      fill(25,25,100,10); ellipse(pos.x, pos.y, too_far_diam, too_far_diam);
     }
   }
 
   void update(Duck[] all) {
-    ArrayList<Duck> near_neighbors = new ArrayList<Duck>();
-    // Get 2 close neighbors. TODO: get the *closest* ones, duh.
+    // Map from distances to neighbors.
+    HashMap<Float, Duck> dist_duck = new HashMap<Float, Duck>();
     for (Duck other : all) {
       if (other.id == id) { continue; }
       float d = pos.dist(other.pos);
-      if (d < space_need * 2) {
-        near_neighbors.add(other);
-        if (near_neighbors.size() == 4) {
-          break;
-        }
+      if (d < space_need * SPACE_TOO_FAR_MULT) {
+        dist_duck.put(d, other);
       }
     }
-    for (Duck other : near_neighbors) {
+    // Sort.
+    float[] dists = {};
+    for (float k : dist_duck.keySet()) { dists = append(dists, k); }
+    dists = sort(dists);
+    // For n neighbors, flock together.
+    for (int i = 0; i < min(N_NEIGHBORS, dists.length); ++i) {
+      float dist = dists[i];
+      Duck other = dist_duck.get(dist);
       PVector away = PVector.sub(pos, other.pos).normalize();
       if (debug_neighbors) {
         stroke(100, 100);
@@ -121,27 +121,29 @@ class Duck {
         PVector tri_tip = PVector.add(other.pos, PVector.mult(away, size/2));
         draw_triangle(tri_tip, away);
       }
-      float d = pos.dist(other.pos);
-      if (d < space_need * SPACE_CLOSE_MULT) {
+      if (dist < space_need * SPACE_CLOSE_MULT) {
         pos.add(away.mult(0.5));
-      } else if (pos.dist(other.pos) > space_need * SPACE_FAR_MULT) {
+      } else if (dist > space_need * SPACE_FAR_MULT) {
         pos.lerp(other.pos, 0.005);
       }
       // Occasionally make velocity more similar to other.
-      if (random(1) < 0.3) {
-        vel.lerp(other.vel, 0.01);
+      if (random(1) < 0.05) {
+        vel.lerp(other.vel, 0.05);
+        // fill(c, 140); ellipse(pos.x, pos.y, size * 1.2, size * 1.2);
       }
     }
     // Very occasionally add random smallish component to velocity.
-    if (random(1) < 0.001) {
+    if (random(1) < 0.005) {
       println(typ + " " + str(id) + " nudging velocity");
       vel.add(PVector.mult(PVector.random2D(), 0.7));
+      fill(c, 140); ellipse(pos.x, pos.y, size * 1.3, size * 1.3);
     }
     // Even more occasionally make random largish change to velocity.
-    // if (random(1) < 0.0002) {
-    //   println(typ + " " + str(id) + " bumping velocity");
-    //   vel.add(PVector.mult(PVector.random2D(), 1.5));
-    // }
+    if (random(1) < 0.0005) {
+      println(typ + " " + str(id) + " bumping velocity");
+      vel.add(PVector.mult(PVector.random2D(), 2.5));
+      fill(c, 140); ellipse(pos.x, pos.y, size * 2, size * 2);
+    }
     pos.add(vel);
     pos.x = wrap(pos.x, width);
     pos.y = wrap(pos.y, height);
