@@ -17,8 +17,8 @@ float SIZE_MALLARD = 12;
 color bluish = color(120, 50, 210);
 color reddish = color(200, 40, 150);
 
-int num_mands = 6;
-int num_mals = 10;
+int num_mands = 8;
+int num_mals = 0;
 
 Duck[] mandarins = new Duck[num_mands];
 Duck[] tmp_mandarins = new Duck[num_mands];
@@ -38,6 +38,17 @@ float wrap(float x, float upper) {
   } else {
     return x;
   }
+}
+
+// away should be normalized.
+void draw_triangle(PVector tip, PVector away) {
+  PVector base = PVector.add(tip, PVector.mult(away, 5));
+  PVector base1 = PVector.add(base, away.copy().mult(3).rotate(90));
+  PVector base2 = PVector.add(base, away.copy().mult(3).rotate(-90));
+  triangle(
+    tip.x, tip.y,
+    base1.x, base1.y,
+    base2.x, base2.y);
 }
 
 class Duck {
@@ -91,12 +102,8 @@ class Duck {
   void update(Duck[] all) {
     ArrayList<Duck> near_neighbors = new ArrayList<Duck>();
     // Get 2 close neighbors. TODO: get the *closest* ones, duh.
-
-    for (int i = 0; i < all.length; ++i) {
-      if (i == id) {
-        continue;
-      }
-      Duck other = all[i];
+    for (Duck other : all) {
+      if (other.id == id) { continue; }
       float d = pos.dist(other.pos);
       if (d < space_need * 2) {
         near_neighbors.add(other);
@@ -106,11 +113,14 @@ class Duck {
       }
     }
     for (Duck other : near_neighbors) {
+      PVector away = PVector.sub(pos, other.pos).normalize();
       if (debug_neighbors) {
         stroke(100, 100);
-        line(other.pos.x, other.pos.y, pos.x, pos.y);
+        fill(250, 200);
+        line(pos.x, pos.y, other.pos.x, other.pos.y);
+        PVector tri_tip = PVector.add(other.pos, PVector.mult(away, size/2));
+        draw_triangle(tri_tip, away);
       }
-      PVector away = PVector.sub(pos, other.pos).normalize();
       float d = pos.dist(other.pos);
       if (d < space_need * SPACE_CLOSE_MULT) {
         pos.add(away.mult(0.5));
