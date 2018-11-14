@@ -43,6 +43,7 @@ float wrap(float x, float upper) {
 class Duck {
   float SPACE_CLOSE_MULT = 0.8;
   float SPACE_FAR_MULT = 1.5;
+  int id;
   PVector pos;
   PVector vel;
   String typ;
@@ -50,7 +51,7 @@ class Duck {
   color c;
   float size;
 
-  Duck(PVector p, PVector v, String t) {
+  Duck(PVector p, PVector v, String t, int i) {
     if (t == "mandarin") {
       c = reddish;
       space_need = 100;
@@ -65,9 +66,10 @@ class Duck {
     typ = t;
     pos = p;
     vel = v;
+    id = i;
   }
 
-  Duck copy() { return new Duck(pos, vel, typ); }
+  Duck copy() { return new Duck(pos, vel, typ, id); }
 
   void draw() {
     stroke(30, 20);
@@ -86,14 +88,12 @@ class Duck {
     }
   }
 
-  void position_update() {
-
-  }
-  void update(Duck[] all, int me) {
+  void update(Duck[] all) {
     ArrayList<Duck> near_neighbors = new ArrayList<Duck>();
     // Get 2 close neighbors. TODO: get the *closest* ones, duh.
+
     for (int i = 0; i < all.length; ++i) {
-      if (i == me) {
+      if (i == id) {
         continue;
       }
       Duck other = all[i];
@@ -124,12 +124,12 @@ class Duck {
     }
     // Very occasionally add random smallish component to velocity.
     if (random(1) < 0.001) {
-      println(typ + " " + str(me) + " nudging velocity");
+      println(typ + " " + str(id) + " nudging velocity");
       vel.add(PVector.mult(PVector.random2D(), 0.7));
     }
     // Even more occasionally make random largish change to velocity.
     // if (random(1) < 0.0002) {
-    //   println(typ + " " + str(me) + " bumping velocity");
+    //   println(typ + " " + str(id) + " bumping velocity");
     //   vel.add(PVector.mult(PVector.random2D(), 1.5));
     // }
     pos.add(vel);
@@ -145,14 +145,14 @@ void initialize() {
   for (int i = 0; i < mandarins.length; ++i) {
     PVector posfuzzed = PVector.add(pos, PVector.random2D().mult(random(height/10)));
     PVector velfuzzed = PVector.add(vel, PVector.random2D().mult(0.2));
-    mandarins[i] = new Duck(posfuzzed, velfuzzed, "mandarin");
+    mandarins[i] = new Duck(posfuzzed, velfuzzed, "mandarin", i);
   }
   pos = rand_position();
   vel = PVector.random2D().mult(3);
   for (int i = 0; i < mallards.length; ++i) {
     PVector posfuzzed = PVector.add(pos, PVector.random2D().mult(random(height/10)));
     PVector velfuzzed = PVector.add(vel, PVector.random2D().mult(0.2));
-    mallards[i] = new Duck(posfuzzed, velfuzzed, "mallard");
+    mallards[i] = new Duck(posfuzzed, velfuzzed, "mallard", i);
   }
 }
 
@@ -178,13 +178,13 @@ void draw() {
     tmp_mandarins[i] = mandarins[i].copy();
   }
   // Draw and update.
-  for (int i = 0; i < mallards.length; ++i) {
-    mallards[i].draw();
-    mallards[i].update(tmp_mallards, i);
+  for (Duck mallard : mallards) {
+    mallard.draw();
+    mallard.update(tmp_mallards);
   }
-  for (int i = 0; i < mandarins.length; ++i) {
-    mandarins[i].draw();
-    mandarins[i].update(tmp_mandarins, i);
+  for (Duck mandarin : mandarins) {
+    mandarin.draw();
+    mandarin.update(tmp_mandarins);
   }
 }
 
