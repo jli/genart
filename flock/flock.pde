@@ -8,6 +8,8 @@
 boolean full = false;
 int W = 800;
 int H = 600;
+boolean debug_neighbors = false;
+boolean debug_distance = false;
 
 float SIZE_MANDARIN = 25;
 float SIZE_MALLARD = 12;
@@ -15,8 +17,8 @@ float SIZE_MALLARD = 12;
 color bluish = color(120, 50, 210);
 color reddish = color(200, 40, 150);
 
-int num_mands = 20;
-int num_mals = 40;
+int num_mands = 6;
+int num_mals = 10;
 
 Duck[] mandarins = new Duck[num_mands];
 Duck[] tmp_mandarins = new Duck[num_mands];
@@ -39,6 +41,8 @@ float wrap(float x, float upper) {
 }
 
 class Duck {
+  float SPACE_CLOSE_MULT = 0.8;
+  float SPACE_FAR_MULT = 1.5;
   PVector pos;
   PVector vel;
   String typ;
@@ -66,8 +70,20 @@ class Duck {
   Duck copy() { return new Duck(pos, vel, typ); }
 
   void draw() {
+    stroke(30, 20);
     fill(c);
     ellipse(pos.x, pos.y, size, size);
+    if (debug_distance) {
+      float close_size = space_need * SPACE_CLOSE_MULT;
+      float far_size = space_need * SPACE_FAR_MULT;
+      stroke(100, 80);
+      fill(100,25,25,10);
+      ellipse(pos.x, pos.y, close_size, close_size);
+      fill(25,100,25,30);
+      ellipse(pos.x, pos.y, space_need, space_need);
+      fill(25,25,100,10);
+      ellipse(pos.x, pos.y, far_size, far_size);
+    }
   }
 
   void position_update() {
@@ -90,12 +106,15 @@ class Duck {
       }
     }
     for (Duck other : near_neighbors) {
+      if (debug_neighbors) {
+        stroke(100, 100);
+        line(other.pos.x, other.pos.y, pos.x, pos.y);
+      }
+      PVector away = PVector.sub(pos, other.pos).normalize();
       float d = pos.dist(other.pos);
-      if (d < space_need * .8) {
-        // Too close. Move away from other.
-        pos.lerp(other.pos, -0.01);
-      } else if (pos.dist(other.pos) > space_need  * 1.5) {
-        // Too far. Move towards other.
+      if (d < space_need * SPACE_CLOSE_MULT) {
+        pos.add(away.mult(0.5));
+      } else if (pos.dist(other.pos) > space_need * SPACE_FAR_MULT) {
         pos.lerp(other.pos, 0.005);
       }
       // Occasionally make velocity more similar to other.
@@ -172,5 +191,9 @@ void draw() {
 void keyPressed() {
   if (key == 'r') {
     initialize();
+  } else if (key == 'd') {
+    debug_distance = !debug_distance;
+  } else if (key == 'n') {
+    debug_neighbors = !debug_neighbors;
   }
 }
