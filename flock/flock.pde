@@ -36,9 +36,16 @@ color rand_color() {
   return color(random(0, 255), random(0, 255), random(0, 255));
 }
 
+// The distance computation doesn't recognize that nodes on the other side of
+// the screen are actually "nearby". This can cause some glitching, with nodes
+// hopping back and forth due to forces from neighbors. WRAP_HACK is used so
+// that when nodes wrap around the plane, they get some extra buffer to avoid
+// the glitching. TODO: fix the distance computation instead?
+float WRAP_HACK = 10;
+
 float wrap_dimension(float x, float upper) {
-  if (x > upper) { x = x - upper; }
-  else if (x < 0) { x = upper - x; }
+  if (x > upper) { x = x - upper + WRAP_HACK; }
+  else if (x < 0) { x = upper - x - WRAP_HACK; }
   return x;
 }
 
