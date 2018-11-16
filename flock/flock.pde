@@ -19,11 +19,11 @@ boolean FULL = false;
 int[] DIM = {800, 800};
 int[] FULL_DIM = {1680, 1008};
 
-int MIN_GROUPS = 3;
-int MAX_GROUPS = FULL ? 30 : 10;
+int MIN_GROUPS = FULL ? 7: 3;
+int MAX_GROUPS = FULL ? 20 : 10;
 int MIN_GROUP_SIZE = FULL ? 10 : 5;
-int MAX_GROUP_SIZE = FULL ? 100 : 50;
-int MAX_DUCK_SIZE = FULL ? 30 : 20;
+int MAX_GROUP_SIZE = FULL ? 75 : 50;
+int MAX_NODE_SIZE = FULL ? 25 : 20;
 
 // Input state variables.
 boolean DEBUG_NEIGHBORS = false;
@@ -33,7 +33,7 @@ boolean ALPHA = false;
 boolean PAUSED = false;
 
 // Primary state.
-ArrayList<Duck[]> DUCK_FLOCKS = new ArrayList<Duck[]>();
+ArrayList<Node[]> NODE_FLOCKS = new ArrayList<Node[]>();
 
 PVector rand_position() {
   return new PVector(random(0, width), random(0, height));
@@ -78,14 +78,14 @@ color brighten(color c, float mult) {
 }
 
 
-class Duck {
+class Node {
   // Limits on interactions with nearby flock and non-flock neighbors.
   int N_NEIGHBORS = 4;
   int N_NONFLOCK_NEIGHBORS = 2;
   // Multipliers for space_need
-  // - SPACE_CLOSE_MULT: push away when another duck within this distance
-  // - SPACE_FAR_MULT: attract when another duck outside this distance
-  // - SPACE_TOO_FAR_MULT: ignore ducks outside this distance
+  // - SPACE_CLOSE_MULT: push away when another node within this distance
+  // - SPACE_FAR_MULT: attract when another node outside this distance
+  // - SPACE_TOO_FAR_MULT: ignore nodes outside this distance
   float SPACE_CLOSE_MULT = 0.75;
   float SPACE_FAR_MULT = 1.7;
   float SPACE_TOO_FAR_MULT = 5;
@@ -99,7 +99,7 @@ class Duck {
   color col;
   float size;  // TODO: rename to non-reserved word?
 
-  Duck(int i, int fi, PVector p, PVector v, float space, color c, float siz) {
+  Node(int i, int fi, PVector p, PVector v, float space, color c, float siz) {
     id = i;
     flock_id = fi;
     pos = p;
@@ -108,7 +108,7 @@ class Duck {
     col = c;
     size = siz;
   }
-  Duck copy() { return new Duck(id, flock_id, pos, vel, space_need, col, size); }
+  Node copy() { return new Node(id, flock_id, pos, vel, space_need, col, size); }
 
   void draw_shape() {
     if (TRIS_CIRCLES) { draw_triangle(pos, vel, size); }
@@ -130,11 +130,11 @@ class Duck {
     }
   }
 
-  void update(ArrayList<Duck[]> all) {
+  void update(ArrayList<Node[]> all) {
     // Map from distances to neighbors.
-    HashMap<Float, Duck> dist_duck = new HashMap<Float, Duck>();
-    for (Duck[] flock : all) {
-      for (Duck other : flock) {
+    HashMap<Float, Node> dist_node = new HashMap<Float, Node>();
+    for (Node[] flock : all) {
+      for (Node other : flock) {
         boolean same_flock = other.flock_id == flock_id;
         if (same_flock && other.id == id) { continue; }
         float d = pos.dist(other.pos);
@@ -144,22 +144,22 @@ class Duck {
         // together and not deflect much, which looks bad.
         if ((same_flock && d < space_need * SPACE_TOO_FAR_MULT)
             || (!same_flock && d < (space_need + other.space_need)/2)) {
-          dist_duck.put(d, other);
+          dist_node.put(d, other);
         }
       }
     }
     // Sort.
     float[] dists = {};
-    for (float k : dist_duck.keySet()) { dists = append(dists, k); }
+    for (float k : dist_node.keySet()) { dists = append(dists, k); }
     dists = sort(dists);
 
     int flock_neighbors = 0;
     int nonflock_neighbors = 0;
     for (int i = 0; i < dists.length; ++i) {
       float dist = dists[i];
-      Duck other = dist_duck.get(dist);
+      Node other = dist_node.get(dist);
       boolean same_flock = other.flock_id == flock_id;
-      // Keep separate count of interactions with flock and non-flock. Ducks are
+      // Keep separate count of interactions with flock and non-flock. Nodes are
       // often much closer with flockmates, so keeping separate interaction
       // limits guarantees responsiveness to close non-flock neighbors.
       if (same_flock) {
@@ -195,13 +195,13 @@ class Duck {
     pos.add(vel);
     wrap_vector(pos);
   }  // update
-}  // Duck
+}  // Node
 
 
-Duck[] create_random_flock(int flock_id) {
-  Duck[] flock = new Duck[int(random(MIN_GROUP_SIZE, MAX_GROUP_SIZE))];
+Node[] create_random_flock(int flock_id) {
+  Node[] flock = new Node[int(random(MIN_GROUP_SIZE, MAX_GROUP_SIZE))];
   color c = rand_color();
-  float size = random(3, MAX_DUCK_SIZE);
+  float size = random(3, MAX_NODE_SIZE);
   float space_need = size * 2 * random(0.7, 1.3);
   // TODO: pull out constants?
   float speed = random(2, 4);
@@ -211,22 +211,22 @@ Duck[] create_random_flock(int flock_id) {
     // TODO: more principled random fuzz amount.
     PVector posfuzzed = PVector.add(pos, PVector.random2D().mult(random(space_need * 4)));
     PVector velfuzzed = PVector.add(vel, PVector.random2D().mult(speed/5));
-    flock[i] = new Duck(i, flock_id, posfuzzed, velfuzzed, space_need,
+    flock[i] = new Node(i, flock_id, posfuzzed, velfuzzed, space_need,
                         brighten(c, random(0.6, 1.4)), size * random(0.7, 1.3));
   }
   return flock;
 }
 
-void init_duck_flocks() {
-  DUCK_FLOCKS.clear();
+void init_node_flocks() {
+  NODE_FLOCKS.clear();
   for (int i = 0; i < random(MIN_GROUPS, MAX_GROUPS); ++i)
-    DUCK_FLOCKS.add(create_random_flock(i));
+    NODE_FLOCKS.add(create_random_flock(i));
 }
 
-ArrayList<Duck[]> copy_flocks(ArrayList<Duck[]> flocks) {
-  ArrayList<Duck[]> flocks2 = new ArrayList<Duck[]>();
-  for (Duck[] flock : flocks) {
-    Duck[] f2 = new Duck[flock.length];
+ArrayList<Node[]> copy_flocks(ArrayList<Node[]> flocks) {
+  ArrayList<Node[]> flocks2 = new ArrayList<Node[]>();
+  for (Node[] flock : flocks) {
+    Node[] f2 = new Node[flock.length];
     for (int i = 0; i < flock.length; ++i)
       f2[i] = flock[i].copy();
     flocks2.add(f2);
@@ -243,14 +243,14 @@ void settings() {
 void setup() {
   frameRate(30);
   surface.setResizable(true);
-  init_duck_flocks();
+  init_node_flocks();
 }
 
 void draw() {
   background(20, 20, 25);
-  ArrayList<Duck[]> tmp_flocks = copy_flocks(DUCK_FLOCKS);
-  for (Duck[] flock : DUCK_FLOCKS) {
-    for (Duck d : flock) {
+  ArrayList<Node[]> tmp_flocks = copy_flocks(NODE_FLOCKS);
+  for (Node[] flock : NODE_FLOCKS) {
+    for (Node d : flock) {
       d.draw();
       d.update(tmp_flocks);
     }
@@ -259,10 +259,10 @@ void draw() {
 
 void change_flocks_size(int delta) {
   if (delta > 0) {
-    DUCK_FLOCKS.add(create_random_flock(DUCK_FLOCKS.size()));
+    NODE_FLOCKS.add(create_random_flock(NODE_FLOCKS.size()));
   } else {
-    if (DUCK_FLOCKS.size() > 1) {
-      DUCK_FLOCKS.remove(int(random(DUCK_FLOCKS.size())));
+    if (NODE_FLOCKS.size() > 1) {
+      NODE_FLOCKS.remove(int(random(NODE_FLOCKS.size())));
     }
   }
 }
@@ -291,7 +291,7 @@ void keyPressed() {
     case 'l': DEBUG_NEIGHBORS = !DEBUG_NEIGHBORS; break;
     case 'a': ALPHA = !ALPHA; break;
     case 'c': TRIS_CIRCLES = !TRIS_CIRCLES; break;
-    case 'r': init_duck_flocks(); break;
+    case 'r': init_node_flocks(); break;
     case '+': change_flocks_size(1); break;
     case '-': change_flocks_size(-1); break;
     case 'f': toggleFillscreen(); break;
