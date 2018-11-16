@@ -201,31 +201,24 @@ void setup() {
 void draw() {
   background(15);
   // Draw ducks.
-  for (Duck[] flock : duck_flocks) {
-    for (Duck d : flock) {
+  for (Duck[] flock : duck_flocks)
+    for (Duck d : flock)
       d.draw();
-    }
-  }
   // Update positions.
   for (Duck[] flock : duck_flocks) {
     Duck[] tmp_flock = new Duck[flock.length];
-    for (int i = 0; i < flock.length; ++i) {
+    for (int i = 0; i < flock.length; ++i)
       tmp_flock[i] = flock[i].copy();
-    }
-    for (Duck d : flock) {
+    for (Duck d : flock)
       d.update(tmp_flock);
-    }
   }
 }
 
 void keyPressed() {
-  if (key == 'r') {
-    init_duck_flocks();
-  } else if (key == 'd') {
-    debug_distance = !debug_distance;
-  } else if (key == 'n') {
-    debug_neighbors = !debug_neighbors;
-  } else if (key == 'c') {
-    tris_circles = !tris_circles;
+  switch (key) {
+    case 'r': init_duck_flocks(); break;
+    case 'd': debug_distance = !debug_distance; break;
+    case 'n': debug_neighbors = !debug_neighbors; break;
+    case 'c': tris_circles = !tris_circles; break;
   }
 }
