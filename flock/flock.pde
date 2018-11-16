@@ -1,12 +1,14 @@
 // TODOs:
-// - gets weird at edges. consider bounding at edges, or making distance
-//   computation work across edges.
-// - indication when nodes lerp velocities
-// - mouse interaction to create new ducks
-// - tweak behavior to work well across scales
-// - smoother changes w/ accel variable to change vel over time?
-// - interaction between all ducks? prob need quadtree...?
-// - tweak velocity instead of position in interactions
+// - behavior:
+//   - tweak behavior to work well across scales
+//   - smoother changes w/ accel variable to change vel over time?
+//   - tweak velocity instead of position in interactions
+// - graphics/interactions:
+//   - indication when nodes lerp velocities. better indication for vel bump.
+//   - mouse interaction to create new nodes? or move nodes around?
+// - bleh:
+//   - gets weird at edges. consider bounding at edges, or making distance
+//     computation work across edges.
 
 import java.util.Map;
 
@@ -24,6 +26,7 @@ int MAX_DUCK_SIZE = FULL ? 30 : 20;
 boolean DEBUG_NEIGHBORS = false;
 boolean DEBUG_DISTANCE = false;
 boolean TRIS_CIRCLES = true;  // false for circles.
+boolean ALPHA = false;
 
 // Primary state.
 ArrayList<Duck[]> DUCK_FLOCKS = new ArrayList<Duck[]>();
@@ -109,8 +112,8 @@ class Duck {
   }
 
   void draw() {
-    stroke(30, 20);
-    fill(col);
+    noStroke();
+    fill(col, ALPHA ? 200 : 255);
     draw_shape();
     if (DEBUG_DISTANCE) {
       float close_diam = space_need * SPACE_CLOSE_MULT;
@@ -179,10 +182,10 @@ class Duck {
       }
     }
     // Very occasionally add random smallish component to velocity.
-    if (random(1) < 0.05) { vel.add(PVector.mult(PVector.random2D(), vel.mag()/8)); }
+    if (random(1) < 0.05) { vel.add(PVector.mult(PVector.random2D(), vel.mag()/10)); }
     // Even more occasionally make random largish change to velocity.
     if (random(1) < 0.001) {
-      vel.add(PVector.mult(PVector.random2D(), vel.mag()/3));
+      vel.add(PVector.mult(PVector.random2D(), vel.mag()/5));
       fill(brighten(col, 1.3)); draw_shape();
     }
     pos.add(vel);
@@ -239,7 +242,7 @@ void setup() {
 }
 
 void draw() {
-  background(15);
+  background(20, 20, 25);
   ArrayList<Duck[]> tmp_flocks = copy_flocks(DUCK_FLOCKS);
   for (Duck[] flock : DUCK_FLOCKS) {
     for (Duck d : flock) {
@@ -253,10 +256,8 @@ void change_flocks_size(int delta) {
   if (delta > 0) {
     DUCK_FLOCKS.add(create_random_flock(DUCK_FLOCKS.size()));
   } else {
-    for (int i = 0; i < abs(delta); ++i) {
-      if (DUCK_FLOCKS.size() > 1) {
-        DUCK_FLOCKS.remove(int(random(DUCK_FLOCKS.size())));
-      }
+    if (DUCK_FLOCKS.size() > 1) {
+      DUCK_FLOCKS.remove(int(random(DUCK_FLOCKS.size())));
     }
   }
 }
@@ -265,6 +266,7 @@ void keyPressed() {
   switch (key) {
     case 'd': DEBUG_DISTANCE = !DEBUG_DISTANCE; break;
     case 'l': DEBUG_NEIGHBORS = !DEBUG_NEIGHBORS; break;
+    case 'a': ALPHA = !ALPHA; break;
     case 'c': TRIS_CIRCLES = !TRIS_CIRCLES; break;
     case 'r': init_duck_flocks(); break;
     case '+': change_flocks_size(1); break;
