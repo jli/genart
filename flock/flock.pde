@@ -71,7 +71,7 @@ class Duck {
   // - SPACE_TOO_FAR_MULT: ignore ducks outside this distance
   float SPACE_CLOSE_MULT = 0.75;
   float SPACE_FAR_MULT = 1.7;
-  float SPACE_TOO_FAR_MULT = 3;
+  float SPACE_TOO_FAR_MULT = 10;
 
   int id;
   PVector pos;
@@ -143,8 +143,8 @@ class Duck {
         pos.lerp(other.pos, 0.005);
       }
       // Occasionally make velocity more similar to other.
-      if (random(1) < 0.05) {
-        vel.lerp(other.vel, 0.05);
+      if (random(1) < 0.10) {
+        vel.lerp(other.vel, 0.10);
       }
     }
     // Very occasionally add random smallish component to velocity.
@@ -167,7 +167,7 @@ void init_random_flock(Duck[] flock) {
   float size = random(3, MAX_DUCK_SIZE);
   float space_need = size * 2 * random(0.7, 1.3);
   // TODO: pull out constants?
-  float speed = random(1.5, 5);
+  float speed = random(3, 10);
   PVector pos = rand_position();
   PVector vel = PVector.random2D().mult(speed);
   for (int i = 0; i < flock.length; ++i) {
