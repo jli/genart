@@ -69,8 +69,8 @@ void wrap_vector(PVector v) {
 void draw_triangle(PVector v1, PVector dir, float size) {
   dir = dir.copy().normalize().mult(size);
   PVector base = PVector.sub(v1, dir);
-  PVector v2 = PVector.add(base, dir.copy().mult(.5).rotate(HALF_PI));
-  PVector v3 = PVector.add(base, dir.copy().mult(.5).rotate(-HALF_PI));
+  PVector v2 = PVector.add(base, dir.copy().mult(.35).rotate(HALF_PI));
+  PVector v3 = PVector.add(base, dir.copy().mult(.35).rotate(-HALF_PI));
   triangle(v1.x, v1.y, v2.x, v2.y, v3.x, v3.y);
 }
 
