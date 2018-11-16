@@ -242,11 +242,25 @@ void draw() {
   }
 }
 
+void change_flocks_size(int delta) {
+  if (delta > 0) {
+    DUCK_FLOCKS.add(create_random_flock(DUCK_FLOCKS.size()));
+  } else {
+    for (int i = 0; i < abs(delta); ++i) {
+      if (DUCK_FLOCKS.size() > 1) {
+        DUCK_FLOCKS.remove(int(random(DUCK_FLOCKS.size())));
+      }
+    }
+  }
+}
+
 void keyPressed() {
   switch (key) {
-    case 'r': init_duck_flocks(); break;
     case 'd': DEBUG_DISTANCE = !DEBUG_DISTANCE; break;
-    case 'n': DEBUG_NEIGHBORS = !DEBUG_NEIGHBORS; break;
+    case 'l': DEBUG_NEIGHBORS = !DEBUG_NEIGHBORS; break;
     case 'c': TRIS_CIRCLES = !TRIS_CIRCLES; break;
+    case 'r': init_duck_flocks(); break;
+    case '+': change_flocks_size(1); break;
+    case '-': change_flocks_size(-1); break;
   }
 }
