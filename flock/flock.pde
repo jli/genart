@@ -1,17 +1,20 @@
 // TODOs:
 // - gets weird at edges. consider bounding at edges, or making distance
 //   computation work across edges.
-// - indication of velocity. triangles instead of circles?
 // - indication when nodes lerp velocities
+// - mouse interaction to create new ducks
+// - randomly generate more groups
 
 import java.util.Map;
 
 // Set either full or W&H.
 boolean full = false;
-int W = 800;
-int H = 600;
+int W = 1000;
+int H = 800;
+
 boolean debug_neighbors = false;
 boolean debug_distance = false;
+boolean tris_circles = true;  // false for circles.
 
 int num_mands = 20;
 int num_mals = 40;
@@ -32,13 +35,21 @@ float wrap(float x, float upper) {
   return x;
 }
 
-// 'away' should be normalized.
-void draw_triangle(PVector tip, PVector away) {
-  PVector base = PVector.add(tip, PVector.mult(away, 5));
-  PVector base1 = PVector.add(base, away.copy().mult(3).rotate(90));
-  PVector base2 = PVector.add(base, away.copy().mult(3).rotate(-90));
-  triangle(tip.x, tip.y, base1.x, base1.y, base2.x, base2.y);
+void draw_triangle(PVector tip, PVector dir, float size) {
+  dir = dir.copy().normalize().mult(size);
+  PVector base = PVector.sub(tip, dir);
+  PVector v2 = PVector.add(base, dir.copy().mult(.5).rotate(HALF_PI));
+  PVector v3 = PVector.add(base, dir.copy().mult(.5).rotate(-HALF_PI));
+  triangle(tip.x, tip.y, v2.x, v2.y, v3.x, v3.y);
 }
+
+color brighten(color c, float mult) {
+  float r = red(c); float g = green(c); float b = blue(c);
+  return color(constrain(red(c) * mult, 0, 255),
+               constrain(green(c) * mult, 0, 255),
+               constrain(blue(c) * mult, 0, 255));
+}
+
 
 class Duck {
   int N_NEIGHBORS = 7;
@@ -80,10 +91,20 @@ class Duck {
 
   Duck copy() { return new Duck(pos, vel, typ, id); }
 
+  void draw_shape(float size_mult) {
+    float s = size * size_mult;
+    if (tris_circles) {
+      draw_triangle(pos, vel, s);
+    } else {
+      ellipse(pos.x, pos.y, s, s);
+    }
+  }
+  void draw_shape() { draw_shape(1); }
+
   void draw() {
     stroke(30, 20);
     fill(c);
-    ellipse(pos.x, pos.y, size, size);
+    draw_shape();
     if (debug_distance) {
       float close_diam = 2 * space_need * SPACE_CLOSE_MULT;
       float far_diam = 2 * space_need * SPACE_FAR_MULT;
@@ -118,8 +139,8 @@ class Duck {
         stroke(100, 100);
         fill(250, 200);
         line(pos.x, pos.y, other.pos.x, other.pos.y);
-        PVector tri_tip = PVector.add(other.pos, PVector.mult(away, size/2));
-        draw_triangle(tri_tip, away);
+        PVector arrow_tip = PVector.add(other.pos, PVector.mult(away, size/2));
+        draw_triangle(arrow_tip, away.copy().rotate(PI), 7);
       }
       if (dist < space_need * SPACE_CLOSE_MULT) {
         pos.add(away.mult(0.5));
@@ -136,13 +157,15 @@ class Duck {
     if (random(1) < 0.005) {
       println(typ + " " + str(id) + " nudging velocity");
       vel.add(PVector.mult(PVector.random2D(), 0.7));
-      fill(c, 140); ellipse(pos.x, pos.y, size * 1.3, size * 1.3);
+      //fill(brighten(c, .1));
+      draw_shape();
     }
     // Even more occasionally make random largish change to velocity.
     if (random(1) < 0.0005) {
       println(typ + " " + str(id) + " bumping velocity");
       vel.add(PVector.mult(PVector.random2D(), 2.5));
-      fill(c, 140); ellipse(pos.x, pos.y, size * 2, size * 2);
+      fill(brighten(c, 1.5));
+      draw_shape();
     }
     pos.add(vel);
     pos.x = wrap(pos.x, width);
@@ -207,5 +230,7 @@ void keyPressed() {
     debug_distance = !debug_distance;
   } else if (key == 'n') {
     debug_neighbors = !debug_neighbors;
+  } else if (key == 'c') {
+    tris_circles = !tris_circles;
   }
 }
