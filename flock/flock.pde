@@ -6,6 +6,9 @@
 // - graphics/interactions:
 //   - indication when nodes lerp velocities. better indication for vel bump.
 //   - mouse interaction to create new nodes? or move nodes around?
+//   - color shift in some situation (bumping into non-flock nodes?)
+//   - constant color shift/shimmer?
+//   - speed shift with arrows or something?
 // - bleh:
 //   - gets weird at edges. consider bounding at edges, or making distance
 //     computation work across edges.
