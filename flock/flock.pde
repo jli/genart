@@ -65,14 +65,16 @@ color brighten(color c, float mult) {
 
 
 class Duck {
-  int N_NEIGHBORS = 7;
+  // Limits on interactions with nearby flock and non-flock neighbors.
+  int N_NEIGHBORS = 4;
+  int N_NONFLOCK_NEIGHBORS = 2;
   // Multipliers for space_need
   // - SPACE_CLOSE_MULT: push away when another duck within this distance
   // - SPACE_FAR_MULT: attract when another duck outside this distance
   // - SPACE_TOO_FAR_MULT: ignore ducks outside this distance
   float SPACE_CLOSE_MULT = 0.75;
   float SPACE_FAR_MULT = 1.7;
-  float SPACE_TOO_FAR_MULT = 10;
+  float SPACE_TOO_FAR_MULT = 5;
 
   int id;
   int flock_id;
@@ -119,9 +121,15 @@ class Duck {
     HashMap<Float, Duck> dist_duck = new HashMap<Float, Duck>();
     for (Duck[] flock : all) {
       for (Duck other : flock) {
-        if (other.flock_id == flock_id && other.id == id) { continue; }
+        boolean same_flock = other.flock_id == flock_id;
+        if (same_flock && other.id == id) { continue; }
         float d = pos.dist(other.pos);
-        if (d < space_need * SPACE_TOO_FAR_MULT) {
+        // For non-flock neighbors, we only repel, so we just check that
+        // distance is less than space need. We use the average of the pair's
+        // space needs. Otherwise, flocks with smaller space needs tend to bunch
+        // together and not deflect much, which looks bad.
+        if ((same_flock && d < space_need * SPACE_TOO_FAR_MULT)
+            || (!same_flock && d < (space_need + other.space_need)/2)) {
           dist_duck.put(d, other);
         }
       }
@@ -131,36 +139,43 @@ class Duck {
     for (float k : dist_duck.keySet()) { dists = append(dists, k); }
     dists = sort(dists);
 
-    // For n neighbors, flock together.
-    for (int i = 0; i < min(N_NEIGHBORS, dists.length); ++i) {
+    int flock_neighbors = 0;
+    int nonflock_neighbors = 0;
+    for (int i = 0; i < dists.length; ++i) {
       float dist = dists[i];
       Duck other = dist_duck.get(dist);
       boolean same_flock = other.flock_id == flock_id;
+      // Keep separate count of interactions with flock and non-flock. Ducks are
+      // often much closer with flockmates, so keeping separate interaction
+      // limits guarantees responsiveness to close non-flock neighbors.
+      if (same_flock) {
+        if (flock_neighbors > N_NEIGHBORS) continue;
+        ++flock_neighbors;
+      } else {
+        if (nonflock_neighbors > N_NONFLOCK_NEIGHBORS) continue;
+        ++nonflock_neighbors;
+      }
       PVector away = PVector.sub(pos, other.pos).normalize();
       if (DEBUG_NEIGHBORS) {
-        stroke(100, 100); fill(250, 200);
+        if (same_flock) { stroke(150, 150); strokeWeight(1); }
+        else { stroke(color(235,0,0), 200); strokeWeight(2); }
         line(pos.x, pos.y, other.pos.x, other.pos.y);
-        PVector arrow_tip = PVector.add(other.pos, PVector.mult(away, size/2));
-        draw_triangle(arrow_tip, away.copy().rotate(PI), 4);
       }
       // TODO: tweak vel instead of pos.
-      if (dist < space_need * SPACE_CLOSE_MULT) {
-        pos.add(away.mult(same_flock ? 1 : 1.5));
-      } else if (same_flock && dist > space_need * SPACE_FAR_MULT) {
-        pos.lerp(other.pos, 0.005);
-      }
-      // Occasionally make velocity more similar to other.
-      if (same_flock && random(1) < 0.10) {
-        vel.lerp(other.vel, 0.10);
+      if (same_flock) {
+        if (dist < space_need * SPACE_CLOSE_MULT) { pos.add(away); }
+        else if (dist > space_need * SPACE_FAR_MULT) { pos.lerp(other.pos, 0.005); }
+        // Occasionally make velocity more similar to other.
+        if (random(1) < 0.10) { vel.lerp(other.vel, 0.10); }
+      } else {  // not same flock
+        pos.add(PVector.mult(away, 1.5));
       }
     }
     // Very occasionally add random smallish component to velocity.
-    if (random(1) < 0.01) {
-      vel.add(PVector.mult(PVector.random2D(), vel.mag()/8));
-    }
+    if (random(1) < 0.05) { vel.add(PVector.mult(PVector.random2D(), vel.mag()/8)); }
     // Even more occasionally make random largish change to velocity.
     if (random(1) < 0.001) {
-      vel.add(PVector.mult(PVector.random2D(), vel.mag()/5));
+      vel.add(PVector.mult(PVector.random2D(), vel.mag()/3));
       fill(brighten(col, 1.3)); draw_shape();
     }
     pos.add(vel);
@@ -169,8 +184,8 @@ class Duck {
 }  // Duck
 
 
-Duck[] create_random_flock(int flock_id, int flock_size) {
-  Duck[] flock = new Duck[flock_size];
+Duck[] create_random_flock(int flock_id) {
+  Duck[] flock = new Duck[int(random(MIN_GROUP_SIZE, MAX_GROUP_SIZE))];
   color c = rand_color();
   float size = random(3, MAX_DUCK_SIZE);
   float space_need = size * 2 * random(0.7, 1.3);
@@ -191,8 +206,7 @@ Duck[] create_random_flock(int flock_id, int flock_size) {
 void init_duck_flocks() {
   DUCK_FLOCKS.clear();
   for (int i = 0; i < random(MIN_GROUPS, MAX_GROUPS); ++i)
-    DUCK_FLOCKS.add(
-      create_random_flock(i, int(random(MIN_GROUP_SIZE, MAX_GROUP_SIZE))));
+    DUCK_FLOCKS.add(create_random_flock(i));
 }
 
 ArrayList<Duck[]> copy_flocks(ArrayList<Duck[]> flocks) {
