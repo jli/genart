@@ -12,12 +12,15 @@
 
 import java.util.Map;
 
-// Set either full or dims.
+// FULL determines if sketch is started in fullscreen mode. If false, uses DIM.
+// "F" toggles pseudo-fullscreen mode, using FULL_DIM values. Menu/title bar
+// remain visible though.
 boolean FULL = false;
 int[] DIM = {800, 800};
+int[] FULL_DIM = {1680, 1008};
 
 int MIN_GROUPS = 3;
-int MAX_GROUPS = FULL ? 10 : 5;
+int MAX_GROUPS = FULL ? 30 : 10;
 int MIN_GROUP_SIZE = FULL ? 10 : 5;
 int MAX_GROUP_SIZE = FULL ? 100 : 50;
 int MAX_DUCK_SIZE = FULL ? 30 : 20;
@@ -27,6 +30,7 @@ boolean DEBUG_NEIGHBORS = false;
 boolean DEBUG_DISTANCE = false;
 boolean TRIS_CIRCLES = true;  // false for circles.
 boolean ALPHA = false;
+boolean PAUSED = false;
 
 // Primary state.
 ArrayList<Duck[]> DUCK_FLOCKS = new ArrayList<Duck[]>();
@@ -238,6 +242,7 @@ void settings() {
 
 void setup() {
   frameRate(30);
+  surface.setResizable(true);
   init_duck_flocks();
 }
 
@@ -262,6 +267,24 @@ void change_flocks_size(int delta) {
   }
 }
 
+void toggleFillscreen() {
+  // We hijack existing FULL and DIMS variables for state. Meh, whatevs.
+  if (FULL) {
+    surface.setSize(DIM[0], DIM[1]);
+    surface.setLocation(FULL_DIM[0]/2, 0);  // Move to right half.
+  } else {
+    DIM[0] = width; DIM[1] = height;  // Save current dimensions.
+    surface.setSize(FULL_DIM[0], FULL_DIM[1]);
+    surface.setLocation(0, 0);
+  }
+  FULL = !FULL;
+}
+
+void togglePaused() {
+  if (PAUSED) { noLoop(); } else { loop(); }
+  PAUSED = !PAUSED;
+}
+
 void keyPressed() {
   switch (key) {
     case 'd': DEBUG_DISTANCE = !DEBUG_DISTANCE; break;
@@ -271,5 +294,7 @@ void keyPressed() {
     case 'r': init_duck_flocks(); break;
     case '+': change_flocks_size(1); break;
     case '-': change_flocks_size(-1); break;
+    case 'f': toggleFillscreen(); break;
+    case ' ': togglePaused(); break;
   }
 }
