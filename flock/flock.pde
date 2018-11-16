@@ -31,6 +31,7 @@ boolean DEBUG_DISTANCE = false;
 boolean TRIS_CIRCLES = true;  // false for circles.
 boolean ALPHA = false;
 boolean PAUSED = false;
+float ZOOM = 1.0;
 
 // Primary state.
 ArrayList<Node[]> NODE_FLOCKS = new ArrayList<Node[]>();
@@ -111,8 +112,8 @@ class Node {
   Node copy() { return new Node(id, flock_id, pos, vel, space_need, col, size); }
 
   void draw_shape() {
-    if (TRIS_CIRCLES) { draw_triangle(pos, vel, size); }
-    else { ellipse(pos.x, pos.y, size, size); }
+    if (TRIS_CIRCLES) { draw_triangle(pos, vel, size * ZOOM); }
+    else { ellipse(pos.x, pos.y, size * ZOOM, size * ZOOM); }
   }
 
   void draw() {
@@ -120,9 +121,9 @@ class Node {
     fill(col, ALPHA ? 200 : 255);
     draw_shape();
     if (DEBUG_DISTANCE) {
-      float close_diam = space_need * SPACE_CLOSE_MULT;
-      float far_diam = space_need * SPACE_FAR_MULT;
-      float too_far_diam = space_need * SPACE_TOO_FAR_MULT;
+      float close_diam = space_need * ZOOM * SPACE_CLOSE_MULT;
+      float far_diam = space_need * ZOOM * SPACE_FAR_MULT;
+      float too_far_diam = space_need * ZOOM * SPACE_TOO_FAR_MULT;
       stroke(100, 80);
       fill(100,25,25,10); ellipse(pos.x, pos.y, close_diam, close_diam);
       fill(25,100,25,10); ellipse(pos.x, pos.y, far_diam, far_diam);
@@ -131,6 +132,7 @@ class Node {
   }
 
   void update(ArrayList<Node[]> all) {
+    float zspace_need = space_need * ZOOM;
     // Map from distances to neighbors.
     HashMap<Float, Node> dist_node = new HashMap<Float, Node>();
     for (Node[] flock : all) {
@@ -142,8 +144,8 @@ class Node {
         // distance is less than space need. We use the average of the pair's
         // space needs. Otherwise, flocks with smaller space needs tend to bunch
         // together and not deflect much, which looks bad.
-        if ((same_flock && d < space_need * SPACE_TOO_FAR_MULT)
-            || (!same_flock && d < (space_need + other.space_need)/2)) {
+        if ((same_flock && d < zspace_need * SPACE_TOO_FAR_MULT)
+            || (!same_flock && d < (zspace_need + ZOOM*other.space_need)/2)) {
           dist_node.put(d, other);
         }
       }
@@ -177,8 +179,8 @@ class Node {
       }
       // TODO: tweak vel instead of pos.
       if (same_flock) {
-        if (dist < space_need * SPACE_CLOSE_MULT) { pos.add(away); }
-        else if (dist > space_need * SPACE_FAR_MULT) { pos.lerp(other.pos, 0.005); }
+        if (dist < zspace_need * SPACE_CLOSE_MULT) { pos.add(away); }
+        else if (dist > zspace_need * SPACE_FAR_MULT) { pos.lerp(other.pos, 0.005); }
         // Occasionally make velocity more similar to other.
         if (random(1) < 0.10) { vel.lerp(other.vel, 0.10); }
       } else {  // not same flock
@@ -296,5 +298,13 @@ void keyPressed() {
     case '-': change_flocks_size(-1); break;
     case 'f': toggleFillscreen(); break;
     case ' ': togglePaused(); break;
+  }
+}
+
+void mouseWheel(MouseEvent event) {
+  if (event.getCount() < 0) {
+    ZOOM = min(ZOOM + 0.1, 5.);
+  } else {
+    ZOOM = max(ZOOM - 0.1, 0.2);
   }
 }
