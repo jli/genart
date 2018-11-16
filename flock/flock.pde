@@ -6,6 +6,7 @@
 // - tweak behavior to work well across scales
 // - smoother changes w/ accel variable to change vel over time?
 // - interaction between all ducks? prob need quadtree...?
+// - tweak velocity instead of position in interactions
 
 import java.util.Map;
 
@@ -20,12 +21,12 @@ int MAX_GROUP_SIZE = FULL ? 100 : 50;
 int MAX_DUCK_SIZE = FULL ? 30 : 20;
 
 // Input state variables.
-boolean debug_neighbors = false;
-boolean debug_distance = false;
-boolean tris_circles = true;  // false for circles.
+boolean DEBUG_NEIGHBORS = false;
+boolean DEBUG_DISTANCE = false;
+boolean TRIS_CIRCLES = true;  // false for circles.
 
 // Primary state.
-ArrayList<Duck[]> duck_flocks = new ArrayList<Duck[]>();
+ArrayList<Duck[]> DUCK_FLOCKS = new ArrayList<Duck[]>();
 
 PVector rand_position() {
   return new PVector(random(0, width), random(0, height));
@@ -74,6 +75,7 @@ class Duck {
   float SPACE_TOO_FAR_MULT = 10;
 
   int id;
+  int flock_id;
   PVector pos;
   PVector vel;
   String typ;
@@ -81,18 +83,19 @@ class Duck {
   color col;
   float size;  // TODO: rename to non-reserved word?
 
-  Duck(int i, PVector p, PVector v, float space, color c, float siz) {
+  Duck(int i, int fi, PVector p, PVector v, float space, color c, float siz) {
     id = i;
+    flock_id = fi;
     pos = p;
     vel = v;
     space_need = space;
     col = c;
     size = siz;
   }
-  Duck copy() { return new Duck(id, pos, vel, space_need, col, size); }
+  Duck copy() { return new Duck(id, flock_id, pos, vel, space_need, col, size); }
 
   void draw_shape() {
-    if (tris_circles) { draw_triangle(pos, vel, size); }
+    if (TRIS_CIRCLES) { draw_triangle(pos, vel, size); }
     else { ellipse(pos.x, pos.y, size, size); }
   }
 
@@ -100,7 +103,7 @@ class Duck {
     stroke(30, 20);
     fill(col);
     draw_shape();
-    if (debug_distance) {
+    if (DEBUG_DISTANCE) {
       float close_diam = space_need * SPACE_CLOSE_MULT;
       float far_diam = space_need * SPACE_FAR_MULT;
       float too_far_diam = space_need * SPACE_TOO_FAR_MULT;
@@ -111,14 +114,16 @@ class Duck {
     }
   }
 
-  void update(Duck[] all) {
+  void update(ArrayList<Duck[]> all) {
     // Map from distances to neighbors.
     HashMap<Float, Duck> dist_duck = new HashMap<Float, Duck>();
-    for (Duck other : all) {
-      if (other.id == id) { continue; }
-      float d = pos.dist(other.pos);
-      if (d < space_need * SPACE_TOO_FAR_MULT) {
-        dist_duck.put(d, other);
+    for (Duck[] flock : all) {
+      for (Duck other : flock) {
+        if (other.flock_id == flock_id && other.id == id) { continue; }
+        float d = pos.dist(other.pos);
+        if (d < space_need * SPACE_TOO_FAR_MULT) {
+          dist_duck.put(d, other);
+        }
       }
     }
     // Sort.
@@ -130,20 +135,22 @@ class Duck {
     for (int i = 0; i < min(N_NEIGHBORS, dists.length); ++i) {
       float dist = dists[i];
       Duck other = dist_duck.get(dist);
+      boolean same_flock = other.flock_id == flock_id;
       PVector away = PVector.sub(pos, other.pos).normalize();
-      if (debug_neighbors) {
+      if (DEBUG_NEIGHBORS) {
         stroke(100, 100); fill(250, 200);
         line(pos.x, pos.y, other.pos.x, other.pos.y);
         PVector arrow_tip = PVector.add(other.pos, PVector.mult(away, size/2));
         draw_triangle(arrow_tip, away.copy().rotate(PI), 4);
       }
+      // TODO: tweak vel instead of pos.
       if (dist < space_need * SPACE_CLOSE_MULT) {
-        pos.add(away.mult(0.5));
-      } else if (dist > space_need * SPACE_FAR_MULT) {
+        pos.add(away.mult(same_flock ? 1 : 1.5));
+      } else if (same_flock && dist > space_need * SPACE_FAR_MULT) {
         pos.lerp(other.pos, 0.005);
       }
       // Occasionally make velocity more similar to other.
-      if (random(1) < 0.10) {
+      if (same_flock && random(1) < 0.10) {
         vel.lerp(other.vel, 0.10);
       }
     }
@@ -162,29 +169,41 @@ class Duck {
 }  // Duck
 
 
-void init_random_flock(Duck[] flock) {
+Duck[] create_random_flock(int flock_id, int flock_size) {
+  Duck[] flock = new Duck[flock_size];
   color c = rand_color();
   float size = random(3, MAX_DUCK_SIZE);
   float space_need = size * 2 * random(0.7, 1.3);
   // TODO: pull out constants?
-  float speed = random(3, 10);
+  float speed = random(2, 4);
   PVector pos = rand_position();
   PVector vel = PVector.random2D().mult(speed);
   for (int i = 0; i < flock.length; ++i) {
     // TODO: more principled random fuzz amount.
     PVector posfuzzed = PVector.add(pos, PVector.random2D().mult(random(space_need * 4)));
     PVector velfuzzed = PVector.add(vel, PVector.random2D().mult(speed/5));
-    flock[i] = new Duck(i, posfuzzed, velfuzzed, space_need,
+    flock[i] = new Duck(i, flock_id, posfuzzed, velfuzzed, space_need,
                         brighten(c, random(0.6, 1.4)), size * random(0.7, 1.3));
   }
+  return flock;
 }
 
 void init_duck_flocks() {
-  duck_flocks.clear();
-  for (int i = 0; i < random(MIN_GROUPS, MAX_GROUPS); ++i) {
-    duck_flocks.add(new Duck[int(random(MIN_GROUP_SIZE, MAX_GROUP_SIZE))]);
-    init_random_flock(duck_flocks.get(i));
+  DUCK_FLOCKS.clear();
+  for (int i = 0; i < random(MIN_GROUPS, MAX_GROUPS); ++i)
+    DUCK_FLOCKS.add(
+      create_random_flock(i, int(random(MIN_GROUP_SIZE, MAX_GROUP_SIZE))));
+}
+
+ArrayList<Duck[]> copy_flocks(ArrayList<Duck[]> flocks) {
+  ArrayList<Duck[]> flocks2 = new ArrayList<Duck[]>();
+  for (Duck[] flock : flocks) {
+    Duck[] f2 = new Duck[flock.length];
+    for (int i = 0; i < flock.length; ++i)
+      f2[i] = flock[i].copy();
+    flocks2.add(f2);
   }
+  return flocks;
 }
 
 // Separate settings function in order to make.
@@ -200,25 +219,20 @@ void setup() {
 
 void draw() {
   background(15);
-  // Draw ducks.
-  for (Duck[] flock : duck_flocks)
-    for (Duck d : flock)
+  ArrayList<Duck[]> tmp_flocks = copy_flocks(DUCK_FLOCKS);
+  for (Duck[] flock : DUCK_FLOCKS) {
+    for (Duck d : flock) {
       d.draw();
-  // Update positions.
-  for (Duck[] flock : duck_flocks) {
-    Duck[] tmp_flock = new Duck[flock.length];
-    for (int i = 0; i < flock.length; ++i)
-      tmp_flock[i] = flock[i].copy();
-    for (Duck d : flock)
-      d.update(tmp_flock);
+      d.update(tmp_flocks);
+    }
   }
 }
 
 void keyPressed() {
   switch (key) {
     case 'r': init_duck_flocks(); break;
-    case 'd': debug_distance = !debug_distance; break;
-    case 'n': debug_neighbors = !debug_neighbors; break;
-    case 'c': tris_circles = !tris_circles; break;
+    case 'd': DEBUG_DISTANCE = !DEBUG_DISTANCE; break;
+    case 'n': DEBUG_NEIGHBORS = !DEBUG_NEIGHBORS; break;
+    case 'c': TRIS_CIRCLES = !TRIS_CIRCLES; break;
   }
 }
