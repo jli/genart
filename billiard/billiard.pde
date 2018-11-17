@@ -3,7 +3,7 @@ int H = 500;
 int NUM_INITIAL_NODES = 10;
 ArrayList<N> ns = new ArrayList<N>();
 
-float SIZE = 30;
+float[] SIZE_BOUNDS = {5, 15};
 
 color rand_color() {
   return color(random(0, 255), random(0, 255), random(0, 255));
@@ -31,8 +31,9 @@ class N {
   PVector vel;
   PVector accel;
   color col;
-  N(int i, PVector p, PVector v, PVector a) {
-    id = i; pos = p; vel = v; accel = a;
+  float rad;
+  N(int i, PVector p, PVector v, PVector a, float r) {
+    id = i; pos = p; vel = v; accel = a; rad = r;
     col = rand_color();
   }
   N(int i, PVector p) {
@@ -40,10 +41,10 @@ class N {
     vel = new PVector(0, 0); accel = vel.copy();
   }
   // TODO: color.
-  N copy() { return new N(id, pos.copy(), vel.copy(), accel.copy()); }
+  N copy() { return new N(id, pos.copy(), vel.copy(), accel.copy(), rad); }
   void print() { println("N:", id, pos, vel, accel); }
   void draw() {
-    fill(col); ellipse(pos.x, pos.y, SIZE, SIZE);
+    fill(col); ellipse(pos.x, pos.y, rad*2, rad*2);
     fill(0); text(str(id), pos.x, pos.y);
   }
   void update() {
@@ -56,7 +57,8 @@ class N {
       if (id == other.id) continue;
       PVector dv = PVector.sub(other.pos, pos);
       float d = dv.mag();
-      float overlap = SIZE - d;
+      float required_dist = rad + other.rad;
+      float overlap = required_dist - d;
       if (overlap >= 0) {
         println("overlap btwn " + str(id) + "," + str(other.id) + ": " + overlap);
         // Enforce non-overlap.
@@ -71,7 +73,8 @@ class N {
 N random_node(int i) {
   return new N(i, new PVector(random(0, width), random(0, height)),
                PVector.random2D().mult(random(.25, 1)),
-               new PVector(0, 0));
+               new PVector(0, 0),
+               random(SIZE_BOUNDS[0], SIZE_BOUNDS[1]));
 }
 
 void initialize() {
