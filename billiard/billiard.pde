@@ -74,12 +74,13 @@ void draw() {
   for (N n : ns) {
     for (N m : tmp_ns) {
       if (n.id == m.id) continue;
-      float d = n.pos.dist(m.pos);
+      PVector dv = PVector.sub(m.pos, n.pos);
+      float d = dv.mag();
       float overlap = SIZE - d;
       if (overlap >= 0) {
         println("overlap btwn " + str(n.id) + "," + str(m.id) + ": " + overlap);
         // Enforce non-overlap.
-        n.pos.sub(PVector.mult(n.vel.copy().normalize(), overlap));
+        n.pos.sub(dv.copy().normalize().mult(0.5));
         n.vel = reflect(n.vel, m.vel.copy().normalize());
         break;
       }
