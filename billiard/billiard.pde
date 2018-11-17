@@ -1,6 +1,6 @@
 int W = 500;
 int H = 500;
-int NUM_INITIAL_NODES = 4;
+int NUM_INITIAL_NODES = 10;
 ArrayList<N> ns = new ArrayList<N>();
 
 float SIZE = 30;
@@ -42,6 +42,30 @@ class N {
   // TODO: color.
   N copy() { return new N(id, pos.copy(), vel.copy(), accel.copy()); }
   void print() { println("N:", id, pos, vel, accel); }
+  void draw() {
+    fill(col); ellipse(pos.x, pos.y, SIZE, SIZE);
+    fill(0); text(str(id), pos.x, pos.y);
+  }
+  void update() {
+    //accel.add(PVector.random2D().mult(0.05)); accel.limit(1);
+    vel.add(accel); vel.limit(2);
+    pos.add(vel); wrap_position(pos);
+  }
+  void check_collisions(N[] all_nodes) {
+    for (N other : all_nodes) {
+      if (id == other.id) continue;
+      PVector dv = PVector.sub(other.pos, pos);
+      float d = dv.mag();
+      float overlap = SIZE - d;
+      if (overlap >= 0) {
+        println("overlap btwn " + str(id) + "," + str(other.id) + ": " + overlap);
+        // Enforce non-overlap.
+        pos.sub(dv.copy().normalize().mult(0.5));
+        vel = reflect(vel, other.vel.copy().normalize());
+        break;
+      }
+    }
+  }
 }
 
 N random_node(int i) {
@@ -62,30 +86,11 @@ void setup() {
 
 void draw() {
   background(220);
+  for (N n : ns) { n.update(); }
   N[] tmp_ns = {};
-  for (N n : ns) {
-    //n.accel.add(PVector.random2D().mult(0.05)); n.accel.limit(1);
-    n.vel.add(n.accel); n.vel.limit(2);
-    n.pos.add(n.vel); wrap_position(n.pos);
-    fill(n.col); ellipse(n.pos.x, n.pos.y, SIZE, SIZE);
-    fill(0); text(str(n.id), n.pos.x, n.pos.y);
-  }
   for (N n : ns) { tmp_ns = (N[])append(tmp_ns, n.copy()); }
-  for (N n : ns) {
-    for (N m : tmp_ns) {
-      if (n.id == m.id) continue;
-      PVector dv = PVector.sub(m.pos, n.pos);
-      float d = dv.mag();
-      float overlap = SIZE - d;
-      if (overlap >= 0) {
-        println("overlap btwn " + str(n.id) + "," + str(m.id) + ": " + overlap);
-        // Enforce non-overlap.
-        n.pos.sub(dv.copy().normalize().mult(0.5));
-        n.vel = reflect(n.vel, m.vel.copy().normalize());
-        break;
-      }
-    }
-  }
+  for (N n : ns) { n.check_collisions(tmp_ns); }
+  for (N n : ns) { n.draw(); }
 }
 
 boolean PAUSED = false;
@@ -97,7 +102,6 @@ void change_nodes(int dir) {
   if (dir > 0) { ns.add(random_node(ns.size())); }
   else if (ns.size() > 1) { ns.remove(ns.size()-1); }
 }
-
 void keyPressed() {
   switch (key) {
     case ' ': togglePaused(); break;
