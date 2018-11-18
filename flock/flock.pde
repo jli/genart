@@ -26,6 +26,7 @@ int MIN_GROUPS = FULL ? 7: 3;
 int MAX_GROUPS = FULL ? 20 : 10;
 int MIN_GROUP_SIZE = FULL ? 10 : 5;
 int MAX_GROUP_SIZE = FULL ? 75 : 50;
+int MIN_NODE_SIZE = FULL ? 7 : 5;
 int MAX_NODE_SIZE = FULL ? 25 : 20;
 
 // Input state variables.
@@ -206,7 +207,7 @@ class Node {
 Node[] create_random_flock(int flock_id) {
   Node[] flock = new Node[int(random(MIN_GROUP_SIZE, MAX_GROUP_SIZE))];
   color c = rand_color();
-  float size = random(3, MAX_NODE_SIZE);
+  float size = random(MIN_NODE_SIZE, MAX_NODE_SIZE);
   float space_need = size * 2 * random(0.7, 1.3);
   // TODO: pull out constants?
   float speed = random(2, 4);
