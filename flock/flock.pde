@@ -66,10 +66,12 @@ void wrap_vector(PVector v) {
   v.y = wrap_dimension(v.y, height);
 }
 
-// TODO: maybe make v1 the middle instead of the tip?
-void draw_triangle(PVector v1, PVector dir, float size) {
+// Draw triangle "centered" at middle, pointed in dir, with length size.
+void draw_triangle(PVector middle, PVector dir, float size) {
   dir = dir.copy().normalize().mult(size);
-  PVector base = PVector.sub(v1, dir);
+  PVector halfdir = dir.copy().mult(.5);
+  PVector v1 = PVector.add(middle, halfdir);
+  PVector base = PVector.sub(middle, halfdir);
   PVector v2 = PVector.add(base, dir.copy().mult(.35).rotate(HALF_PI));
   PVector v3 = PVector.add(base, dir.copy().mult(.35).rotate(-HALF_PI));
   triangle(v1.x, v1.y, v2.x, v2.y, v3.x, v3.y);
