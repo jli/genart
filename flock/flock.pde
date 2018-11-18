@@ -307,7 +307,7 @@ void keyPressed() {
 void mouseWheel(MouseEvent event) {
   if (event.getCount() < 0) {
     ZOOM = min(ZOOM + 0.1, 5.);
-  } else {
+  } else if (event.getCount() > 0) {
     ZOOM = max(ZOOM - 0.1, 0.2);
   }
 }
