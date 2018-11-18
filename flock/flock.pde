@@ -266,8 +266,14 @@ void change_flocks_size(int delta) {
   if (delta > 0) {
     NODE_FLOCKS.add(create_random_flock(NODE_FLOCKS.size()));
   } else {
-    if (NODE_FLOCKS.size() > 1) {
-      NODE_FLOCKS.remove(int(random(NODE_FLOCKS.size())));
+    if (NODE_FLOCKS.size() >= 2) {
+      int to_remove = int(random(NODE_FLOCKS.size()));
+      NODE_FLOCKS.remove(to_remove);
+      // Update flock ids for subsequent flocks to maintain invariant that array
+      // index equals flock id.
+      for (int i = to_remove; i < NODE_FLOCKS.size(); ++i)
+        for (Node n : NODE_FLOCKS.get(i))
+          n.flock_id = i;
     }
   }
 }
