@@ -22,12 +22,9 @@ boolean FULL = false;
 int[] DIM = {800, 800};
 int[] FULL_DIM = {1680, 1008};
 
-int MIN_GROUPS = FULL ? 7: 3;
-int MAX_GROUPS = FULL ? 20 : 10;
-int MIN_GROUP_SIZE = FULL ? 10 : 5;
-int MAX_GROUP_SIZE = FULL ? 75 : 50;
-int MIN_NODE_SIZE = FULL ? 7 : 5;
-int MAX_NODE_SIZE = FULL ? 25 : 20;
+int[] GROUP_SIZE_RANDBOUND = {5, 50};
+int[] NUM_GROUPS_RANDBOUND = FULL ? new int[]{7, 20} : new int[]{3, 10};
+int[] NODE_SIZE_RANDBOUND = FULL ? new int[]{7, 25} : new int[]{5, 20};
 
 // Input state variables.
 boolean DEBUG_NEIGHBORS = false;
@@ -47,6 +44,9 @@ PVector rand_position() {
 color rand_color() {
   return color(random(0, 255), random(0, 255), random(0, 255));
 }
+
+// Plus 1 for int upper bound so that bounds are inclusive.
+int randbound(int[] bounds) { return int(random(bounds[0], bounds[1] + 1)); }
 
 // The distance computation doesn't recognize that nodes on the other side of
 // the screen are actually "nearby". This can cause some glitching, with nodes
@@ -205,9 +205,9 @@ class Node {
 
 
 Node[] create_random_flock(int flock_id) {
-  Node[] flock = new Node[int(random(MIN_GROUP_SIZE, MAX_GROUP_SIZE))];
+  Node[] flock = new Node[int(randbound(GROUP_SIZE_RANDBOUND))];
   color c = rand_color();
-  float size = random(MIN_NODE_SIZE, MAX_NODE_SIZE);
+  float size = randbound(NODE_SIZE_RANDBOUND);
   float space_need = size * 2 * random(0.7, 1.3);
   // TODO: pull out constants?
   float speed = random(2, 4);
@@ -225,7 +225,7 @@ Node[] create_random_flock(int flock_id) {
 
 void init_node_flocks() {
   NODE_FLOCKS.clear();
-  for (int i = 0; i < random(MIN_GROUPS, MAX_GROUPS); ++i)
+  for (int i = 0; i < randbound(NUM_GROUPS_RANDBOUND); ++i)
     NODE_FLOCKS.add(create_random_flock(i));
 }
 
@@ -293,8 +293,8 @@ void toggleFillscreen() {
 }
 
 void togglePaused() {
-  if (PAUSED) { noLoop(); } else { loop(); }
   PAUSED = !PAUSED;
+  if (PAUSED) { noLoop(); } else { loop(); }
 }
 
 void keyPressed() {
