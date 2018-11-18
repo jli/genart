@@ -94,6 +94,7 @@ class Node {
   float SPACE_CLOSE_MULT = 0.75;
   float SPACE_FAR_MULT = 1.7;
   float SPACE_TOO_FAR_MULT = 5;
+  float MIN_SEARCH_DISTANCE = 25;
 
   int id;
   int flock_id;
@@ -142,7 +143,9 @@ class Node {
         // distance is less than space need. We use the average of the pair's
         // space needs. Otherwise, flocks with smaller space needs tend to bunch
         // together and not deflect much, which looks bad.
-        if ((same_flock && d < zspace_need * SPACE_TOO_FAR_MULT)
+        float same_flock_rad = max(MIN_SEARCH_DISTANCE,
+                                   zspace_need * SPACE_TOO_FAR_MULT);
+        if ((same_flock && d < same_flock_rad)
             || (!same_flock && d < (zspace_need + ZOOM*other.space_need)/2)) {
           dist_node.put(d, other);
         }
