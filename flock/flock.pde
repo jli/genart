@@ -146,7 +146,7 @@ class Node {
         float same_flock_rad = max(MIN_SEARCH_DISTANCE,
                                    zspace_need * SPACE_TOO_FAR_MULT);
         if ((same_flock && d < same_flock_rad)
-            || (!same_flock && d < (zspace_need + ZOOM*other.space_need)/2)) {
+            || (!same_flock && d < zspace_need)) {
           dist_node.put(d, other);
         }
       }
@@ -188,7 +188,7 @@ class Node {
           vel.lerp(other.vel, 0.2);
         }
       } else {  // not same flock
-        pos.add(PVector.mult(away, 1.25));
+        pos.add(PVector.mult(away, 1.5));
       }
     }
     // Very occasionally add random smallish component to velocity.
