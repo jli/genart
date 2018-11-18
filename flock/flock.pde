@@ -255,6 +255,10 @@ void setup() {
   init_node_flocks();
 }
 
+int DISPLAY_STATUS_FOR_N_MILLIS = 5000;
+// Initialize to sufficiently negative value to avoid displaying at startup.
+int LAST_STATUS_CHANGE = -DISPLAY_STATUS_FOR_N_MILLIS * 2;
+
 void draw() {
   background(20, 20, 25);
   ArrayList<Node[]> tmp_flocks = copy_flocks(NODE_FLOCKS);
@@ -264,7 +268,38 @@ void draw() {
       d.update(tmp_flocks);
     }
   }
+  if (LAST_STATUS_CHANGE + DISPLAY_STATUS_FOR_N_MILLIS > millis()) {
+    display_status();
+  }
 }
+
+void display_status() {
+  fill(180, 180, 220);
+  text("speed:" + str(SPEED)
+       + "\nzoom:" + str(ZOOM)
+       + "\nflocks:" + str(NODE_FLOCKS.size()),
+       10, height - 40);
+}
+
+void toggle_fillscreen() {
+  // We hijack existing FULL and DIMS variables for state. Meh, whatevs.
+  FULL = !FULL;
+  if (FULL) {
+    DIM[0] = width; DIM[1] = height;  // Save current dimensions.
+    surface.setSize(FULL_DIM[0], FULL_DIM[1]);
+    surface.setLocation(0, 0);
+  } else {
+    surface.setSize(DIM[0], DIM[1]);
+    surface.setLocation(FULL_DIM[0]/2, 0);  // Move to right half.
+  }
+}
+
+void toggle_paused() {
+  PAUSED = !PAUSED;
+  if (PAUSED) { noLoop(); } else { loop(); }
+}
+
+void upstatus() { LAST_STATUS_CHANGE = millis(); }
 
 void change_flocks_size(int dir) {
   if (dir > 0) {
@@ -280,27 +315,18 @@ void change_flocks_size(int dir) {
           n.flock_id = i;
     }
   }
+  upstatus();
 }
 
-void toggleFillscreen() {
-  // We hijack existing FULL and DIMS variables for state. Meh, whatevs.
-  if (FULL) {
-    surface.setSize(DIM[0], DIM[1]);
-    surface.setLocation(FULL_DIM[0]/2, 0);  // Move to right half.
-  } else {
-    DIM[0] = width; DIM[1] = height;  // Save current dimensions.
-    surface.setSize(FULL_DIM[0], FULL_DIM[1]);
-    surface.setLocation(0, 0);
-  }
-  FULL = !FULL;
+void change_speed(float delta) {
+  SPEED = max(SPEED + delta, 0.1);
+  upstatus();
 }
 
-void togglePaused() {
-  PAUSED = !PAUSED;
-  if (PAUSED) { noLoop(); } else { loop(); }
+void change_zoom(float delta) {
+  ZOOM = constrain(ZOOM + delta, 0.2, 5);
+  upstatus();
 }
-
-void change_speed(float delta) { SPEED = max(SPEED + delta, 0.1); }
 
 void keyPressed() {
   switch (key) {
@@ -311,20 +337,19 @@ void keyPressed() {
     case 'r': init_node_flocks(); break;
     case '+': change_flocks_size(1); break;
     case '-': change_flocks_size(-1); break;
-    case 'f': toggleFillscreen(); break;
-    case ' ': togglePaused(); break;
-    case CODED:
-      switch (keyCode) {
-        case RIGHT: change_speed(0.1); break;
-        case LEFT: change_speed(-0.1); break;
-      }
+    case 'f': toggle_fillscreen(); break;
+    case ' ': toggle_paused(); break;
+    case CODED: switch (keyCode) {
+      case RIGHT: change_speed(0.1); break;
+      case LEFT: change_speed(-0.1); break;
+      case UP: change_zoom(0.1); break;
+      case DOWN: change_zoom(-0.1); break;
+    }
   }
 }
 
 void mouseWheel(MouseEvent event) {
-  if (event.getCount() < 0) {
-    ZOOM = min(ZOOM + 0.1, 5.);
-  } else if (event.getCount() > 0) {
-    ZOOM = max(ZOOM - 0.1, 0.2);
-  }
+  // Note: getCount can be 0 sometimes on touchpads.
+  if (event.getCount() < 0) { change_zoom(0.1); }
+  else if (event.getCount() > 0) { change_zoom(-0.1); }
 }
