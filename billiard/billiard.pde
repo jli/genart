@@ -50,39 +50,23 @@ class N {
     bounce_off_walls(pos, vel, rad);
   }
 
-  // h/t https://processing.org/examples/circlecollision.html
   void check_collisions(N[] all_nodes) {
+      // TODO: could handle both colliding nodes at once?
     for (N other : all_nodes) {
       if (id == other.id) continue;
-      PVector dv = PVector.sub(other.pos, pos);
+      PVector pos_delta = PVector.sub(pos, other.pos);
       float required_dist = rad + other.rad;
-      float overlap = required_dist - dv.mag();
+      float overlap = required_dist - pos_delta.mag();
       if (overlap < 0) continue;
 
       // Enforce non-overlap.
-      pos.sub(dv.copy().normalize().mult(overlap / 2));
+      pos.add(pos_delta.copy().normalize().mult(overlap / 2));
 
-      float theta = dv.heading();
-      float sine = sin(theta);
-      float cosine = cos(theta);
-
-      // Rotate velocities.
-      PVector[] vTemp = { new PVector(), new PVector() };
-      vTemp[0].x  = cosine * vel.x + sine * vel.y;
-      vTemp[0].y  = cosine * vel.y - sine * vel.x;
-      vTemp[1].x  = cosine * other.vel.x + sine * other.vel.y;
-      // vTemp[1].y  = cosine * other.vel.y - sine * other.vel.x;
-
-      // Now that velocities are rotated, you can use 1D conservation of
-      // momentum equations to calculate the final velocity along the x-axis.
-      PVector vfinal = new PVector(
-        ((mass - other.mass) * vTemp[0].x  +  2 * other.mass * vTemp[1].x)
-         / (mass + other.mass),
-        vTemp[0].y);
-
-      // Rotate velocities back.
-      vel.x = cosine * vfinal.x - sine * vfinal.y;
-      vel.y = cosine * vfinal.y + sine * vfinal.x;
+      // Angle-free representation: https://en.wikipedia.org/wiki/Elastic_collision#Two-dimensional_collision_with_two_moving_objects
+      float mass_bit = 2 * other.mass / (mass + other.mass);
+      float mag_bit = (PVector.dot(PVector.sub(vel, other.vel), pos_delta)
+                       / pos_delta.magSq());
+      vel.sub(PVector.mult(pos_delta, mass_bit * mag_bit));
     }
   }  // update
 }  // N
