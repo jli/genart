@@ -33,6 +33,7 @@ boolean TRIS_CIRCLES = true;  // false for circles.
 boolean ALPHA = false;
 boolean PAUSED = false;
 float ZOOM = 1.0;
+float SPEED = 1.0;
 
 // Primary state.
 ArrayList<Node[]> NODE_FLOCKS = new ArrayList<Node[]>();
@@ -200,7 +201,7 @@ class Node {
       vel.add(PVector.mult(PVector.random2D(), vel.mag()/5));
       fill(brighten(col, 1.3)); draw_shape();
     }
-    pos.add(vel);
+    pos.add(PVector.mult(vel, SPEED));
     wrap_vector(pos);
   }  // update
 }  // Node
@@ -265,8 +266,8 @@ void draw() {
   }
 }
 
-void change_flocks_size(int delta) {
-  if (delta > 0) {
+void change_flocks_size(int dir) {
+  if (dir > 0) {
     NODE_FLOCKS.add(create_random_flock(NODE_FLOCKS.size()));
   } else {
     if (NODE_FLOCKS.size() >= 2) {
@@ -299,6 +300,8 @@ void togglePaused() {
   if (PAUSED) { noLoop(); } else { loop(); }
 }
 
+void change_speed(float delta) { SPEED = max(SPEED + delta, 0.1); }
+
 void keyPressed() {
   switch (key) {
     case 'd': DEBUG_DISTANCE = !DEBUG_DISTANCE; break;
@@ -310,6 +313,11 @@ void keyPressed() {
     case '-': change_flocks_size(-1); break;
     case 'f': toggleFillscreen(); break;
     case ' ': togglePaused(); break;
+    case CODED:
+      switch (keyCode) {
+        case RIGHT: change_speed(0.1); break;
+        case LEFT: change_speed(-0.1); break;
+      }
   }
 }
 
