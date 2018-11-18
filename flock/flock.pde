@@ -99,7 +99,6 @@ class Node {
   int flock_id;
   PVector pos;
   PVector vel;
-  String typ;
   float space_need;
   color col;
   float size;  // TODO: rename to non-reserved word?
@@ -113,7 +112,7 @@ class Node {
     col = c;
     size = siz;
   }
-  Node copy() { return new Node(id, flock_id, pos, vel, space_need, col, size); }
+  Node copy() { return new Node(id, flock_id, pos.copy(), vel.copy(), space_need, col, size); }
 
   void draw_shape() {
     if (TRIS_CIRCLES) { draw_triangle(pos, vel, size * ZOOM); }
