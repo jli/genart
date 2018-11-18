@@ -12,20 +12,15 @@ color rand_color() {
   return color(random(0, 255), random(0, 255), random(0, 255));
 }
 
-float wrap_dimension(float x, float upper) {
-  if (x > upper) { x = x - upper; }
-  else if (x < 0) { x = upper - x; }
-  return x;
-}
-
-void wrap_position(PVector v) {
-  v.x = wrap_dimension(v.x, width);
-  v.y = wrap_dimension(v.y, height);
-}
-
-// Reflects v across normal vector n defining a line that v is bouncing off of.
-PVector reflect(PVector v, PVector n) {
-  return PVector.sub(v, PVector.mult(n, 2 * v.dot(n)));
+void bounce_off_walls(PVector pos, PVector vel, float rad) {
+  if (rad > pos.x || pos.x > width - rad) {
+    pos.x = constrain(pos.x, rad, width - rad);
+    vel.x *= -1;
+  }
+  if (rad > pos.y || pos.y > height - rad) {
+    pos.y = constrain(pos.y, rad, height - rad);
+    vel.y *= -1;
+  }
 }
 
 class N {
@@ -46,13 +41,13 @@ class N {
 
   void draw() {
     fill(col); ellipse(pos.x, pos.y, rad*2, rad*2);
-    fill(0); text(str(id), pos.x, pos.y);
   }
 
   void update() {
-    accel.add(PVector.random2D().mult(0.005)); accel.limit(.5);
+    //accel.add(PVector.random2D().mult(0.005)); accel.limit(.5);
     vel.add(accel); vel.limit(SPEED_LIMIT);
-    pos.add(vel); wrap_position(pos);
+    pos.add(vel);
+    bounce_off_walls(pos, vel, rad);
   }
 
   // h/t https://processing.org/examples/circlecollision.html
@@ -127,7 +122,8 @@ class N {
 N random_node(int i) {
   return new N(i, new PVector(random(0, width), random(0, height)),
                PVector.random2D().mult(random(INIT_SPEED_BOUNDS[0], INIT_SPEED_BOUNDS[1])),
-               PVector.random2D().mult(0.1),
+               //PVector.random2D().mult(0.1),
+               new PVector(),
                random(SIZE_BOUNDS[0], SIZE_BOUNDS[1]));
 }
 
