@@ -166,10 +166,10 @@ class Node {
       // often much closer with flockmates, so keeping separate interaction
       // limits guarantees responsiveness to close non-flock neighbors.
       if (same_flock) {
-        if (flock_neighbors > N_NEIGHBORS) continue;
+        if (flock_neighbors >= N_NEIGHBORS) continue;
         ++flock_neighbors;
       } else {
-        if (nonflock_neighbors > N_NONFLOCK_NEIGHBORS) continue;
+        if (nonflock_neighbors >= N_NONFLOCK_NEIGHBORS) continue;
         ++nonflock_neighbors;
       }
       PVector away = PVector.sub(pos, other.pos).normalize();
@@ -181,11 +181,14 @@ class Node {
       // TODO: tweak vel instead of pos.
       if (same_flock) {
         if (dist < zspace_need * SPACE_CLOSE_MULT) { pos.add(away); }
-        else if (dist > zspace_need * SPACE_FAR_MULT) { pos.lerp(other.pos, 0.005); }
+        // TODO: more lerp with pos/vel for those without many neighbors.
+        else if (zspace_need * SPACE_FAR_MULT < dist) { pos.lerp(other.pos, 0.005); }
         // Occasionally make velocity more similar to other.
-        if (random(1) < 0.10) { vel.lerp(other.vel, 0.10); }
+        if (random(1) < 0.10) {
+          vel.lerp(other.vel, 0.2);
+        }
       } else {  // not same flock
-        pos.add(PVector.mult(away, 1.5));
+        pos.add(PVector.mult(away, 1.25));
       }
     }
     // Very occasionally add random smallish component to velocity.
