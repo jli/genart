@@ -120,17 +120,12 @@ class Node {
   }
 
   void draw() {
-    noStroke();
-    fill(col, ALPHA ? 200 : 255);
+    noStroke(); fill(col, ALPHA ? 200 : 255);
     draw_shape();
     if (DEBUG_DISTANCE) {
-      float close_diam = space_need * ZOOM * SPACE_CLOSE_MULT;
-      float far_diam = space_need * ZOOM * SPACE_FAR_MULT;
-      float too_far_diam = space_need * ZOOM * SPACE_TOO_FAR_MULT;
-      stroke(100, 80);
-      fill(100,25,25,10); ellipse(pos.x, pos.y, close_diam, close_diam);
-      fill(25,100,25,10); ellipse(pos.x, pos.y, far_diam, far_diam);
-      fill(25,25,100,10); ellipse(pos.x, pos.y, too_far_diam, too_far_diam);
+      float zspace_need = space_need * ZOOM;
+      stroke(100, 220); noFill();
+      ellipse(pos.x, pos.y, zspace_need, zspace_need);
     }
   }
 
