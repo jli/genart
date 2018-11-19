@@ -133,6 +133,17 @@ class Node {
     }
   }
 
+  // TODO: 2 works well, feels more natural, interestingly different patterns.
+  // splits more often, but rejoins well.
+  // - need better inter-flock avoidance
+  // - lessen weird twitchy large direction changes
+  // - preventing all velocity changes is bad. e.g. lagging nodes should catch up
+  // - clean up the constants, come up with something more principled
+
+  // 1: original. nudge pos directly, plus vel neighbor lerp.
+  // 2: no changing of pos directly, just nudge vel.
+  int VERSION = 2;
+
   void update(ArrayList<Node[]> all) {
     float zspace_need = space_need * ZOOM;
     // Map from distances to neighbors.
@@ -159,6 +170,7 @@ class Node {
     for (float k : dist_node.keySet()) { dists = append(dists, k); }
     dists = sort(dists);
 
+    PVector pos_delta = new PVector();
     int flock_neighbors = 0;
     int nonflock_neighbors = 0;
     for (int i = 0; i < dists.length; ++i) {
@@ -181,26 +193,64 @@ class Node {
         else { stroke(color(235,0,0), 200); strokeWeight(2); }
         line(pos.x, pos.y, other.pos.x, other.pos.y);
       }
-      // TODO: tweak vel instead of pos.
+      // TODO: tweak vel instead of pos?
       if (same_flock) {
-        if (dist < zspace_need * SPACE_CLOSE_MULT) { pos.add(away); }
+        if (dist < zspace_need * SPACE_CLOSE_MULT) {
+          pos_delta.add(PVector.mult(away, 1.0));
+        }
         // TODO: more lerp with pos/vel for those without many neighbors.
-        else if (zspace_need * SPACE_FAR_MULT < dist) { pos.lerp(other.pos, 0.005); }
+        else if (zspace_need * SPACE_FAR_MULT < dist) {
+          switch (VERSION) {
+            case 1: pos_delta.add(PVector.sub(PVector.lerp(pos, other.pos, 0.005), pos)); break;
+            case 2: pos_delta.add(PVector.sub(PVector.lerp(pos, other.pos, 0.07), pos)); break;
+          }
+        }
         // Occasionally make velocity more similar to other.
         if (random(1) < 0.10) {
-          vel.lerp(other.vel, 0.2);
+          switch (VERSION) {
+            case 1: vel.lerp(other.vel, 0.2); break;
+            case 2:
+              float velmag = vel.mag();
+              vel.lerp(other.vel, 0.70);
+              vel.setMag(velmag);
+              break;
+          }
         }
       } else {  // not same flock
-        pos.add(PVector.mult(away, 1.5));
+        switch (VERSION) {
+          case 1: pos_delta.add(PVector.mult(away, 1.5)); break;
+          case 2: pos_delta.add(PVector.mult(away, 4.2)); break;
+        }
       }
     }
-    // Very occasionally add random smallish component to velocity.
-    if (random(1) < 0.05) { vel.add(PVector.mult(PVector.random2D(), vel.mag()/10)); }
-    // Even more occasionally make random largish change to velocity.
-    if (random(1) < 0.001) {
-      vel.add(PVector.mult(PVector.random2D(), vel.mag()/5));
-      fill(brighten(col, 1.3)); draw_shape();
+    switch (VERSION) {
+      case 1:
+        // Very occasionally add random smallish component to velocity.
+        if (random(1) < 0.05) { vel.add(PVector.mult(PVector.random2D(), vel.mag()/10)); }
+        // Even more occasionally make random largish change to velocity.
+        if (random(1) < 0.001) {
+          vel.add(PVector.mult(PVector.random2D(), vel.mag()/5));
+          fill(brighten(col, 1.3)); draw_shape();
+        }
+        break;
     }
+
+    // if (flock_id == 0 && id == 0 && frameCount % 10 == 0) {
+    //   print("angleBtwn:", degrees(PVector.angleBetween(origvel, pos_delta)));
+    //   println("=>", degrees(PVector.angleBetween(vel, pos_delta)));
+    //   println("mag:", origvel.mag(), "=>", vel.mag());
+    // }
+    switch (VERSION) {
+      case 1:
+        pos.add(pos_delta);
+        break;
+      case 2:
+        float velmag = vel.mag();
+        vel.lerp(pos_delta, 0.12);
+        vel.setMag(velmag);
+        break;
+    }
+
     pos.add(PVector.mult(vel, SPEED));
     wrap_vector(pos);
   }  // update
