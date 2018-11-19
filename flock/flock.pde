@@ -86,6 +86,18 @@ color brighten(color c, float mult) {
 }
 
 
+// TODO: 2 works well, feels more natural, interestingly different patterns.
+// splits more often, but rejoins well.
+// - need better inter-flock avoidance
+// - lessen weird twitchy large direction changes
+// - preventing all velocity changes is bad. e.g. lagging nodes should catch up
+// - clean up the constants, come up with something more principled
+
+// 1: original. nudge pos directly, plus vel neighbor lerp.
+// 2: no changing of pos directly, just nudge vel.
+// 3: allow magnitude to change. looks like bugs.
+int VERSION = 2;
+
 class Node {
   // Limits on interactions with nearby flock and non-flock neighbors.
   int N_NEIGHBORS = 4;
@@ -132,17 +144,6 @@ class Node {
       ellipse(pos.x, pos.y, zspace_need, zspace_need);
     }
   }
-
-  // TODO: 2 works well, feels more natural, interestingly different patterns.
-  // splits more often, but rejoins well.
-  // - need better inter-flock avoidance
-  // - lessen weird twitchy large direction changes
-  // - preventing all velocity changes is bad. e.g. lagging nodes should catch up
-  // - clean up the constants, come up with something more principled
-
-  // 1: original. nudge pos directly, plus vel neighbor lerp.
-  // 2: no changing of pos directly, just nudge vel.
-  int VERSION = 2;
 
   void update(ArrayList<Node[]> all) {
     float zspace_need = space_need * ZOOM;
@@ -196,20 +197,23 @@ class Node {
       // TODO: tweak vel instead of pos?
       if (same_flock) {
         if (dist < zspace_need * SPACE_CLOSE_MULT) {
-          pos_delta.add(PVector.mult(away, 1.0));
+          switch (VERSION) {
+            case 1: pos_delta.add(PVector.mult(away, 1.0)); break;
+            case 2: case 3: pos_delta.add(PVector.mult(away, 2.0)); break;
+          }
         }
         // TODO: more lerp with pos/vel for those without many neighbors.
         else if (zspace_need * SPACE_FAR_MULT < dist) {
           switch (VERSION) {
             case 1: pos_delta.add(PVector.sub(PVector.lerp(pos, other.pos, 0.005), pos)); break;
-            case 2: pos_delta.add(PVector.sub(PVector.lerp(pos, other.pos, 0.07), pos)); break;
+            case 2: case 3: pos_delta.add(PVector.sub(PVector.lerp(pos, other.pos, 0.07), pos)); break;
           }
         }
         // Occasionally make velocity more similar to other.
         if (random(1) < 0.10) {
           switch (VERSION) {
             case 1: vel.lerp(other.vel, 0.2); break;
-            case 2:
+            case 2: case 3:
               float velmag = vel.mag();
               vel.lerp(other.vel, 0.70);
               vel.setMag(velmag);
@@ -219,7 +223,7 @@ class Node {
       } else {  // not same flock
         switch (VERSION) {
           case 1: pos_delta.add(PVector.mult(away, 1.5)); break;
-          case 2: pos_delta.add(PVector.mult(away, 4.2)); break;
+          case 2: case 3: pos_delta.add(PVector.mult(away, 4.2)); break;
         }
       }
     }
@@ -246,8 +250,11 @@ class Node {
         break;
       case 2:
         float velmag = vel.mag();
-        vel.lerp(pos_delta, 0.12);
+        vel.lerp(pos_delta.mult(1), 0.12);
         vel.setMag(velmag);
+        break;
+      case 3:
+        vel.lerp(pos_delta.mult(10), 0.12);
         break;
     }
 
@@ -389,6 +396,9 @@ void keyPressed() {
     case '-': change_flocks_size(-1); break;
     case 'f': toggle_fillscreen(); break;
     case ' ': toggle_paused(); break;
+    case '1': VERSION = 1; break;
+    case '2': VERSION = 2; break;
+    case '3': VERSION = 3; break;
     case CODED: switch (keyCode) {
       case RIGHT: change_speed(0.1); break;
       case LEFT: change_speed(-0.1); break;
