@@ -22,9 +22,9 @@ boolean FULL = false;
 int[] DIM = {800, 800};
 int[] FULL_DIM = {1680, 1008};
 
-int[] GROUP_SIZE_RANDBOUND = {5, 50};
-int[] NUM_GROUPS_RANDBOUND = FULL ? new int[]{7, 20} : new int[]{3, 10};
-int[] NODE_SIZE_RANDBOUND = FULL ? new int[]{7, 25} : new int[]{5, 20};
+int[] GROUP_SIZE_RANDBOUND = {5, 35};
+int[] NUM_GROUPS_RANDBOUND = {4, 13};
+int[] NODE_SIZE_RANDBOUND = {5, 20};
 
 // Input state variables.
 boolean DEBUG_NEIGHBORS = false;
