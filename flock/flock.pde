@@ -1,17 +1,11 @@
 // TODOs:
 // - behavior:
-//   - tweak behavior to work well across scales
 //   - smoother changes w/ accel variable to change vel over time?
 //   - tweak velocity instead of position in interactions
 // - graphics/interactions:
 //   - indication when nodes lerp velocities. better indication for vel bump.
 //   - mouse interaction to create new nodes? or move nodes around?
 //   - color shift in some situation (bumping into non-flock nodes?)
-//   - constant color shift/shimmer?
-//   - speed shift with arrows or something?
-// - bleh:
-//   - gets weird at edges. consider bounding at edges, or making distance
-//     computation work across edges.
 
 import java.util.Map;
 
@@ -194,7 +188,6 @@ class Node {
         else { stroke(color(235,0,0), 200); strokeWeight(2); }
         line(pos.x, pos.y, other.pos.x, other.pos.y);
       }
-      // TODO: tweak vel instead of pos?
       if (same_flock) {
         if (dist < zspace_need * SPACE_CLOSE_MULT) {
           switch (VERSION) {
