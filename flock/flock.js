@@ -1,11 +1,12 @@
-const DIM = [800, 800];
+const DIM = [600, 600];
 
-const GROUP_SIZE_RANDBOUND = [5, 35];
+const GROUP_SIZE_RANDBOUND = [10, 50];
 const NUM_GROUPS_RANDBOUND = [3, 8];
 const NODE_SIZE_RANDBOUND = [5, 20];
 
 let DEBUG_NEIGHBORS = false;
 let DEBUG_DISTANCE = false;
+let DEBUG_FORCE = false;
 let TRIS_CIRCLES = true;
 let ALPHA = false;
 let PAUSED = false;
@@ -13,13 +14,14 @@ let ZOOM = 1.0;
 let SPEED = 1.0;
 
 let SPEED_LIMIT_MULT = 3;
-let SPACE_AWARE_MULT = 3;
-let SEPARATION_FORCE = 3;
-let COHESION_FORCE = 2;
-let ALIGNMENT_FORCE = 2;
 
-let MAX_FORCE = 0.1;
-
+// sliders:
+let SPACE_AWARE_MULT;// = 5;
+let SEPARATION_FORCE;// = 3;
+let COHESION_FORCE;// = 2;
+let ALIGNMENT_FORCE;// = 2;
+let MAX_FORCE;// = 0.1;
+let NUM_NEIGHBORS;// = 0.1;
 
 let NODE_FLOCKS = [];
 
@@ -65,21 +67,20 @@ function wrap_vector(v) {
 
 class Node {
   constructor(id, flock_id, pos, vel, space_need, col, size) {
-    this.id = id;
-    this.flock_id = flock_id;
-    this.pos = pos;
-    this.vel = vel;
+    this.id = id; this.flock_id = flock_id;
+    this.pos = pos; this.vel = vel;
     this.space_need = space_need;
-    this.col = col;
-    this.size = size;
-    this.natural_speed = this.vel.mag();
+    this.col = col; this.size = size;
     // TODO: need natural_speed still?
+    this.natural_speed = this.vel.mag();
   }
   copy() {
     return new Node(this.id, this.flock_id, this.pos.copy(), this.vel.copy(),
                     this.space_need, this.col, this.size);
   }
   get speed_limit() { return this.natural_speed * SPEED_LIMIT_MULT; }
+  get zspace_need() { return this.space_need * ZOOM; }
+  get debugf() { return DEBUG_FORCE && this.id == 0; }
 
   draw_shape() {
     if (TRIS_CIRCLES) { draw_triangle(this.pos, this.vel, this.size * ZOOM); }
@@ -88,14 +89,13 @@ class Node {
 
   draw() {
     noStroke(); fill(this.col, ALPHA ? 200 : 255);
+    if (this.debugf) { fill(255, 255); }
     this.draw_shape();
     if (DEBUG_DISTANCE) {
       stroke(100, 220); noFill();
       ellipse(this.pos.x, this.pos.y, this.zspace_need, this.zspace_need);
     }
   }
-
-  get zspace_need() { return this.space_need * ZOOM; }
 
   get_nearest_nodes(flocks) {
     const nodes_and_dists = [];
@@ -105,17 +105,20 @@ class Node {
         if (same_flock && this.id == other.id) continue;
         const dist = this.pos.dist(other.pos);
         // TODO: average space_need with other? add MIN_SEARCH_DISTANCE?
-        if (dist < SPACE_AWARE_MULT * this.zspace_need) {
+        if (dist < SPACE_AWARE_MULT.value() * this.zspace_need) {
           nodes_and_dists.push([other, dist]);
         }
       }
     }
-    return nodes_and_dists.sort((a, b) => a[1] - b[1]);
+    return nodes_and_dists.sort((a, b) => a[1] - b[1]).splice(0, NUM_NEIGHBORS.value());
+  }
+
+  steer_velocity(v2, mult) {
+    return v2.copy().setMag(this.speed_limit).sub(this.vel).mult(mult);
   }
 
   update(flocks) {
     const nearby_nodes = this.get_nearest_nodes(flocks);
-    const velmag = this.vel.mag();
 
     let separation_force = createVector(); let separation_count = 0;
     let cohesion_center = createVector(); let cohesion_count = 0;
@@ -123,36 +126,61 @@ class Node {
     for (const [other, dist] of nearby_nodes) {
       const same_flock = this.flock_id == other.flock_id;
       const away = p5.Vector.sub(this.pos, other.pos).normalize();
-      // const toward = away.copy().rotate(PI);
       if (same_flock) {
+        // TODO: less sharp boundary for more smoothness?
         if (dist < this.zspace_need) {
-          separation_force.add(away.copy().div(dist)); ++separation_count;
+          separation_force.add(away.copy().div(pow(dist, 2))); ++separation_count;
         }
         cohesion_center.add(other.pos); ++cohesion_count;
         alignment_force.add(other.vel); ++alignment_count;
       }
+      // TODO: repel non-flock mates
+      if (DEBUG_NEIGHBORS) {
+        if (same_flock) {
+          if (dist < this.zspace_need) { stroke(250, 50, 50, 150); strokeWeight(1); }
+          else { stroke(150, 150, 150, 150); strokeWeight(1); }
+        }
+        else { stroke(color(235, 0, 0), 200); strokeWeight(1); }
+        if (!DEBUG_FORCE || (DEBUG_FORCE && this.id == 0)) {
+          line(this.pos.x, this.pos.y, other.pos.x, other.pos.y);
+        }
+      }
     }
-    let force = createVector();
-    if (separation_count > 0) { force.add(separation_force.mult(SEPARATION_FORCE / separation_count)); }
+
+    let tot_force = createVector();
     if (cohesion_count > 0) {
       cohesion_center.div(cohesion_count);
-      const towards = p5.Vector.sub(cohesion_center, this.pos);
-      force.add(towards.mult(COHESION_FORCE));
+      let towards = p5.Vector.sub(cohesion_center, this.pos);
+      towards = this.steer_velocity(towards, COHESION_FORCE.value())
+      tot_force.add(towards);
+      if (this.debugf) {
+        fill(255, 100);
+        ellipse(cohesion_center.x, cohesion_center.y, 10, 10);
+        fill(50, 50, 255, 200); draw_triangle(p5.Vector.lerp(cohesion_center, this.pos, 0.5), towards, towards.mag());
+      }
     }
-    if (alignment_count > 0) { force.add(alignment_force.mult(ALIGNMENT_FORCE / alignment_count)); }
-    if (this.flock_id == 0 && this.id == 0 && frameCount % 30 == 0)  {
-      console.log('force:', force, ' (', force.mag(), ')');
-      console.log('vel:', this.vel, ' (', this.vel.mag(), ')');
+    if (separation_count > 0) {
+      separation_force.div(separation_count);
+      separation_force = this.steer_velocity(separation_force, SEPARATION_FORCE.value());
+      tot_force.add(separation_force);
+      if (this.debugf) {
+        fill(255, 0, 0, 200); draw_triangle(cohesion_center, separation_force, separation_force.mag());
+      }
     }
-    force.limit(MAX_FORCE);
-    this.vel.add(force);
-    this.vel.setMag(this.vel.mag() * .8 + this.natural_speed * .2);
+    if (alignment_count > 0) {
+      alignment_force.div(alignment_count);
+      alignment_force = this.steer_velocity(alignment_force, ALIGNMENT_FORCE.value());
+      tot_force.add(alignment_force);
+      if (this.debugf) {
+        fill(0, 255, 0, 200); draw_triangle(cohesion_center, alignment_force, alignment_force.mag());
+      }
+    }
+    tot_force.limit(MAX_FORCE.value());
+    this.vel.add(tot_force);
+    //this.vel.setMag(this.vel.mag() * .8 + this.natural_speed * .2);
     this.vel.limit(this.speed_limit);
     this.pos.add(this.vel.copy().mult(SPEED));
     wrap_vector(this.pos);
-    if (this.flock_id == 0 && this.id == 0 && frameCount % 30 == 0)  {
-      console.log('vel2:', this.vel, ' (', this.vel.mag(), ')');
-    }
   }
 }  // Node
 
@@ -169,7 +197,8 @@ function create_random_flock(flock_id) {
   for (let i = 0; i < rand_bound(GROUP_SIZE_RANDBOUND); ++i) {
     // TODO: more principled random fuzz amount.
     const posfuzzed = p5.Vector.add(pos, p5.Vector.random2D().mult(random(space_need * 4)));
-    const velfuzzed = p5.Vector.add(vel, p5.Vector.random2D().mult(speed/5));
+    // Note: speed set to same value.
+    const velfuzzed = p5.Vector.random2D().mult(speed/5).add(vel).setMag(speed);
     flock.push(new Node(i, flock_id, posfuzzed, velfuzzed, space_need,
                         brighten(c, random(0.7, 1.3)), size * random(0.8, 1.2)));
   }
@@ -187,6 +216,29 @@ function copy_flocks(flocks) { return flocks.map(f => f.map(n => n.copy())); }
 function setup() {
   createCanvas(DIM[0], DIM[1]);
   frameRate(30);
+
+  // TODO: clean up this mess.
+  SPACE_AWARE_MULT = createSlider(0, 30, 4, .1);
+  SEPARATION_FORCE = createSlider(0, 10, 2, .1);
+  COHESION_FORCE = createSlider(0, 10, 2, .1);
+  ALIGNMENT_FORCE = createSlider(0, 10, 2, .1);
+  MAX_FORCE = createSlider(0, 1, .05, .02);
+  NUM_NEIGHBORS = createSlider(1, 50, 16, 1);
+
+  SPACE_AWARE_MULT.position(DIM[0], 10);
+  createDiv("space aware m").position(DIM[0] + SPACE_AWARE_MULT.width, 10);
+  SEPARATION_FORCE.position(DIM[0], 30);
+  createDiv("separation f").position(DIM[0] + SPACE_AWARE_MULT.width, 30);
+  COHESION_FORCE.position(DIM[0], 50);
+  createDiv("cohesion f").position(DIM[0] + SPACE_AWARE_MULT.width, 50);
+  ALIGNMENT_FORCE.position(DIM[0], 70);
+  createDiv("alignment f").position(DIM[0] + SPACE_AWARE_MULT.width, 70);
+  MAX_FORCE.position(DIM[0], 90);
+  createDiv("max force").position(DIM[0] + SPACE_AWARE_MULT.width, 90);
+  NUM_NEIGHBORS.position(DIM[0], 110);
+  createDiv("num neighbors").position(DIM[0] + SPACE_AWARE_MULT.width, 110);
+
+
   init_node_flocks();
 }
 
@@ -202,10 +254,10 @@ function draw() {
 }
 
 function keyPressed() {
-  print(key, keyCode);
   switch (key) {
     case 'd': DEBUG_DISTANCE = !DEBUG_DISTANCE; break;
     case 'l': DEBUG_NEIGHBORS = !DEBUG_NEIGHBORS; break;
+    case 'f': DEBUG_FORCE = !DEBUG_FORCE; break;
     case 'a': ALPHA = !ALPHA; break;
     case 'c': TRIS_CIRCLES = !TRIS_CIRCLES; break;
     case ' ': toggle_paused(); break;
