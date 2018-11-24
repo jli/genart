@@ -12,9 +12,9 @@
 // - misc:
 //   -  rand_color: convert to HSB, require minimum brightness
 
-const GROUP_SIZE_RANDBOUND = [10, 50];
-const NUM_GROUPS_RANDBOUND = [4, 12];
-const NODE_SIZE_RANDBOUND = [5, 15];
+const GROUP_SIZE_RANDBOUND = [50, 150];
+const NUM_GROUPS_RANDBOUND = [2, 3];
+const NODE_SIZE_RANDBOUND = [6, 13];
 
 let DEBUG_NEIGHBORS = false;
 let DEBUG_DISTANCE = false;
@@ -92,7 +92,7 @@ class Node {
   }
   get speed_limit() { return this.natural_speed * SPEED_LIMIT_MULT; }
   get zspace_need() { return this.space_need * ZOOM; }
-  get debugf() { return DEBUG_FORCE && this.id == 0; }
+  get debugf() { return DEBUG_FORCE && this.id % 25 == 0; }
 
   draw_shape() {
     if (TRIS_CIRCLES) { draw_triangle(this.pos, this.vel, this.size * ZOOM); }
@@ -110,19 +110,24 @@ class Node {
   }
 
   get_nearest_nodes(flocks) {
-    const nodes_and_dists = [];
+    // same flock and not-same flock
+    const nodes_and_dists_sf = [];
+    const nodes_and_dists_nf = [];
     for (const flock of flocks) {
       for (const other of flock) {
         const same_flock = this.flock_id == other.flock_id;
         if (same_flock && this.id == other.id) continue;
         const dist = this.pos.dist(other.pos);
         // TODO: average space_need with other? add MIN_SEARCH_DISTANCE?
-        if (dist < SPACE_AWARE_MULT.value() * this.zspace_need) {
-          nodes_and_dists.push([other, dist]);
+        if (dist < SPACE_AWARE_MULT.value() * (this.zspace_need + other.zspace_need) / 2) {
+          if (same_flock) { nodes_and_dists_sf.push([other, dist]); }
+          else { nodes_and_dists_nf.push([other, dist]); }
         }
       }
     }
-    return nodes_and_dists.sort((a, b) => a[1] - b[1]).splice(0, NUM_NEIGHBORS.value());
+    const sf = nodes_and_dists_sf.sort((a, b) => a[1] - b[1]).splice(0, NUM_NEIGHBORS.value());
+    const nf = nodes_and_dists_nf.sort((a, b) => a[1] - b[1]).splice(0, NUM_NF_NEIGHBORS.value());
+    return sf.concat(nf);
   }
 
   steer_velocity(v2, mult) {
@@ -151,11 +156,10 @@ class Node {
       }
       if (DEBUG_NEIGHBORS) {
         if (same_flock) {
-          if (dist < this.zspace_need) { stroke(50, 50, 250, 150); strokeWeight(1); }
+          if (dist < this.zspace_need) { stroke(50, 50, 250, 200); strokeWeight(1); }
           else { stroke(150, 150, 150, 150); strokeWeight(1); }
-        }
-        else { stroke(color(235, 0, 0), 200); strokeWeight(1); }
-        if (!DEBUG_FORCE || (DEBUG_FORCE && this.id == 0)) {
+        } else { stroke(235, 0, 0, 200); strokeWeight(1); }
+        if (!DEBUG_FORCE || this.debugf) {
           line(this.pos.x, this.pos.y, other.pos.x, other.pos.y);
         }
       }
@@ -200,7 +204,7 @@ class Node {
     tot_force.limit(MAX_FORCE.value());
     this.vel.add(tot_force);
     //this.vel.setMag(this.vel.mag() * .8 + this.natural_speed * .2);
-    this.vel.limit(this.speed_limit);
+    //this.vel.limit(this.speed_limit);
     this.pos.add(this.vel.copy().mult(SPEED));
     wrap_vector(this.pos);
   }
@@ -210,10 +214,10 @@ function create_random_flock(flock_id) {
   const flock = [];
   const c = rand_color();
   const size = rand_bound(NODE_SIZE_RANDBOUND);
-  const space_need = size * 2.5 * random(0.7, 1.3);
+  const space_need = size * 2.5 * random(0.8, 1.2);
   // TODO: pull out constants?
   // TODO: make speed variant match size, with smaller being faster, or vice versa?
-  const speed = random(2, 4);
+  const speed = random(1.5, 4);
   const pos = rand_position();
   const vel = p5.Vector.random2D().mult(speed);
   for (let i = 0; i < rand_bound(GROUP_SIZE_RANDBOUND); ++i) {
@@ -222,7 +226,7 @@ function create_random_flock(flock_id) {
     // Note: speed set to same value.
     const velfuzzed = p5.Vector.random2D().mult(speed/5).add(vel).setMag(speed);
     flock.push(new Node(i, flock_id, posfuzzed, velfuzzed, space_need,
-                        brighten(c, random(0.7, 1.3)), size * random(0.8, 1.2)));
+                        brighten(c, random(0.7, 1.3)), size * random(0.85, 1.15)));
   }
   return flock;
 }
@@ -241,13 +245,14 @@ function setup() {
   frameRate(30);
 
   // TODO: clean up this mess.
-  SPACE_AWARE_MULT = createSlider(0, 30, 4, .1);
-  SEPARATION_FORCE = createSlider(0, 10, 3, .1);
-  NF_SEPARATION_FORCE = createSlider(0, 10, 8, .1);
-  COHESION_FORCE = createSlider(0, 10, 2, .1);
-  ALIGNMENT_FORCE = createSlider(0, 10, 4, .1);
-  MAX_FORCE = createSlider(0, 1, .5, .02);
-  NUM_NEIGHBORS = createSlider(1, 50, 6, 1);
+  SPACE_AWARE_MULT = createSlider(0, 10, 4, .1);
+  SEPARATION_FORCE = createSlider(0, 10, 1.5, .1);
+  NF_SEPARATION_FORCE = createSlider(0, 10, 6, .1);
+  COHESION_FORCE = createSlider(0, 10, 1, .1);
+  ALIGNMENT_FORCE = createSlider(0, 10, 1, .1);
+  MAX_FORCE = createSlider(0, 1, .1, .02);
+  NUM_NEIGHBORS = createSlider(1, 50, 10, 1);
+  NUM_NF_NEIGHBORS = createSlider(1, 50, 10, 1);
 
   const slider_x = 20;
   let slider_y = 0;
@@ -258,6 +263,7 @@ function setup() {
   ALIGNMENT_FORCE.position(slider_x, slider_y+=20);
   MAX_FORCE.position(slider_x, slider_y+=20);
   NUM_NEIGHBORS.position(slider_x, slider_y+=20);
+  NUM_NF_NEIGHBORS.position(slider_x, slider_y+=20);
   slider_y = 0;
   createDiv("space aware m").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
   createDiv("separation f").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
@@ -266,6 +272,7 @@ function setup() {
   createDiv("alignment f").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
   createDiv("max force").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
   createDiv("num neighbors").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
+  createDiv("num non-flock neighbors").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
 
 
   init_node_flocks();
