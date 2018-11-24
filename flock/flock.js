@@ -1,8 +1,20 @@
-const DIM = [600, 600];
+// TODO:
+// - behavior:
+//   - separation is odd, causes "quivering"
+//   - steering computation is odd. a single node counts as much as several?
+//   - rigid: flocks can look static
+//   - add mouse interaction: attract, repel
+// - display:
+//   - clean up sliders display
+//   - add status display (# flocks, # nodes, zoom, speed, etc)
+//   - better debug display
+//   - node color shift based on velocity change
+// - misc:
+//   -  rand_color: convert to HSB, require minimum brightness
 
 const GROUP_SIZE_RANDBOUND = [10, 50];
-const NUM_GROUPS_RANDBOUND = [3, 8];
-const NODE_SIZE_RANDBOUND = [5, 20];
+const NUM_GROUPS_RANDBOUND = [4, 12];
+const NODE_SIZE_RANDBOUND = [5, 15];
 
 let DEBUG_NEIGHBORS = false;
 let DEBUG_DISTANCE = false;
@@ -121,6 +133,7 @@ class Node {
     const nearby_nodes = this.get_nearest_nodes(flocks);
 
     let separation_force = createVector(); let separation_count = 0;
+    let nf_separation_force = createVector(); let nf_separation_count = 0;
     let cohesion_center = createVector(); let cohesion_count = 0;
     let alignment_force = createVector(); let alignment_count = 0;
     for (const [other, dist] of nearby_nodes) {
@@ -133,11 +146,12 @@ class Node {
         }
         cohesion_center.add(other.pos); ++cohesion_count;
         alignment_force.add(other.vel); ++alignment_count;
+      } else {
+        nf_separation_force.add(away.copy().div(pow(dist, 2))); ++nf_separation_count;
       }
-      // TODO: repel non-flock mates
       if (DEBUG_NEIGHBORS) {
         if (same_flock) {
-          if (dist < this.zspace_need) { stroke(250, 50, 50, 150); strokeWeight(1); }
+          if (dist < this.zspace_need) { stroke(50, 50, 250, 150); strokeWeight(1); }
           else { stroke(150, 150, 150, 150); strokeWeight(1); }
         }
         else { stroke(color(235, 0, 0), 200); strokeWeight(1); }
@@ -167,6 +181,14 @@ class Node {
         fill(255, 0, 0, 200); draw_triangle(cohesion_center, separation_force, separation_force.mag());
       }
     }
+    if (nf_separation_count > 0) {
+      nf_separation_force.div(nf_separation_count);
+      nf_separation_force = this.steer_velocity(nf_separation_force, NF_SEPARATION_FORCE.value());
+      tot_force.add(nf_separation_force);
+      if (this.debugf) {
+        fill(255, 0, 0, 200); draw_triangle(cohesion_center, nf_separation_force, nf_separation_force.mag());
+      }
+    }
     if (alignment_count > 0) {
       alignment_force.div(alignment_count);
       alignment_force = this.steer_velocity(alignment_force, ALIGNMENT_FORCE.value());
@@ -188,7 +210,7 @@ function create_random_flock(flock_id) {
   const flock = [];
   const c = rand_color();
   const size = rand_bound(NODE_SIZE_RANDBOUND);
-  const space_need = size * 2 * random(0.7, 1.3);
+  const space_need = size * 2.5 * random(0.7, 1.3);
   // TODO: pull out constants?
   // TODO: make speed variant match size, with smaller being faster, or vice versa?
   const speed = random(2, 4);
@@ -214,29 +236,36 @@ function init_node_flocks() {
 function copy_flocks(flocks) { return flocks.map(f => f.map(n => n.copy())); }
 
 function setup() {
-  createCanvas(DIM[0], DIM[1]);
+  const cnv = createCanvas(windowWidth, windowHeight);
+  cnv.style('display', 'block');
   frameRate(30);
 
   // TODO: clean up this mess.
   SPACE_AWARE_MULT = createSlider(0, 30, 4, .1);
-  SEPARATION_FORCE = createSlider(0, 10, 2, .1);
+  SEPARATION_FORCE = createSlider(0, 10, 3, .1);
+  NF_SEPARATION_FORCE = createSlider(0, 10, 8, .1);
   COHESION_FORCE = createSlider(0, 10, 2, .1);
-  ALIGNMENT_FORCE = createSlider(0, 10, 2, .1);
-  MAX_FORCE = createSlider(0, 1, .05, .02);
-  NUM_NEIGHBORS = createSlider(1, 50, 16, 1);
+  ALIGNMENT_FORCE = createSlider(0, 10, 4, .1);
+  MAX_FORCE = createSlider(0, 1, .5, .02);
+  NUM_NEIGHBORS = createSlider(1, 50, 6, 1);
 
-  SPACE_AWARE_MULT.position(DIM[0], 10);
-  createDiv("space aware m").position(DIM[0] + SPACE_AWARE_MULT.width, 10);
-  SEPARATION_FORCE.position(DIM[0], 30);
-  createDiv("separation f").position(DIM[0] + SPACE_AWARE_MULT.width, 30);
-  COHESION_FORCE.position(DIM[0], 50);
-  createDiv("cohesion f").position(DIM[0] + SPACE_AWARE_MULT.width, 50);
-  ALIGNMENT_FORCE.position(DIM[0], 70);
-  createDiv("alignment f").position(DIM[0] + SPACE_AWARE_MULT.width, 70);
-  MAX_FORCE.position(DIM[0], 90);
-  createDiv("max force").position(DIM[0] + SPACE_AWARE_MULT.width, 90);
-  NUM_NEIGHBORS.position(DIM[0], 110);
-  createDiv("num neighbors").position(DIM[0] + SPACE_AWARE_MULT.width, 110);
+  const slider_x = 20;
+  let slider_y = 0;
+  SPACE_AWARE_MULT.position(slider_x, slider_y+=20);
+  SEPARATION_FORCE.position(slider_x, slider_y+=20);
+  NF_SEPARATION_FORCE.position(slider_x, slider_y+=20);
+  COHESION_FORCE.position(slider_x, slider_y+=20);
+  ALIGNMENT_FORCE.position(slider_x, slider_y+=20);
+  MAX_FORCE.position(slider_x, slider_y+=20);
+  NUM_NEIGHBORS.position(slider_x, slider_y+=20);
+  slider_y = 0;
+  createDiv("space aware m").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
+  createDiv("separation f").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
+  createDiv("non-flock separation f").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
+  createDiv("cohesion f").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
+  createDiv("alignment f").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
+  createDiv("max force").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
+  createDiv("num neighbors").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
 
 
   init_node_flocks();
@@ -251,6 +280,10 @@ function draw() {
       node.update(tmp_flocks);
     }
   }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
 }
 
 function keyPressed() {
