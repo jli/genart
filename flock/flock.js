@@ -1,3 +1,4 @@
+'use strict';
 // TODO:
 // - behavior:
 //   - separation is odd, causes "quivering"
@@ -11,6 +12,8 @@
 //   - node color shift based on velocity change
 // - misc:
 //   -  rand_color: convert to HSB, require minimum brightness
+//
+// h/t https://github.com/shiffman/The-Nature-of-Code-Examples/blob/master/chp06_agents/NOC_6_09_Flocking/Boid.pde
 
 const GROUP_SIZE_RANDBOUND = [50, 150];
 const NUM_GROUPS_RANDBOUND = [2, 3];
@@ -27,13 +30,15 @@ let SPEED = 1.0;
 
 let SPEED_LIMIT_MULT = 3;
 
-// sliders:
-let SPACE_AWARE_MULT;// = 5;
-let SEPARATION_FORCE;// = 3;
-let COHESION_FORCE;// = 2;
-let ALIGNMENT_FORCE;// = 2;
-let MAX_FORCE;// = 0.1;
-let NUM_NEIGHBORS;// = 0.1;
+let CONTROLS;
+let SPACE_AWARE_MULT;
+let SEPARATION_FORCE;
+let NF_SEPARATION_FORCE;
+let COHESION_FORCE;
+let ALIGNMENT_FORCE;
+let MAX_FORCE;
+let NUM_NEIGHBORS;
+let NF_NUM_NEIGHBORS;
 
 let NODE_FLOCKS = [];
 
@@ -105,6 +110,9 @@ class Node {
     this.draw_shape();
     if (DEBUG_DISTANCE) {
       stroke(100, 220); noFill();
+      // Note: this is drawing a diameter of space_need instead of the radius.
+      // This works out since with 2 nodes, the 2 bubbles looks like they're
+      // bumping against each other.
       ellipse(this.pos.x, this.pos.y, this.zspace_need, this.zspace_need);
     }
   }
@@ -118,7 +126,6 @@ class Node {
         const same_flock = this.flock_id == other.flock_id;
         if (same_flock && this.id == other.id) continue;
         const dist = this.pos.dist(other.pos);
-        // TODO: average space_need with other? add MIN_SEARCH_DISTANCE?
         if (dist < SPACE_AWARE_MULT.value() * (this.zspace_need + other.zspace_need) / 2) {
           if (same_flock) { nodes_and_dists_sf.push([other, dist]); }
           else { nodes_and_dists_nf.push([other, dist]); }
@@ -126,10 +133,11 @@ class Node {
       }
     }
     const sf = nodes_and_dists_sf.sort((a, b) => a[1] - b[1]).splice(0, NUM_NEIGHBORS.value());
-    const nf = nodes_and_dists_nf.sort((a, b) => a[1] - b[1]).splice(0, NUM_NF_NEIGHBORS.value());
+    const nf = nodes_and_dists_nf.sort((a, b) => a[1] - b[1]).splice(0, NF_NUM_NEIGHBORS.value());
     return sf.concat(nf);
   }
 
+  // TODO: don't think i like this.
   steer_velocity(v2, mult) {
     return v2.copy().setMag(this.speed_limit).sub(this.vel).mult(mult);
   }
@@ -154,15 +162,13 @@ class Node {
       } else {
         nf_separation_force.add(away.copy().div(pow(dist, 2))); ++nf_separation_count;
       }
-      if (DEBUG_NEIGHBORS) {
+      if (DEBUG_NEIGHBORS && (!DEBUG_FORCE || this.debugf)) {
         if (same_flock) {
           if (dist < this.zspace_need) { stroke(50, 50, 250, 200); strokeWeight(1); }
           else { stroke(150, 150, 150, 150); strokeWeight(1); }
         } else { stroke(235, 0, 0, 200); strokeWeight(1); }
-        if (!DEBUG_FORCE || this.debugf) {
-          line(this.pos.x, this.pos.y, other.pos.x, other.pos.y);
-        }
-      }
+        line(this.pos.x, this.pos.y, other.pos.x, other.pos.y);
+      l}
     }
 
     let tot_force = createVector();
@@ -239,41 +245,31 @@ function init_node_flocks() {
 
 function copy_flocks(flocks) { return flocks.map(f => f.map(n => n.copy())); }
 
+function make_slider(label, min, max, startval, step, parent) {
+  // TODO: nicer display of slider value.
+  let container = createDiv().parent(parent);
+  let slider = createSlider(min, max, startval, step);
+  slider.parent(container);
+  let labelelt = createSpan(`${startval} / ${label}`)
+  labelelt.parent(container);
+  slider.input(() => { labelelt.html(`${slider.value()} / ${label}`) });
+  return slider;
+}
+
 function setup() {
-  const cnv = createCanvas(windowWidth, windowHeight);
-  cnv.style('display', 'block');
   frameRate(30);
+  createCanvas(windowWidth, windowHeight);
 
-  // TODO: clean up this mess.
-  SPACE_AWARE_MULT = createSlider(0, 10, 4, .1);
-  SEPARATION_FORCE = createSlider(0, 10, 1.5, .1);
-  NF_SEPARATION_FORCE = createSlider(0, 10, 6, .1);
-  COHESION_FORCE = createSlider(0, 10, 1, .1);
-  ALIGNMENT_FORCE = createSlider(0, 10, 1, .1);
-  MAX_FORCE = createSlider(0, 1, .1, .02);
-  NUM_NEIGHBORS = createSlider(1, 50, 10, 1);
-  NUM_NF_NEIGHBORS = createSlider(1, 50, 10, 1);
-
-  const slider_x = 20;
-  let slider_y = 0;
-  SPACE_AWARE_MULT.position(slider_x, slider_y+=20);
-  SEPARATION_FORCE.position(slider_x, slider_y+=20);
-  NF_SEPARATION_FORCE.position(slider_x, slider_y+=20);
-  COHESION_FORCE.position(slider_x, slider_y+=20);
-  ALIGNMENT_FORCE.position(slider_x, slider_y+=20);
-  MAX_FORCE.position(slider_x, slider_y+=20);
-  NUM_NEIGHBORS.position(slider_x, slider_y+=20);
-  NUM_NF_NEIGHBORS.position(slider_x, slider_y+=20);
-  slider_y = 0;
-  createDiv("space aware m").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
-  createDiv("separation f").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
-  createDiv("non-flock separation f").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
-  createDiv("cohesion f").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
-  createDiv("alignment f").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
-  createDiv("max force").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
-  createDiv("num neighbors").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
-  createDiv("num non-flock neighbors").position(slider_x + 5 + SPACE_AWARE_MULT.width, slider_y+=20);
-
+  CONTROLS = createDiv();
+  CONTROLS.id('controlsContainer');
+  SPACE_AWARE_MULT = make_slider('space aware mult', 0, 10, 4, .1, CONTROLS);
+  SEPARATION_FORCE = make_slider('separation', 0, 10, 1.5, .1, CONTROLS);
+  NF_SEPARATION_FORCE = make_slider('nf separation', 0, 10, 6, .1, CONTROLS);
+  COHESION_FORCE = make_slider('cohesion', 0, 10, 1, .1, CONTROLS);
+  ALIGNMENT_FORCE = make_slider('alignment', 0, 10, 1, .1, CONTROLS);
+  MAX_FORCE = make_slider('max force', 0, 1, .1, .02, CONTROLS);
+  NUM_NEIGHBORS = make_slider('# neighbors', 1, 50, 10, 1, CONTROLS);
+  NF_NUM_NEIGHBORS = make_slider('# nf neighbors', 1, 50, 10, 1, CONTROLS);
 
   init_node_flocks();
 }
@@ -289,8 +285,19 @@ function draw() {
   }
 }
 
-function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
+function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+
+function toggle_controls() {
+  // Initially status is 'null', and so falls into 2nd branch for hiding.
+  const status = CONTROLS.attribute('status');
+  if (status === 'hidden') {
+    CONTROLS.attribute('status', 'shown');
+    CONTROLS.style('translate', 0, 0);
+  } else {
+    CONTROLS.attribute('status', 'hidden');
+    const ty = CONTROLS.size()['height'] + parseInt(CONTROLS.style('bottom'), 10);
+    CONTROLS.style('translate', 0, ty);
+  }
 }
 
 function keyPressed() {
@@ -304,6 +311,7 @@ function keyPressed() {
     case 'r': init_node_flocks(); break;
     case '+': change_flocks_size(1); break;
     case '-': change_flocks_size(-1); break;
+    case ';': toggle_controls(); break;
   }
   switch (keyCode) {
     case RIGHT_ARROW: change_speed(0.1); break;
