@@ -1,22 +1,20 @@
 'use strict';
 // TODO:
 // - behavior:
-//   - separation is odd, causes "quivering"
-//   - steering computation is odd. a single node counts as much as several?
-//   - rigid: flocks can look static
+//   - rethink update() computation.
 //   - add mouse interaction: attract, repel
 // - display:
-//   - clean up sliders display
 //   - add status display (# flocks, # nodes, zoom, speed, etc)
 //   - better debug display
 //   - node color shift based on velocity change
 // - misc:
-//   -  rand_color: convert to HSB, require minimum brightness
+//   - rand_color: convert to HSB, require minimum brightness
+//   - figure out color() with object warning
 //
 // h/t https://github.com/shiffman/The-Nature-of-Code-Examples/blob/master/chp06_agents/NOC_6_09_Flocking/Boid.pde
 
 const GROUP_SIZE_RANDBOUND = [50, 150];
-const NUM_GROUPS_RANDBOUND = [2, 3];
+const NUM_GROUPS_RANDBOUND = [2, 5];
 const NODE_SIZE_RANDBOUND = [6, 13];
 
 let DEBUG_NEIGHBORS = false;
@@ -28,9 +26,9 @@ let PAUSED = false;
 let ZOOM = 1.0;
 let SPEED = 1.0;
 
-let SPEED_LIMIT_MULT = 3;
-let RAND_MOVE_FREQ = 0.05;
-let RAND_MOVE_DIV = 10;
+let SPEED_LIMIT_MULT = 4;
+let RAND_MOVE_FREQ = 0.10;
+let RAND_MOVE_DIV = 15;
 
 let CONTROLS;
 let SPACE_AWARE_MULT;
@@ -140,44 +138,35 @@ class Node {
   }
 
   // TODO: don't think i like this.
-  steer_velocity(v2, mult) {
-    return v2.copy().setMag(this.speed_limit).sub(this.vel).mult(mult);
-  }
+  // steer_velocity(v2, mult) {
+  //   return v2.copy().setMag(this.speed_limit).sub(this.vel).limit(MAX_FORCE.value()).mult(mult);
+  //   // return v2.copy().setMag(this.speed_limit).sub(this.vel).mult(mult);
+  // }
 
   update(flocks) {
     const nearby_nodes = this.get_nearest_nodes(flocks);
 
-    let vel2 = this.vel.copy();
-    let curspeed =  this.vel.mag();
-    let n = 0;
-
-    let separation_force = createVector(); let separation_count = 0;
-    let nf_separation_force = createVector(); let nf_separation_count = 0;
-    let cohesion_center = createVector(); let cohesion_count = 0;
-    let alignment_force = createVector(); let alignment_count = 0;
-    const sep_force_num = pow(this.zspace_need, 2);
+    let vel_ = this.vel.copy();
+    let vel_n = 0;
+    let curspeed = this.vel.mag();
     for (const [other, dist] of nearby_nodes) {
+      // numerator for separation force computation. with divisor of dist^2,
+      // this works out to 1 when other node is zspace_need away.
+      const sep_force_num = this.zspace_need * other.zspace_need;
       const same_flock = this.flock_id == other.flock_id;
       const away = p5.Vector.sub(this.pos, other.pos).normalize();
       if (same_flock) {
-        //if (dist < this.zspace_need) {
-          // separation_force.add(away.copy().mult(sep_force_num / pow(dist, 2))); ++separation_count;
-        //}
-        // cohesion_center.add(other.pos); ++cohesion_count;
-        // alignment_force.add(other.vel); ++alignment_count;
-        if (dist < this.zspace_need * 0.8) {
-          vel2.add(away.copy().mult(SEPARATION_FORCE.value() * curspeed * sep_force_num / pow(dist, 2)),);
-          ++n;
-        } else if (this.zspace_need * 1.2 < dist){
-          vel2.add(away.copy().rotate(PI).mult(COHESION_FORCE.value() * curspeed * dist / this.zspace_need));
-          ++n;
-        }
-        vel2.add(other.vel.copy().mult(ALIGNMENT_FORCE.value()));
-        ++n;
+        vel_.add(away.copy().mult(
+          SEPARATION_FORCE.value() * curspeed * sep_force_num / pow(dist, 2)
+          - COHESION_FORCE.value() * curspeed * dist / this.zspace_need
+        ));
+        vel_.add(other.vel.copy().mult(ALIGNMENT_FORCE.value()));
+        //vel_.add(other.vel.copy().sub(this.vel).mult(ALIGNMENT_FORCE.value()));
+        vel_n += 2;
       } else {
-        vel2.add(away.copy().mult(NF_SEPARATION_FORCE.value() * curspeed * this.zspace_need * other.zspace_need / pow(dist, 2)));
-        ++n;
-        //nf_separation_force.add(away.copy().mult(sep_force_num /  pow(dist, 2))); ++nf_separation_count;
+        vel_.add(away.copy().mult(
+          NF_SEPARATION_FORCE.value() * curspeed * sep_force_num / pow(dist, 2)));
+        ++vel_n;
       }
       if (DEBUG_NEIGHBORS && (!DEBUG_FORCE || this.debugf)) {
         if (same_flock) {
@@ -188,69 +177,10 @@ class Node {
       }
     }
 
-
-
-    // let tot_force = createVector();
-    // let towards;
-    // if (cohesion_count > 0) {
-    //   cohesion_center.div(cohesion_count);
-    //   towards = p5.Vector.sub(cohesion_center, this.pos);
-    //   // towards = this.steer_velocity(towards, COHESION_FORCE.value())
-    //   // TODO: how to scale
-    //   // towards.setMag(map(towards.mag(),
-    //   //                    this.zspace_need, this.zspace_need * SPACE_AWARE_MULT.value(),
-    //   //                    0, this.speed_limit));
-    //   // towards.sub(this.vel).mult(COHESION_FORCE.value());
-    //   towards = this.steer_velocity(towards, COHESION_FORCE.value());
-    //   tot_force.add(towards);
-    //   if (this.debugf) {
-    //     fill(255, 100); ellipse(cohesion_center.x, cohesion_center.y, 10, 10);
-    //     fill(50, 50, 255, 200); draw_triangle(p5.Vector.lerp(cohesion_center, this.pos, 0.5), towards, towards.magSq());
-    //   }
-    // }
-    // if (separation_count > 0) {
-    //   separation_force.div(separation_count);
-    //   separation_force = this.steer_velocity(separation_force, SEPARATION_FORCE.value());
-    //   // separation_force.sub(this.vel).mult(SEPARATION_FORCE.value());
-    //   tot_force.add(separation_force);
-    //   if (this.debugf) {
-    //     fill(255, 0, 0, 200); draw_triangle(cohesion_center, separation_force, separation_force.magSq());
-    //   }
-    // }
-    // if (nf_separation_count > 0) {
-    //   nf_separation_force.div(nf_separation_count);
-    //   nf_separation_force = this.steer_velocity(nf_separation_force, NF_SEPARATION_FORCE.value());
-    //   // nf_separation_force.sub(this.vel).mult(NF_SEPARATION_FORCE.value());
-    //   tot_force.add(nf_separation_force);
-    //   if (this.debugf) {
-    //     fill(255, 0, 0, 200); draw_triangle(cohesion_center, nf_separation_force, nf_separation_force.magSq());
-    //   }
-    // }
-    // if (alignment_count > 0) {
-    //   alignment_force.div(alignment_count);
-    //   alignment_force = this.steer_velocity(alignment_force, ALIGNMENT_FORCE.value());
-    //   // alignment_force.sub(this.vel).mult(ALIGNMENT_FORCE.value());
-    //   tot_force.add(alignment_force);
-    //   if (this.debugf) {
-    //     fill(0, 255, 0, 200); draw_triangle(cohesion_center, alignment_force, alignment_force.magSq());
-    //   }
-    // }
-    // if (this.debugf && this.flock_id === 0 && frameCount % 30 === 0) {
-    //   console.log(`\nvel: ${degrees(this.vel.heading())} (${this.vel.mag()})`);
-    //   console.log(`sep: ${degrees(separation_force.heading())} (${separation_force.mag()})`);
-    //   console.log(`coh: ${degrees(towards.heading())} (${towards.mag()})`);
-    //   console.log(`ali: ${degrees(alignment_force.heading())} (${alignment_force.mag()})`);
-    //   console.log(`tot: ${degrees(tot_force.heading())} (${tot_force.mag()})`);
-    // }
-    // tot_force.limit(MAX_FORCE.value());
-    // this.vel.add(tot_force);
-
-    //this.vel.setMag(this.vel.mag() * .8 + this.natural_speed * .2);
-    //this.vel.limit(this.speed_limit);
-    if (n > 0) {
-      vel2.div(n);
+    if (vel_n) {
+      vel_.div(vel_n);
+      this.vel.lerp(vel_, MAX_FORCE.value());
     }
-    this.vel.lerp(vel2, MAX_FORCE.value());
 
     if (random(1) < RAND_MOVE_FREQ) {
       //fill(brighten(this.col, 1.3)); this.draw_shape();
@@ -259,6 +189,7 @@ class Node {
 
     const nsw = NATURAL_SPEED_WEIGHT.value();
     this.vel.setMag(this.vel.mag() * (1-nsw) + this.natural_speed * nsw);
+    this.vel.limit(this.speed_limit);
 
     this.pos.add(this.vel.copy().mult(SPEED));
     wrap_vector(this.pos);
@@ -272,7 +203,7 @@ function create_random_flock(flock_id) {
   const space_need = size * 2.5 * random(0.8, 1.2);
   // TODO: pull out constants?
   // TODO: make speed variant match size, with smaller being faster, or vice versa?
-  const speed = random(1.5, 4);
+  const speed = random(2, 5);
   const pos = rand_position();
   const vel = p5.Vector.random2D().mult(speed);
   for (let i = 0; i < rand_bound(GROUP_SIZE_RANDBOUND); ++i) {
@@ -311,21 +242,17 @@ function setup() {
 
   CONTROLS = createDiv();
   CONTROLS.id('controlsContainer');
-  SPACE_AWARE_MULT = make_slider('space aware mult', 0, 10, 4, .1, CONTROLS);
+  SPACE_AWARE_MULT = make_slider('space aware mult', 0, 10, 6, .1, CONTROLS);
   NATURAL_SPEED_WEIGHT = make_slider('natural speed weight', 0, 1, .5, .01, CONTROLS);
 
-  // SEPARATION_FORCE = make_slider('separation', 0, 10, 1.5, .1, CONTROLS);
-  // NF_SEPARATION_FORCE = make_slider('nf separation', 0, 10, 6, .1, CONTROLS);
-  // COHESION_FORCE = make_slider('cohesion', 0, 10, 1, .1, CONTROLS);
-  // ALIGNMENT_FORCE = make_slider('alignment', 0, 10, 1, .1, CONTROLS);
-  SEPARATION_FORCE    = make_slider('separation',    0, 10, 1, .01, CONTROLS);
-  NF_SEPARATION_FORCE = make_slider('nf separation', 0, 10, 1, .01, CONTROLS);
+  NF_SEPARATION_FORCE = make_slider('nf separation', 0, 10, 5, .01, CONTROLS);
+  SEPARATION_FORCE    = make_slider('separation',    0, 10, 2, .01, CONTROLS);
   COHESION_FORCE      = make_slider('cohesion',      0, 10, 1, .01, CONTROLS);
   ALIGNMENT_FORCE     = make_slider('alignment',     0, 10, 1, .01, CONTROLS);
 
-  MAX_FORCE = make_slider('max force', 0, 1, .1, .02, CONTROLS);
-  NUM_NEIGHBORS = make_slider('# neighbors', 1, 50, 10, 1, CONTROLS);
-  NF_NUM_NEIGHBORS = make_slider('# nf neighbors', 1, 50, 10, 1, CONTROLS);
+  MAX_FORCE = make_slider('max force', 0, 1, .3, .02, CONTROLS);
+  NUM_NEIGHBORS = make_slider('# neighbors', 1, 50, 8, 1, CONTROLS);
+  NF_NUM_NEIGHBORS = make_slider('# nf neighbors', 1, 50, 3, 1, CONTROLS);
 
   init_node_flocks();
 }
