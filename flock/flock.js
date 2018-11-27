@@ -13,24 +13,27 @@
 //
 // h/t https://github.com/shiffman/The-Nature-of-Code-Examples/blob/master/chp06_agents/NOC_6_09_Flocking/Boid.pde
 
+let NODE_FLOCKS = [];
+
 const GROUP_SIZE_RANDBOUND = [50, 150];
 const NUM_GROUPS_RANDBOUND = [2, 5];
 const NODE_SIZE_RANDBOUND = [6, 13];
 
-let DEBUG_NEIGHBORS = false;
-let DEBUG_DISTANCE = false;
-let DEBUG_FORCE = false;
-let TRIS_CIRCLES = true;
-let ALPHA = false;
-let PAUSED = false;
-let ZOOM = 1.0;
-let SPEED = 1.0;
-
+// TODO: expose these as controllable things?
 let SPEED_LIMIT_MULT = 4;
 let RAND_MOVE_FREQ = 0.10;
 let RAND_MOVE_DIV = 15;
 
-let CONTROLS;
+// Control panel input elements.
+let CONTROL_PANEL;
+// These are controlled via buttons that just toggle the value.
+let DEBUG_NEIGHBORS = false;
+let DEBUG_DISTANCE = false;
+let DEBUG_FORCE = false;
+let TRIS_CIRCLES = true;
+let PAUSED = false;
+let ZOOM;
+let SPEED;
 let SPACE_AWARE_MULT;
 let SEPARATION_FORCE;
 let NF_SEPARATION_FORCE;
@@ -40,8 +43,6 @@ let MAX_FORCE;
 let NUM_NEIGHBORS;
 let NF_NUM_NEIGHBORS;
 let NATURAL_SPEED_WEIGHT;
-
-let NODE_FLOCKS = [];
 
 function rand_position() { return createVector(random(0, width), random(0, height)); }
 function rand_color() { return color(random(0, 255), random(0, 255), random(0, 255)); }
@@ -96,16 +97,17 @@ class Node {
                     this.space_need, this.col, this.size);
   }
   get speed_limit() { return this.natural_speed * SPEED_LIMIT_MULT; }
-  get zspace_need() { return this.space_need * ZOOM; }
+  get zspace_need() { return this.space_need * parseFloat(ZOOM.value()); }
   get debugf() { return DEBUG_FORCE && this.id == 0; }
 
   draw_shape() {
-    if (TRIS_CIRCLES) { draw_triangle(this.pos, this.vel, this.size * ZOOM); }
-    else { ellipse(this.pos.x, this.pos.y, this.size * ZOOM, this.size * ZOOM); }
+    const z = parseFloat(ZOOM.value());
+    if (TRIS_CIRCLES) { draw_triangle(this.pos, this.vel, this.size * z); }
+    else { ellipse(this.pos.x, this.pos.y, this.size * z, this.size * z); }
   }
 
   draw() {
-    noStroke(); fill(this.col, ALPHA ? 200 : 255);
+    noStroke(); fill(this.col);
     if (this.debugf) { fill(255, 255); }
     this.draw_shape();
     if (DEBUG_DISTANCE) {
@@ -191,7 +193,7 @@ class Node {
     this.vel.setMag(this.vel.mag() * (1-nsw) + this.natural_speed * nsw);
     this.vel.limit(this.speed_limit);
 
-    this.pos.add(this.vel.copy().mult(SPEED));
+    this.pos.add(this.vel.copy().mult(parseFloat(SPEED.value())));
     wrap_vector(this.pos);
   }
 }  // Node
@@ -225,37 +227,14 @@ function init_node_flocks() {
 
 function copy_flocks(flocks) { return flocks.map(f => f.map(n => n.copy())); }
 
-function make_slider(label, min, max, startval, step, parent) {
-  // TODO: nicer display of slider value.
-  let container = createDiv().parent(parent);
-  let slider = createSlider(min, max, startval, step);
-  slider.parent(container);
-  let labelelt = createSpan(`${startval} / ${label}`)
-  labelelt.parent(container);
-  slider.input(() => { labelelt.html(`${slider.value()} / ${label}`) });
-  return slider;
-}
-
 function setup() {
   frameRate(30);
   createCanvas(windowWidth, windowHeight);
-
-  CONTROLS = createDiv();
-  CONTROLS.id('controlsContainer');
-  SPACE_AWARE_MULT = make_slider('space aware mult', 0, 10, 6, .1, CONTROLS);
-  NATURAL_SPEED_WEIGHT = make_slider('natural speed weight', 0, 1, .5, .01, CONTROLS);
-
-  NF_SEPARATION_FORCE = make_slider('nf separation', 0, 10, 5, .01, CONTROLS);
-  SEPARATION_FORCE    = make_slider('separation',    0, 10, 2, .01, CONTROLS);
-  COHESION_FORCE      = make_slider('cohesion',      0, 10, 1, .01, CONTROLS);
-  ALIGNMENT_FORCE     = make_slider('alignment',     0, 10, 1, .01, CONTROLS);
-
-  MAX_FORCE = make_slider('max force', 0, 1, .3, .02, CONTROLS);
-  NUM_NEIGHBORS = make_slider('# neighbors', 1, 50, 8, 1, CONTROLS);
-  NF_NUM_NEIGHBORS = make_slider('# nf neighbors', 1, 50, 3, 1, CONTROLS);
-
+  create_control_panel();
   init_node_flocks();
 }
+
+function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
 function draw() {
   background(20, 20, 25);
@@ -268,48 +247,13 @@ function draw() {
   }
 }
 
-function windowResized() { resizeCanvas(windowWidth, windowHeight); }
-
-function toggle_controls() {
-  // Initially status is 'null', and so falls into 2nd branch for hiding.
-  const status = CONTROLS.attribute('status');
-  if (status === 'hidden') {
-    CONTROLS.attribute('status', 'shown');
-    CONTROLS.style('translate', 0, 0);
-  } else {
-    CONTROLS.attribute('status', 'hidden');
-    const ty = CONTROLS.size()['height'] + parseInt(CONTROLS.style('bottom'), 10);
-    CONTROLS.style('translate', 0, ty);
-  }
-}
-
+// TODO: remove entirely (aside from control panel toggle)? or too useful?
 function keyPressed() {
   switch (key) {
-    case 'd': DEBUG_DISTANCE = !DEBUG_DISTANCE; break;
-    case 'l': DEBUG_NEIGHBORS = !DEBUG_NEIGHBORS; break;
-    case 'f': DEBUG_FORCE = !DEBUG_FORCE; break;
-    case 'a': ALPHA = !ALPHA; break;
-    case 'c': TRIS_CIRCLES = !TRIS_CIRCLES; break;
-    case ' ': toggle_paused(); break;
+    case 'p': toggle_paused(); break;
     case 'r': init_node_flocks(); break;
-    case '+': change_flocks_size(1); break;
-    case '-': change_flocks_size(-1); break;
-    case ';': toggle_controls(); break;
+    case ';': toggle_control_panel(); break;
   }
-  switch (keyCode) {
-    case RIGHT_ARROW: change_speed(0.1); break;
-    case LEFT_ARROW: change_speed(-0.1); break;
-    case UP_ARROW: change_zoom(0.1); break;
-    case DOWN_ARROW: change_zoom(-0.1); break;
-  }
-}
-
-function change_speed(delta) {
-  SPEED = max(SPEED + delta, 0.1);
-}
-
-function change_zoom(delta) {
-  ZOOM = constrain(ZOOM + delta, 0.2, 5);
 }
 
 function toggle_paused() {
@@ -317,7 +261,7 @@ function toggle_paused() {
   if (PAUSED) { noLoop(); } else { loop(); }
 }
 
-function change_flocks_size(dir) {
+function change_num_flocks(dir) {
   if (dir > 0) {
     NODE_FLOCKS.push(create_random_flock(NODE_FLOCKS.length));
   } else if (NODE_FLOCKS.length >= 2) {
@@ -329,4 +273,95 @@ function change_flocks_size(dir) {
       for (const n of NODE_FLOCKS[i])
         n.flock_id = i;
   }
+}
+
+// Creates slider with label, including display of value.
+function make_slider(label, min, max, startval, step, parent) {
+  // TODO: nicer display of slider value.
+  const container = createDiv().parent(parent);
+  const labelelt = createSpan(`${label} [${startval}]`).parent(container);
+  const slider = createSlider(min, max, startval, step).parent(container);
+  slider.input(() => { labelelt.html(`${label} [${slider.value()}]`) });
+  return slider;
+}
+
+// Creates number input with label. TODO: make it look nicer..?
+function make_number_input(label, min, max, startval, step, size, parent) {
+  let container = createDiv().parent(parent);
+  createSpan(label + ' ').parent(container);
+  const input = createInput(str(startval), 'number').parent(container);
+  if (min !== null) input.attribute('min', min);
+  if (max !== null) input.attribute('max', max);
+  if (step !== null) input.attribute('step', step);
+  if (size !== null) input.size(size);
+  return input;
+}
+
+// Creates button. 'f' is both mousePressed and keydown (space, enter) handle.
+function make_button(label, parent, f) {
+  const b = createButton(label).parent(parent);
+  b.mousePressed(f);
+  b.elt.onkeydown = (e) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      // TODO: is this needed/useful?
+      // e.preventDefault();
+      f();
+    }
+  }
+  return b;
+}
+
+function toggle_control_panel() {
+  // Initially status is 'null', and so falls into 2nd branch for hiding.
+  const status = CONTROL_PANEL.attribute('status');
+  if (status === 'hidden') {
+    CONTROL_PANEL.attribute('status', 'shown');
+    CONTROL_PANEL.style('translate', 0, 0);
+  } else {
+    CONTROL_PANEL.attribute('status', 'hidden');
+    const ty = CONTROL_PANEL.size()['height'] + parseInt(CONTROL_PANEL.style('bottom'), 10);
+    CONTROL_PANEL.style('translate', 0, ty);
+  }
+}
+
+// TODO: some other way of hiding/showing besides keyboard? (needed for mobile)
+function create_control_panel() {
+  CONTROL_PANEL = createDiv();
+  CONTROL_PANEL.id('controlPanel');
+
+  // Basic controls: pause, reinit, change speed, size, # flocks.
+  const basic_controls = createDiv().parent(CONTROL_PANEL);
+  const br = () => createElement('br').parent(basic_controls);
+  make_button('pause', basic_controls, toggle_paused); br();
+  make_button('reinit flocks', basic_controls, init_node_flocks); br();
+  SPEED = make_number_input('speed', 0.1, null, 1, 0.1, 32, basic_controls);
+  ZOOM = make_number_input('size', 0.1, null, 1, 0.1, 32, basic_controls);
+  createSpan('# flocks').parent(basic_controls);
+  make_button('-', basic_controls, () => change_num_flocks(-1));
+  make_button('+', basic_controls, () => change_num_flocks(+1));
+
+  // Debugging tools.
+  createElement('hr').parent(basic_controls).size('50%');
+  make_button('forces', basic_controls, () => DEBUG_FORCE = !DEBUG_FORCE); br();
+  make_button('links', basic_controls, () => DEBUG_NEIGHBORS = !DEBUG_NEIGHBORS); br();
+  make_button('space need', basic_controls, () => DEBUG_DISTANCE = !DEBUG_DISTANCE); br();
+  // Purely visual options.
+  make_button('tris/circles', basic_controls, () => TRIS_CIRCLES = !TRIS_CIRCLES);
+
+
+  // Sliders for forces and such. TODO: make some of these plain numeric inputs?
+  const sliders = createDiv().id('sliders');
+  sliders.parent(CONTROL_PANEL);
+
+  NF_SEPARATION_FORCE = make_slider('nf separation', 0, 10, 5, .01, sliders);
+  SEPARATION_FORCE    = make_slider('separation',    0, 10, 2, .01, sliders);
+  COHESION_FORCE      = make_slider('cohesion',      0, 10, 1, .01, sliders);
+  ALIGNMENT_FORCE     = make_slider('alignment',     0, 10, 1, .01, sliders);
+  // createElement('hr').parent(sliders).size('10%');
+  MAX_FORCE = make_slider('max force', 0, 1, .3, .02, sliders);
+  NATURAL_SPEED_WEIGHT = make_slider('nat speed weight', 0, 1, .5, .01, sliders);
+  // createElement('hr').parent(sliders).size('10%');
+  SPACE_AWARE_MULT = make_slider('space aware mult', 0, 10, 6, .1, sliders);
+  NUM_NEIGHBORS = make_slider('# neighbors', 1, 50, 8, 1, sliders);
+  NF_NUM_NEIGHBORS = make_slider('# nf neighbors', 1, 50, 3, 1, sliders);
 }
