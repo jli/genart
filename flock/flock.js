@@ -18,6 +18,8 @@ let NODE_FLOCKS = [];
 const GROUP_SIZE_RANDBOUND = [50, 150];
 const NUM_GROUPS_RANDBOUND = [2, 5];
 const NODE_SIZE_RANDBOUND = [6, 13];
+// When increasing/decreasing flock sizes, change by this frac of existing size.
+const FLOCK_SIZE_CHANGE_FRAC = 0.1;
 
 // TODO: expose these as controllable things?
 let SPEED_LIMIT_MULT = 4;
@@ -283,6 +285,24 @@ function change_num_flocks(dir) {
   }
 }
 
+function change_flock_size(dir) {
+  for (const flock of NODE_FLOCKS) {
+    if (dir > 0) {
+      const num_to_add = max(1, int(flock.length * FLOCK_SIZE_CHANGE_FRAC));
+      const orig_length = flock.length;
+      for (let i = orig_length; i < orig_length + num_to_add; ++i) {
+        const example = flock[int(random(flock.length))];
+        const pos = example.pos.copy().add(p5.Vector.random2D().mult(example.space_need));
+        const vel = example.vel.copy().rotate(random(2*PI));
+        flock.push(new Node(i, example.flock_id, pos, vel, example.space_need, example.col, example.size));
+      }
+    } else {
+      const target_size = max(1, int(flock.length * (1 - FLOCK_SIZE_CHANGE_FRAC)));
+      flock.splice(target_size);
+    }
+  }
+}
+
 // Creates slider with label, including display of value.
 function make_slider(label, min, max, startval, step, parent) {
   // TODO: nicer display of slider value.
@@ -347,6 +367,10 @@ function create_control_panel() {
   createSpan('# flocks').parent(basic_controls);
   make_button('-', basic_controls, () => change_num_flocks(-1));
   make_button('+', basic_controls, () => change_num_flocks(+1));
+  br();
+  createSpan('flock size').parent(basic_controls);
+  make_button('-', basic_controls, () => change_flock_size(-1));
+  make_button('-', basic_controls, () => change_flock_size(+1));
 
   // Debugging tools.
   createElement('hr').parent(basic_controls).size('50%');
