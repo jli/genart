@@ -367,6 +367,7 @@ function create_control_panel() {
   // Basic controls: pause, reinit, change speed, size, # flocks.
   const basic_controls = createDiv().parent(main);
   const br = () => createElement('br').parent(basic_controls);
+  make_button('full', basic_controls, toggle_fullscreen); br();
   make_button('pause', basic_controls, toggle_paused); br();
   make_button('reinit flocks', basic_controls, init_node_flocks); br();
   SPEED = make_number_input('speed', 0.1, null, 1, 0.1, 32, basic_controls);
@@ -401,4 +402,17 @@ function create_control_panel() {
   SPACE_AWARE_MULT = make_slider('space aware mult', 0, 10, 6, .1, sliders);
   NUM_NEIGHBORS = make_slider('# neighbors', 1, 50, 8, 1, sliders);
   NF_NUM_NEIGHBORS = make_slider('# nf neighbors', 1, 50, 3, 1, sliders);
+}
+
+// h/t https://developers.google.com/web/fundamentals/native-hardware/fullscreen/
+function toggle_fullscreen() {
+  const doc = window.document;
+  const docEl = doc.documentElement;
+  const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+  const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+  if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+    requestFullScreen.call(docEl);
+  } else {
+    cancelFullScreen.call(doc);
+  }
 }
