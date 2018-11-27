@@ -8,26 +8,44 @@
       /* overflow: hidden is to avoid scrollbars when translating the controls
       /* container out of view  */
       body {padding: 0; margin: 0; overflow: hidden;}
-      #controlPanel {
+      #controlPanelFull {
         position: absolute;
-        bottom: 1em;
-        right: 1em;
+        bottom: .5em;
+        right: .5em;
+        transition: all .3s;
+      }
+      #showControlPanelButton {
+        /* manually positioned above the main panel. this remains visible after
+        /* the panel is hidden. lol. */
+        position: absolute;
+        right: 0;
+        top: -2em;
+        color: #eee;
+        background: rgba(0,0,0,0);
+        border: 0;
+      }
+      [status="hidden"] #showControlPanelButton {
+        color: #999;
+      }
+      [status="hidden"] #showControlPanelButton:focus {
+        outline-width: 1px;
+      }
+      #controlPanelMain {
         /* flex so that subparts (buttons vs. sliders) are horizontal. */
         display: flex;
         font-family: sans-serif;
         font-size: smaller;
         color: #eee;
         background: rgba(200, 200, 200, 0.1);
-        transition: all .2s;
       }
       #sliders {
         text-align: right;
       }
-      #controlPanel button:focus {
+      #controlPanelMain button:focus {
         outline-style: ridge;
         outline-width: medium;
       }
-      #sliders input[type='range']:focus {
+      #controlPanelMain input[type='range']:focus {
         outline-style: ridge;
         outline-width: thin;
       }

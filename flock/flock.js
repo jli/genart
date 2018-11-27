@@ -27,8 +27,6 @@ let RAND_MOVE_FREQ = 0.10;
 let RAND_MOVE_DIV = 15;
 
 // Control panel input elements.
-let CONTROL_PANEL;
-// These are controlled via buttons that just toggle the value.
 let DEBUG_FORCE;
 let DEBUG_NEIGHBORS;
 let DEBUG_DISTANCE;
@@ -241,6 +239,7 @@ function setup() {
   frameRate(30);
   createCanvas(windowWidth, windowHeight);
   create_control_panel();
+  setTimeout(toggle_control_panel, 1000);
   init_node_flocks();
 }
 
@@ -339,26 +338,32 @@ function make_button(label, parent, f) {
   return b;
 }
 
+let CONTROL_PANEL;
+let TOGGLE_CONTROL_PANEL_BUTTON;
+
 function toggle_control_panel() {
-  // Initially status is 'null', and so falls into 2nd branch for hiding.
-  const status = CONTROL_PANEL.attribute('status');
-  if (status === 'hidden') {
+  if (CONTROL_PANEL.attribute('status') === 'hidden') {
     CONTROL_PANEL.attribute('status', 'shown');
     CONTROL_PANEL.style('translate', 0, 0);
+    TOGGLE_CONTROL_PANEL_BUTTON.html('hide');
   } else {
     CONTROL_PANEL.attribute('status', 'hidden');
     const ty = CONTROL_PANEL.size()['height'] + parseInt(CONTROL_PANEL.style('bottom'), 10);
     CONTROL_PANEL.style('translate', 0, ty);
+    TOGGLE_CONTROL_PANEL_BUTTON.html('show');
   }
 }
 
 // TODO: some other way of hiding/showing besides keyboard? (needed for mobile)
 function create_control_panel() {
-  CONTROL_PANEL = createDiv();
-  CONTROL_PANEL.id('controlPanel');
+  CONTROL_PANEL = createDiv().id('controlPanelFull').attribute('status', 'shown');
+  TOGGLE_CONTROL_PANEL_BUTTON = make_button('hide', CONTROL_PANEL, toggle_control_panel).id('showControlPanelButton');
+
+  // Holds all the controls. Excludes the toggle button
+  const main = createDiv().id('controlPanelMain').parent(CONTROL_PANEL);
 
   // Basic controls: pause, reinit, change speed, size, # flocks.
-  const basic_controls = createDiv().parent(CONTROL_PANEL);
+  const basic_controls = createDiv().parent(main);
   const br = () => createElement('br').parent(basic_controls);
   make_button('pause', basic_controls, toggle_paused); br();
   make_button('reinit flocks', basic_controls, init_node_flocks); br();
@@ -381,8 +386,7 @@ function create_control_panel() {
   CIRCLES = createCheckbox('circles', false).parent(basic_controls);
 
   // Sliders for forces and such. TODO: make some of these plain numeric inputs?
-  const sliders = createDiv().id('sliders');
-  sliders.parent(CONTROL_PANEL);
+  const sliders = createDiv().id('sliders').parent(main);
 
   NF_SEPARATION_FORCE = make_slider('nf separation', 0, 10, 5, .01, sliders);
   SEPARATION_FORCE    = make_slider('separation',    0, 10, 2, .01, sliders);
