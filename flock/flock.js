@@ -1,15 +1,17 @@
 'use strict';
 // TODO:
 // - behavior:
-//   - rethink update() computation.
 //   - add mouse/touch interaction: attract, repel
+//   - look at nearest neighbors in each direction, not just closest.
 // - display:
 //   - better debug display
 //   - node color shift based on velocity change
+//   - tweakable randomness bits
 // - misc:
 //   - rand_color: convert to HSB, require minimum brightness
 //   - figure out color() with object warning
 //   - add icon for manifest... https://developers.google.com/web/fundamentals/web-app-manifest/
+//   - quadtrees
 //
 // h/t https://github.com/shiffman/The-Nature-of-Code-Examples/blob/master/chp06_agents/NOC_6_09_Flocking/Boid.pde
 
@@ -24,7 +26,7 @@ const NODE_SIZE_RANDBOUND = MOBILE ? [3, 8] : [5, 13];
 const FLOCK_SIZE_CHANGE_FRAC = 0.1;
 
 // TODO: expose these as controllable things?
-let SPEED_LIMIT_MULT = 4;
+let SPEED_LIMIT_MULT = 10;
 let RAND_MOVE_FREQ = 0.10;
 let RAND_MOVE_DIV = 15;
 
@@ -149,18 +151,12 @@ class Node {
     return sf.concat(nf);
   }
 
-  // TODO: don't think i like this.
-  // steer_velocity(v2, mult) {
-  //   return v2.copy().setMag(this.speed_limit).sub(this.vel).limit(MAX_FORCE.value()).mult(mult);
-  //   // return v2.copy().setMag(this.speed_limit).sub(this.vel).mult(mult);
-  // }
-
   update(flocks) {
     const nearby_nodes = this.get_nearest_nodes(flocks);
 
-    let vel_ = this.vel.copy();
-    let vel_n = 0;
     let curspeed = this.vel.mag();
+    const sep_force = createVector(); let sep_n = 0;
+    const ali_force = createVector(); let ali_n = 0;
     for (const [other, dist] of nearby_nodes) {
       // numerator for separation force computation. with divisor of dist^2,
       // this works out to 1 when other node is zspace_need away.
@@ -168,17 +164,15 @@ class Node {
       const same_flock = this.flock_id == other.flock_id;
       const away = p5.Vector.sub(this.pos, other.pos).normalize();
       if (same_flock) {
-        vel_.add(away.copy().mult(
+        sep_force.add(away.copy().mult(
           SEPARATION_FORCE.value() * curspeed * sep_force_num / pow(dist, 2)
           - COHESION_FORCE.value() * curspeed * dist / this.zspace_need
-        ));
-        vel_.add(other.vel.copy().mult(ALIGNMENT_FORCE.value()));
-        //vel_.add(other.vel.copy().sub(this.vel).mult(ALIGNMENT_FORCE.value()));
-        vel_n += 2;
+        )); ++sep_n;
+        ali_force.add(other.vel); ++ali_n;
       } else {
-        vel_.add(away.copy().mult(
-          NF_SEPARATION_FORCE.value() * curspeed * sep_force_num / pow(dist, 2)));
-        ++vel_n;
+        sep_force.add(away.copy().mult(
+          NF_SEPARATION_FORCE.value() * curspeed * sep_force_num / pow(dist, 2)
+        )); ++sep_n;
       }
       if (DEBUG_NEIGHBORS.checked() && (!DEBUG_FORCE.checked() || this.debugf)) {
         if (same_flock) {
@@ -189,20 +183,27 @@ class Node {
       }
     }
 
-    if (vel_n) {
-      vel_.div(vel_n);
-      this.vel.lerp(vel_, MAX_FORCE.value());
+    const tot_force = createVector();
+    if (sep_n) { tot_force.add(sep_force.div(sep_n)); }
+    if (ali_n) {
+      ali_force.div(ali_n).sub(this.vel);
+      tot_force.add(ali_force.mult(ALIGNMENT_FORCE.value()));
+    }
+    // TODO: better display...
+    if (this.debugf) {
+      const dpos = createVector(this.pos.x - 10, this.pos.y + 10);
+      fill(200, 0, 0); draw_triangle(dpos, sep_force, sep_force.mag() * 10);
+      fill(0, 200, 0); draw_triangle(dpos, ali_force, ali_force.mag() * 10);
     }
 
+    this.vel.add(tot_force.limit(MAX_FORCE.value()));
     if (random(1) < RAND_MOVE_FREQ) {
       //fill(brighten(this.col, 1.3)); this.draw_shape();
       this.vel.add(p5.Vector.random2D().setMag(this.vel.mag()/RAND_MOVE_DIV));
     }
-
     const nsw = NATURAL_SPEED_WEIGHT.value();
     this.vel.setMag(this.vel.mag() * (1-nsw) + this.natural_speed * nsw);
     this.vel.limit(this.speed_limit);
-
     this.pos.add(this.vel.copy().mult(parseFloat(SPEED.value())));
     wrap_vector(this.pos);
   }
@@ -391,15 +392,15 @@ function create_control_panel() {
   // Sliders for forces and such. TODO: make some of these plain numeric inputs?
   const sliders = createDiv().id('sliders').parent(main);
 
-  NF_SEPARATION_FORCE = make_slider('nf separation', 0, 10, 5, .01, sliders);
-  SEPARATION_FORCE    = make_slider('separation',    0, 10, 2, .01, sliders);
-  COHESION_FORCE      = make_slider('cohesion',      0, 10, 1, .01, sliders);
-  ALIGNMENT_FORCE     = make_slider('alignment',     0, 10, 1, .01, sliders);
+  NF_SEPARATION_FORCE = make_slider('nf separation', 0, 10, 2, .05, sliders);
+  SEPARATION_FORCE    = make_slider('separation',    0, 10, 2, .05, sliders);
+  COHESION_FORCE      = make_slider('cohesion',      0, 10, 1, .05, sliders);
+  ALIGNMENT_FORCE     = make_slider('alignment',     0, 10, .2, .05, sliders);
   // createElement('hr').parent(sliders).size('10%');
-  MAX_FORCE = make_slider('max force', 0, 1, .3, .02, sliders);
-  NATURAL_SPEED_WEIGHT = make_slider('nat speed weight', 0, 1, .5, .01, sliders);
+  MAX_FORCE = make_slider('max force', 0, 5, .5, .05, sliders);
+  NATURAL_SPEED_WEIGHT = make_slider('nat speed weight', 0, 1, .3, .05, sliders);
   // createElement('hr').parent(sliders).size('10%');
-  SPACE_AWARE_MULT = make_slider('space aware mult', 0, 10, 6, .1, sliders);
+  SPACE_AWARE_MULT = make_slider('space aware mult', 0, 10, 6, .25, sliders);
   NUM_NEIGHBORS = make_slider('# neighbors', 1, 50, 8, 1, sliders);
   NF_NUM_NEIGHBORS = make_slider('# nf neighbors', 1, 50, 3, 1, sliders);
 }
