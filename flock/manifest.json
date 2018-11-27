@@ -1,0 +1,6 @@
+{
+  "short_name": "flock",
+  "name": "flocking simulation",
+  "start_url": "index.html",
+  "display": "fullscreen"
+}
