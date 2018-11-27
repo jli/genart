@@ -2,20 +2,20 @@
 // TODO:
 // - behavior:
 //   - rethink update() computation.
-//   - add mouse interaction: attract, repel
+//   - add mouse/touch interaction: attract, repel
 // - display:
-//   - add status display (# flocks, # nodes, zoom, speed, etc)
 //   - better debug display
 //   - node color shift based on velocity change
 // - misc:
 //   - rand_color: convert to HSB, require minimum brightness
 //   - figure out color() with object warning
+//   - add icon for manifest... https://developers.google.com/web/fundamentals/web-app-manifest/
 //
 // h/t https://github.com/shiffman/The-Nature-of-Code-Examples/blob/master/chp06_agents/NOC_6_09_Flocking/Boid.pde
 
 let NODE_FLOCKS = [];
 
-const MOBILE = false;  // TODO: determine this dynamically.
+const MOBILE = /Mobi|Android/i.test(navigator.userAgent);
 const GROUP_SIZE_RANDBOUND = [50, 150];
 const NUM_GROUPS_RANDBOUND = [2, 4];
 const NODE_SIZE_RANDBOUND = MOBILE ? [3, 8] : [5, 13];
