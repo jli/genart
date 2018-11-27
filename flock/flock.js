@@ -27,10 +27,10 @@ let RAND_MOVE_DIV = 15;
 // Control panel input elements.
 let CONTROL_PANEL;
 // These are controlled via buttons that just toggle the value.
-let DEBUG_NEIGHBORS = false;
-let DEBUG_DISTANCE = false;
-let DEBUG_FORCE = false;
-let TRIS_CIRCLES = true;
+let DEBUG_FORCE;
+let DEBUG_NEIGHBORS;
+let DEBUG_DISTANCE;
+let CIRCLES;
 let PAUSED = false;
 let ZOOM;
 let SPEED;
@@ -98,24 +98,32 @@ class Node {
   }
   get speed_limit() { return this.natural_speed * SPEED_LIMIT_MULT; }
   get zspace_need() { return this.space_need * parseFloat(ZOOM.value()); }
-  get debugf() { return DEBUG_FORCE && this.id == 0; }
+  get debugf() { return DEBUG_FORCE.checked() && this.id == 0; }
 
   draw_shape() {
     const z = parseFloat(ZOOM.value());
-    if (TRIS_CIRCLES) { draw_triangle(this.pos, this.vel, this.size * z); }
-    else { ellipse(this.pos.x, this.pos.y, this.size * z, this.size * z); }
+    if (CIRCLES.checked()) { ellipse(this.pos.x, this.pos.y, this.size * z, this.size * z); }
+    else { draw_triangle(this.pos, this.vel, this.size * z); }
   }
 
   draw() {
     noStroke(); fill(this.col);
     if (this.debugf) { fill(255, 255); }
     this.draw_shape();
-    if (DEBUG_DISTANCE) {
-      stroke(100, 220); noFill();
+    if (DEBUG_DISTANCE.checked()) {
+      noFill();
+      stroke(this.id == 0 ? 250 : 100, 220);
       // Note: this is drawing a diameter of space_need instead of the radius.
       // This works out since with 2 nodes, the 2 bubbles looks like they're
       // bumping against each other.
       ellipse(this.pos.x, this.pos.y, this.zspace_need, this.zspace_need);
+      if (this.id == 0) {
+        stroke(50, 200, 50, 220);
+        // Here, we do properly draw the radius since we're only showing 1 side.
+        const s = 2 * SPACE_AWARE_MULT.value() * this.zspace_need;
+        ellipse(this.pos.x, this.pos.y, s, s);
+        line(this.pos.x, this.pos.y, this.pos.x + s/2, this.pos.y);
+      }
     }
   }
 
@@ -170,7 +178,7 @@ class Node {
           NF_SEPARATION_FORCE.value() * curspeed * sep_force_num / pow(dist, 2)));
         ++vel_n;
       }
-      if (DEBUG_NEIGHBORS && (!DEBUG_FORCE || this.debugf)) {
+      if (DEBUG_NEIGHBORS.checked() && (!DEBUG_FORCE.checked() || this.debugf)) {
         if (same_flock) {
           if (dist < this.zspace_need) { stroke(50, 50, 250, 200); strokeWeight(1); }
           else { stroke(150, 150, 150, 150); strokeWeight(1); }
@@ -342,12 +350,11 @@ function create_control_panel() {
 
   // Debugging tools.
   createElement('hr').parent(basic_controls).size('50%');
-  make_button('forces', basic_controls, () => DEBUG_FORCE = !DEBUG_FORCE); br();
-  make_button('links', basic_controls, () => DEBUG_NEIGHBORS = !DEBUG_NEIGHBORS); br();
-  make_button('space need', basic_controls, () => DEBUG_DISTANCE = !DEBUG_DISTANCE); br();
+  DEBUG_FORCE = createCheckbox('forces', false).parent(basic_controls);
+  DEBUG_NEIGHBORS = createCheckbox('links', false).parent(basic_controls);
+  DEBUG_DISTANCE = createCheckbox('space need', false).parent(basic_controls);
   // Purely visual options.
-  make_button('tris/circles', basic_controls, () => TRIS_CIRCLES = !TRIS_CIRCLES);
-
+  CIRCLES = createCheckbox('circles', false).parent(basic_controls);
 
   // Sliders for forces and such. TODO: make some of these plain numeric inputs?
   const sliders = createDiv().id('sliders');
