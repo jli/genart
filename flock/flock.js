@@ -15,9 +15,11 @@
 
 let NODE_FLOCKS = [];
 
+const MOBILE = false;  // TODO: determine this dynamically.
 const GROUP_SIZE_RANDBOUND = [50, 150];
-const NUM_GROUPS_RANDBOUND = [2, 5];
-const NODE_SIZE_RANDBOUND = [6, 13];
+const NUM_GROUPS_RANDBOUND = [2, 4];
+const NODE_SIZE_RANDBOUND = MOBILE ? [3, 8] : [5, 13];
+
 // When increasing/decreasing flock sizes, change by this frac of existing size.
 const FLOCK_SIZE_CHANGE_FRAC = 0.1;
 
