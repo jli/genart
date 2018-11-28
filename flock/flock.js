@@ -31,22 +31,23 @@ let RAND_MOVE_FREQ = 0.10;
 let RAND_MOVE_DIV = 15;
 
 // Control panel input elements.
+let PAUSED = false;
+let SPEED;
+let ZOOM;
 let DEBUG_FORCE;
 let DEBUG_NEIGHBORS;
+let SURROUND_OR_CLOSEST;
 let DEBUG_DISTANCE;
 let CIRCLES;
-let PAUSED = false;
-let ZOOM;
-let SPEED;
-let SPACE_AWARE_MULT;
-let SEPARATION_FORCE;
 let NF_SEPARATION_FORCE;
+let SEPARATION_FORCE;
 let COHESION_FORCE;
 let ALIGNMENT_FORCE;
 let MAX_FORCE;
+let NATURAL_SPEED_WEIGHT;
+let SPACE_AWARE_MULT;
 let NUM_NEIGHBORS;
 let NF_NUM_NEIGHBORS;
-let NATURAL_SPEED_WEIGHT;
 
 function rand_position() { return createVector(random(0, width), random(0, height)); }
 function rand_color() { return color(random(0, 255), random(0, 255), random(0, 255)); }
@@ -86,6 +87,14 @@ function wrap_dimension(x, upper) {
 function wrap_vector(v) {
   v.x = wrap_dimension(v.x, width);
   v.y = wrap_dimension(v.y, height);
+}
+
+// Returns heading from 0 to 2PI instead of 0 to PI and 0 to -PI.
+function heading_pos(v) {
+  const h = v.heading();
+  // heading is weird: goes from 0 to 180, then -180 to 0.
+  if (h >= 0) return h;
+  return map(h, -PI, 0, PI, 2*PI);
 }
 
 class Node {
@@ -151,8 +160,39 @@ class Node {
     return sf.concat(nf);
   }
 
+  // TODO: optimize.
+  get_surrounding_nodes(flocks) {
+    // HACK: reusing existing sliders...
+    const num_segments = NUM_NEIGHBORS.value();
+    const num_per_segment = NF_NUM_NEIGHBORS.value();
+    const rad_per_segment = 2 * PI / num_segments;
+    const nodes_and_dists_per_segment = [];
+    // Initialize.
+    for (let i = 0; i < num_segments; ++i) { nodes_and_dists_per_segment[i] = []; }
+    for (const flock of flocks) {
+      for (const other of flock) {
+        if (this.flock_id == other.flock_id && this.id == other.id) continue;
+        const dist = this.pos.dist(other.pos);
+        if (dist < (SPACE_AWARE_MULT.value()
+                    * (this.zspace_need + other.zspace_need) / 2)) {
+          const to_other = other.pos.copy().sub(this.pos);
+          const segment = int(heading_pos(to_other) / rad_per_segment);
+          nodes_and_dists_per_segment[segment].push([other, dist]);
+        }
+      }
+    }
+    let nodes_and_dists = []
+    for (const segment of nodes_and_dists_per_segment) {
+      segment.sort((a, b) => a[1] - b[1]).splice(num_per_segment);
+      nodes_and_dists = nodes_and_dists.concat(segment);
+    }
+    return nodes_and_dists;
+  }
+
   update(flocks) {
-    const nearby_nodes = this.get_nearest_nodes(flocks);
+    const nearby_nodes = (SURROUND_OR_CLOSEST.value()
+                          ? this.get_surrounding_nodes(flocks)
+                          : this.get_nearest_nodes(flocks));
 
     let curspeed = this.vel.mag();
     const sep_force = createVector(); let sep_n = 0;
@@ -385,6 +425,7 @@ function create_control_panel() {
   createElement('hr').parent(basic_controls).size('50%');
   DEBUG_FORCE = createCheckbox('forces', false).parent(basic_controls);
   DEBUG_NEIGHBORS = createCheckbox('links', false).parent(basic_controls);
+  SURROUND_OR_CLOSEST = createCheckbox('surround', true).parent(basic_controls);
   DEBUG_DISTANCE = createCheckbox('space need', false).parent(basic_controls);
   // Purely visual options.
   CIRCLES = createCheckbox('circles', false).parent(basic_controls);
@@ -392,17 +433,17 @@ function create_control_panel() {
   // Sliders for forces and such. TODO: make some of these plain numeric inputs?
   const sliders = createDiv().id('sliders').parent(main);
 
-  NF_SEPARATION_FORCE = make_slider('nf separation', 0, 10, 2, .05, sliders);
+  NF_SEPARATION_FORCE = make_slider('nf separation', 0, 10, 4, .05, sliders);
   SEPARATION_FORCE    = make_slider('separation',    0, 10, 2, .05, sliders);
   COHESION_FORCE      = make_slider('cohesion',      0, 10, 1, .05, sliders);
-  ALIGNMENT_FORCE     = make_slider('alignment',     0, 10, .2, .05, sliders);
+  ALIGNMENT_FORCE     = make_slider('alignment',     0, 10, 1, .05, sliders);
   // createElement('hr').parent(sliders).size('10%');
-  MAX_FORCE = make_slider('max force', 0, 5, .5, .05, sliders);
+  MAX_FORCE = make_slider('max force', 0, 5, .25, .05, sliders);
   NATURAL_SPEED_WEIGHT = make_slider('nat speed weight', 0, 1, .3, .05, sliders);
   // createElement('hr').parent(sliders).size('10%');
-  SPACE_AWARE_MULT = make_slider('space aware mult', 0, 10, 6, .25, sliders);
-  NUM_NEIGHBORS = make_slider('# neighbors', 1, 50, 8, 1, sliders);
-  NF_NUM_NEIGHBORS = make_slider('# nf neighbors', 1, 50, 3, 1, sliders);
+  SPACE_AWARE_MULT = make_slider('space aware mult', 0, 10, 8, .25, sliders);
+  NUM_NEIGHBORS = make_slider('# neighbors (#seg)', 1, 30, 6, 1, sliders);
+  NF_NUM_NEIGHBORS = make_slider('# nf neighbors (#/seg)', 1, 30, 1, 1, sliders);
 }
 
 // h/t https://developers.google.com/web/fundamentals/native-hardware/fullscreen/
