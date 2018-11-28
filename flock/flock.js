@@ -27,8 +27,6 @@ const FLOCK_SIZE_CHANGE_FRAC = 0.1;
 
 // TODO: expose these as controllable things?
 let SPEED_LIMIT_MULT = 10;
-let RAND_MOVE_FREQ = 0.10;
-let RAND_MOVE_DIV = 15;
 
 // Control panel input elements.
 let PAUSED = false;
@@ -48,6 +46,8 @@ let NATURAL_SPEED_WEIGHT;
 let SPACE_AWARE_MULT;
 let NUM_NEIGHBORS;
 let NF_NUM_NEIGHBORS;
+let RAND_MOVE_FREQ;
+let RAND_MOVE_MULT;
 
 function rand_position() { return createVector(random(0, width), random(0, height)); }
 function rand_color() { return color(random(0, 255), random(0, 255), random(0, 255)); }
@@ -237,9 +237,9 @@ class Node {
     }
 
     this.vel.add(tot_force.limit(MAX_FORCE.value()));
-    if (random(1) < RAND_MOVE_FREQ) {
+    if (random(1) < RAND_MOVE_FREQ.value()) {
       //fill(brighten(this.col, 1.3)); this.draw_shape();
-      this.vel.add(p5.Vector.random2D().setMag(this.vel.mag()/RAND_MOVE_DIV));
+      this.vel.add(p5.Vector.random2D().setMag(this.vel.mag() * RAND_MOVE_MULT.value()));
     }
     const nsw = NATURAL_SPEED_WEIGHT.value();
     this.vel.setMag(this.vel.mag() * (1-nsw) + this.natural_speed * nsw);
@@ -444,6 +444,8 @@ function create_control_panel() {
   SPACE_AWARE_MULT = make_slider('space aware mult', 0, 10, 8, .25, sliders);
   NUM_NEIGHBORS = make_slider('# neighbors (#seg)', 1, 30, 6, 1, sliders);
   NF_NUM_NEIGHBORS = make_slider('# nf neighbors (#/seg)', 1, 30, 1, 1, sliders);
+  RAND_MOVE_FREQ = make_slider('rand move freq', 0, 1, .1, .02, sliders);
+  RAND_MOVE_MULT = make_slider('rand move mult', 0, 1, .05, .01, sliders);
 }
 
 // h/t https://developers.google.com/web/fundamentals/native-hardware/fullscreen/
