@@ -2,14 +2,10 @@
 // TODO:
 // - behavior:
 //   - add mouse/touch interaction: attract, repel
-//   - look at nearest neighbors in each direction, not just closest.
 // - display:
 //   - better debug display
-//   - node color shift based on velocity change
-//   - tweakable randomness bits
 // - misc:
 //   - rand_color: convert to HSB, require minimum brightness
-//   - figure out color() with object warning
 //   - add icon for manifest... https://developers.google.com/web/fundamentals/web-app-manifest/
 //   - quadtrees
 //
@@ -120,7 +116,9 @@ class Node {
   }
 
   draw() {
-    noStroke(); fill(this.col);
+    noStroke();
+    const relvel = this.vel.magSq() / pow(this.natural_speed, 2);
+    fill(brighten(this.col, relvel));
     if (this.debugf) { fill(255, 255); }
     this.draw_shape();
     if (DEBUG_DISTANCE.checked()) {
@@ -265,7 +263,7 @@ function create_random_flock(flock_id) {
     // Note: speed set to same value.
     const velfuzzed = p5.Vector.random2D().mult(speed/5).add(vel).setMag(speed);
     flock.push(new Node(i, flock_id, posfuzzed, velfuzzed, space_need,
-                        brighten(c, random(0.7, 1.3)), size * random(0.85, 1.15)));
+                        brighten(c, random(0.7, 1.3)), size * random(0.8, 1.2)));
   }
   return flock;
 }
