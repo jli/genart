@@ -5,7 +5,6 @@
 // - display:
 //   - better debug display
 // - misc:
-//   - rand_color: convert to HSB, require minimum brightness
 //   - add icon for manifest... https://developers.google.com/web/fundamentals/web-app-manifest/
 //   - quadtrees
 //
@@ -46,15 +45,17 @@ let RAND_MOVE_FREQ;
 let RAND_MOVE_MULT;
 
 function rand_position() { return createVector(random(0, width), random(0, height)); }
-function rand_color() { return color(random(0, 255), random(0, 255), random(0, 255)); }
+// Note: has high saturation and brightness minimums.
+function rand_color() { return color(random(0, 360), random(85, 100), random(85, 100)); }
 
 // Plus 1 for int upper bound so that bounds are inclusive.
 function rand_bound(bounds) { return floor(random(bounds[0], bounds[1] + 1)); }
 
-function brighten(col, mult) {
-  return color(constrain(red(col) * mult, 0, 255),
-               constrain(green(col) * mult, 0, 255),
-               constrain(blue(col) * mult, 0, 255));
+function hue_shift(col, mult) {
+  return color((hue(col) * mult) % 360, saturation(col), brightness(col));
+}
+function bright_shift(col, mult) {
+  return color(hue(col), saturation(col), constrain(brightness(col) * mult, 0, 100));
 }
 
 function draw_triangle(middle, dir, size) {
@@ -117,19 +118,22 @@ class Node {
 
   draw() {
     noStroke();
-    const relvel = this.vel.magSq() / pow(this.natural_speed, 2);
-    fill(brighten(this.col, relvel));
-    if (this.debugf) { fill(255, 255); }
+    if (this.debugf) { fill(100); }
+    else {
+      const relvel = this.vel.magSq() / pow(this.natural_speed, 2);
+      fill(bright_shift(this.col, relvel));
+    }
     this.draw_shape();
     if (DEBUG_DISTANCE.checked()) {
       noFill();
-      stroke(this.id == 0 ? 250 : 100, 220);
+      strokeWeight(0.5);
+      stroke(this.id == 0 ? 85 : 35);
       // Note: this is drawing a diameter of space_need instead of the radius.
       // This works out since with 2 nodes, the 2 bubbles looks like they're
       // bumping against each other.
       ellipse(this.pos.x, this.pos.y, this.zspace_need, this.zspace_need);
       if (this.id == 0) {
-        stroke(50, 200, 50, 220);
+        stroke(110, 80, 60);
         // Here, we do properly draw the radius since we're only showing 1 side.
         const s = 2 * SPACE_AWARE_MULT.value() * this.zspace_need;
         ellipse(this.pos.x, this.pos.y, s, s);
@@ -192,7 +196,8 @@ class Node {
                           ? this.get_surrounding_nodes(flocks)
                           : this.get_nearest_nodes(flocks));
 
-    let curspeed = this.vel.mag();
+    const curspeed = this.vel.mag();
+    const max_space_awareness = SPACE_AWARE_MULT.value() * this.zspace_need;
     const sep_force = createVector(); let sep_n = 0;
     const ali_force = createVector(); let ali_n = 0;
     for (const [other, dist] of nearby_nodes) {
@@ -213,10 +218,17 @@ class Node {
         )); ++sep_n;
       }
       if (DEBUG_NEIGHBORS.checked() && (!DEBUG_FORCE.checked() || this.debugf)) {
-        if (same_flock) {
-          if (dist < this.zspace_need) { stroke(50, 50, 250, 200); strokeWeight(1); }
-          else { stroke(150, 150, 150, 150); strokeWeight(1); }
-        } else { stroke(235, 0, 0, 200); strokeWeight(1); }
+        // TODO: fix these mappings. min map dist doesn't work well for small nodes.
+        if (same_flock && dist < this.zspace_need) {
+          strokeWeight(2);
+          stroke(330, 90, map(dist, 10, this.zspace_need, 100, 40));
+        } else if (same_flock) {
+          strokeWeight(0.5);
+          stroke(120, 85, map(dist, this.zspace_need, max_space_awareness, 35, 100));
+        } else {
+          strokeWeight(1);
+          stroke(210, 95, map(dist, 10, max_space_awareness, 100, 20));
+        }
         line(this.pos.x, this.pos.y, other.pos.x, other.pos.y);
       }
     }
@@ -230,13 +242,12 @@ class Node {
     // TODO: better display...
     if (this.debugf) {
       const dpos = createVector(this.pos.x - 10, this.pos.y + 10);
-      fill(200, 0, 0); draw_triangle(dpos, sep_force, sep_force.mag() * 10);
-      fill(0, 200, 0); draw_triangle(dpos, ali_force, ali_force.mag() * 10);
+      fill(0, 90, 90); draw_triangle(dpos, sep_force, sep_force.mag() * 10);
+      fill(120, 90, 90); draw_triangle(dpos, ali_force, ali_force.mag() * 10);
     }
 
     this.vel.add(tot_force.limit(MAX_FORCE.value()));
     if (random(1) < RAND_MOVE_FREQ.value()) {
-      //fill(brighten(this.col, 1.3)); this.draw_shape();
       this.vel.add(p5.Vector.random2D().setMag(this.vel.mag() * RAND_MOVE_MULT.value()));
     }
     const nsw = NATURAL_SPEED_WEIGHT.value();
@@ -263,11 +274,12 @@ function create_random_flock(flock_id) {
     // Note: speed set to same value.
     const velfuzzed = p5.Vector.random2D().mult(speed/5).add(vel).setMag(speed);
     flock.push(new Node(i, flock_id, posfuzzed, velfuzzed, space_need,
-                        brighten(c, random(0.7, 1.3)), size * random(0.8, 1.2)));
+                        hue_shift(c, random(0.97, 1.03)), size * random(0.8, 1.2)));
   }
   return flock;
 }
 
+// TODO: enforce distinctness in colors somehow?
 function init_node_flocks() {
   NODE_FLOCKS = [];
   for (let i = 0; i < rand_bound(NUM_GROUPS_RANDBOUND); ++i)
@@ -277,17 +289,19 @@ function init_node_flocks() {
 function copy_flocks(flocks) { return flocks.map(f => f.map(n => n.copy())); }
 
 function setup() {
-  frameRate(30);
   createCanvas(windowWidth, windowHeight);
+  frameRate(30);
+  colorMode(HSB);
+
+  init_node_flocks();
   create_control_panel();
   setTimeout(toggle_control_panel, 1000);
-  init_node_flocks();
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
 function draw() {
-  background(20, 20, 25);
+  background(225, 22, 7);
   const tmp_flocks = copy_flocks(NODE_FLOCKS);
   for (const flock of NODE_FLOCKS) {
     for (const node of flock) {
