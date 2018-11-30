@@ -46,7 +46,7 @@ let RAND_MOVE_MULT;
 
 function rand_position() { return createVector(random(0, width), random(0, height)); }
 // Note: has high saturation and brightness minimums.
-function rand_color() { return color(random(0, 360), random(85, 100), random(85, 100)); }
+function rand_color() { return color(random(0, 360), random(85, 100), random(75, 85)); }
 
 // Plus 1 for int upper bound so that bounds are inclusive.
 function rand_bound(bounds) { return floor(random(bounds[0], bounds[1] + 1)); }
@@ -101,6 +101,7 @@ class Node {
     this.space_need = space_need;
     this.col = col; this.size = size;
     this.natural_speed = this.vel.mag();
+    this.speed_avg = this.natural_speed;
   }
   copy() {
     return new Node(this.id, this.flock_id, this.pos.copy(), this.vel.copy(),
@@ -120,7 +121,7 @@ class Node {
     noStroke();
     if (this.debugf) { fill(100); }
     else {
-      const relvel = this.vel.magSq() / pow(this.natural_speed, 2);
+      const relvel = this.speed_avg / this.natural_speed;
       fill(bright_shift(this.col, relvel));
     }
     this.draw_shape();
@@ -251,8 +252,11 @@ class Node {
       this.vel.add(p5.Vector.random2D().setMag(this.vel.mag() * RAND_MOVE_MULT.value()));
     }
     const nsw = NATURAL_SPEED_WEIGHT.value();
-    this.vel.setMag(this.vel.mag() * (1-nsw) + this.natural_speed * nsw);
-    this.vel.limit(this.speed_limit);
+    const mag = min(this.vel.mag() * (1-nsw) + this.natural_speed * nsw, this.speed_limit);
+    this.vel.setMag(mag);
+    const speed_avg_weight = 0.5;
+    this.speed_avg = pow(mag, 2) * (1-speed_avg_weight) + this.speed_avg * speed_avg_weight;
+    // this.vel.limit(this.speed_limit);
     this.pos.add(this.vel.copy().mult(parseFloat(SPEED.value())));
     wrap_vector(this.pos);
   }
