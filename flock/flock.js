@@ -10,7 +10,7 @@
 //
 // h/t https://github.com/shiffman/The-Nature-of-Code-Examples/blob/master/chp06_agents/NOC_6_09_Flocking/Boid.pde
 
-let NODE_FLOCKS = [];
+let FLOCKS = [];
 
 const MOBILE = /Mobi|Android/i.test(navigator.userAgent);
 const GROUP_SIZE_RANDBOUND = [50, 150];
@@ -286,9 +286,9 @@ function create_random_flock(flock_id) {
 
 // TODO: enforce distinctness in colors somehow?
 function init_node_flocks() {
-  NODE_FLOCKS = [];
+  FLOCKS = [];
   for (let i = 0; i < rand_bound(NUM_GROUPS_RANDBOUND); ++i)
-    NODE_FLOCKS.push(create_random_flock(i));
+    FLOCKS.push(create_random_flock(i));
 }
 
 function copy_flocks(flocks) { return flocks.map(f => f.map(n => n.copy())); }
@@ -307,8 +307,8 @@ function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
 function draw() {
   background(225, 22, 7);
-  const tmp_flocks = copy_flocks(NODE_FLOCKS);
-  for (const flock of NODE_FLOCKS) {
+  const tmp_flocks = copy_flocks(FLOCKS);
+  for (const flock of FLOCKS) {
     for (const node of flock) {
       node.draw();
       node.update(tmp_flocks);
@@ -332,20 +332,20 @@ function toggle_paused() {
 
 function change_num_flocks(dir) {
   if (dir > 0) {
-    NODE_FLOCKS.push(create_random_flock(NODE_FLOCKS.length));
-  } else if (NODE_FLOCKS.length >= 2) {
-    const to_remove = floor(random(NODE_FLOCKS.length));
-    NODE_FLOCKS.splice(to_remove, 1);
+    FLOCKS.push(create_random_flock(FLOCKS.length));
+  } else if (FLOCKS.length >= 2) {
+    const to_remove = floor(random(FLOCKS.length));
+    FLOCKS.splice(to_remove, 1);
     // Update flock ids for subsequent flocks to maintain invariant that array
     // index equals flock id.
-    for (let i = to_remove; i < NODE_FLOCKS.length; ++i)
-      for (const n of NODE_FLOCKS[i])
+    for (let i = to_remove; i < FLOCKS.length; ++i)
+      for (const n of FLOCKS[i])
         n.flock_id = i;
   }
 }
 
 function change_flock_size(dir) {
-  for (const flock of NODE_FLOCKS) {
+  for (const flock of FLOCKS) {
     if (dir > 0) {
       const num_to_add = max(1, int(flock.length * FLOCK_SIZE_CHANGE_FRAC));
       const orig_length = flock.length;
