@@ -2,8 +2,9 @@
 
 // TODO:
 // - behavior:
-//   - add mouse/touch interaction: attract, repel
 // - display:
+//   - try to make colors more distinct
+//   - make hue shift more uniform across hue spectrum
 //   - less bleh control panel
 // - misc:
 //   - module-ify quadtree?
@@ -20,6 +21,7 @@ const NODE_SIZE_RANDBOUND = MOBILE ? [3, 8] : [5, 13];
 // When increasing/decreasing flock sizes, change by this frac of existing size.
 const FLOCK_SIZE_CHANGE_FRAC = 0.1;
 const SPEED_LIMIT_MULT = 10;
+let TOUCH_RAD = 70;
 
 // Control panel input elements.
 let PAUSED = false;
@@ -42,6 +44,7 @@ let NUM_NEIGHBORS;
 let NF_NUM_NEIGHBORS;
 let RAND_MOVE_FREQ;
 let RAND_MOVE_MULT;
+let MOUSE_REPEL;
 
 function rand_position() { return createVector(random(0, width), random(0, height)); }
 // Note: has high saturation and brightness minimums.
@@ -195,7 +198,7 @@ class Node {
     return nodes_and_dists;
   }
 
-  update(flocks, qt) {
+  update(flocks, qt, mouse_pos) {
     const nearby_nodes = (SURROUND_OR_CLOSEST
                           ? this.get_surrounding_nodes(flocks, qt)
                           : this.get_nearest_nodes(flocks, qt));
@@ -233,6 +236,26 @@ class Node {
           stroke(210, 95, map(dist, 3, max_space_awareness, 100, 20));
         }
         line(this.pos.x, this.pos.y, other.pos.x, other.pos.y);
+      }
+    }
+
+    if (mouse_pos) {
+      // HACK: some magic numbers here... large repel multiplier to make
+      // repelling more dramatic. also using log(dist^2) (as opposed to more
+      // usual dist) to lessen attractive force, since it feels a bit more
+      // natural. When multiplying just by 'dist', every node just heads
+      // straight for the mouse, since we aren't limiting  to only nodes within
+      // some radius.
+      const away = this.pos.copy().sub(mouse_pos);
+      const dist_sq = away.magSq();
+      if (MOUSE_REPEL && dist_sq < sq(TOUCH_RAD)) {
+        sep_force.add(away.setMag(
+          10 * SEPARATION_FORCE * curspeed * TOUCH_RAD * this.zspace_need / dist_sq));
+        ++sep_n;
+      } else if (!MOUSE_REPEL) {
+        sep_force.add(away.setMag(
+          -COHESION_FORCE * curspeed * log(dist_sq) / this.zspace_need));
+        ++sep_n;
       }
     }
 
@@ -282,7 +305,6 @@ function create_random_flock(flock_id) {
   return flock;
 }
 
-// TODO: enforce distinctness in colors somehow?
 function init_node_flocks() {
   FLOCKS = [];
   for (let i = 0; i < rand_bound(NUM_GROUPS_RANDBOUND); ++i)
@@ -313,12 +335,31 @@ function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
 function draw() {
   background(225, 22, 7);
+  let mouse_pos = mouseIsPressed ? createVector(mouseX, mouseY) : null;
+  if (touches.length > 0) {
+    // HACK: with 2 touches, always attract.
+    if (touches.length > 1) {
+      MOUSE_REPEL = false; MOUSE_REPEL_CHECKBOX.checked(false);
+    }
+    mouse_pos = createVector();
+    for (const {x,y} of touches) {
+      mouse_pos.add(createVector(x, y));
+      fill(0,100,50); ellipse(x,y,40,40);  // temporary debugging
+    }
+    mouse_pos.div(touches.length);
+  }
+
   const [tmp_flocks, qt] = copy_flocks_build_quadtree(FLOCKS);
   for (const flock of FLOCKS) {
     for (const node of flock) {
       node.draw();
-      node.update(tmp_flocks, qt);
+      node.update(tmp_flocks, qt, mouse_pos);
     }
+  }
+  if (mouse_pos && MOUSE_REPEL) {
+    strokeWeight(1); stroke(0, 100, 30);
+    fill(350, 90, 60, .10);
+    ellipse(mouse_pos.x, mouse_pos.y, TOUCH_RAD*2, TOUCH_RAD*2);
   }
   if (DEBUG_QUADTREE) draw_quadtree(qt, 0);
 }
@@ -443,7 +484,7 @@ function make_button(label, parent, f) {
 
 let CONTROL_PANEL;
 let TOGGLE_CONTROL_PANEL_BUTTON;
-let NUM_FLOCKS_ELT, NUM_NODES_ELT, FRAMERATE_ELT;
+let NUM_FLOCKS_ELT, NUM_NODES_ELT, FRAMERATE_ELT, MOUSE_REPEL_CHECKBOX;
 
 function toggle_control_panel() {
   if (CONTROL_PANEL.attribute('status') === 'hidden') {
@@ -486,6 +527,7 @@ function create_control_panel() {
   make_number_input('size', 0.1, null, 1, 0.1, 32, basic_controls, x=>ZOOM=x);
 
   // Debugging tools.
+  MOUSE_REPEL_CHECKBOX = make_checkbox('mouse repel', true, basic_controls, x=>MOUSE_REPEL=x);
   make_checkbox('surround',    true, basic_controls, x=>SURROUND_OR_CLOSEST=x);
   make_checkbox('links',      false, basic_controls, x=>DEBUG_NEIGHBORS=x);
   make_checkbox('space need', false, basic_controls, x=>DEBUG_DISTANCE=x);
@@ -506,8 +548,8 @@ function create_control_panel() {
   make_slider('nat speed weight', 0, 1, .2, .05, sliders, x=>NATURAL_SPEED_WEIGHT=x);
 
   make_slider('space aware mult', 0, 10, 6, .5, sliders, x=>SPACE_AWARE_MULT=x);
-  make_slider('# neighbors (#seg)',     1, 30, 5, 1, sliders, x=>NUM_NEIGHBORS=x);
-  make_slider('# nf neighbors (#/seg)', 1, 30, 1, 1, sliders, x=>NF_NUM_NEIGHBORS=x);
+  make_slider('# segments (#nbrs)', 0, 30, 5, 1, sliders, x=>NUM_NEIGHBORS=x);
+  make_slider('#/seg (#nf nbrs)',   0, 30, 1, 1, sliders, x=>NF_NUM_NEIGHBORS=x);
   make_slider('rand move freq', 0, 1, .1, .02, sliders, x=>RAND_MOVE_FREQ=x);
   make_slider('rand move mult', 0, 1, .05, .01, sliders, x=>RAND_MOVE_MULT=x);
 }
