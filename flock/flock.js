@@ -13,10 +13,10 @@
 let FLOCKS = [];
 
 const MOBILE = /Mobi|Android/i.test(navigator.userAgent);
-const GROUP_SIZE_RANDBOUND = [100, 160];
-const NUM_GROUPS_RANDBOUND = [2, 3];
+const GROUP_SIZE_RANDBOUND = MOBILE ? [70, 150] : [100, 200];
+const NUM_GROUPS_RANDBOUND = MOBILE ? [2, 2] : [2, 3];
 const SPEED_RANDBOUND = [2, 5];
-const NODE_SIZE_RANDBOUND = MOBILE ? [3, 8] : [5, 13];
+const NODE_SIZE_RANDBOUND = MOBILE ? [4, 7] : [6, 12];
 
 // When increasing/decreasing flock sizes, change by this frac of existing size.
 const FLOCK_SIZE_CHANGE_FRAC = 0.1;
