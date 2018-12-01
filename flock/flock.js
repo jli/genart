@@ -1,29 +1,25 @@
 'use strict';
+
 // TODO:
 // - behavior:
 //   - add mouse/touch interaction: attract, repel
 // - display:
-//   - better debug display
+//   - less bleh control panel
 // - misc:
-//   - replace dist with distSq
 //   - module-ify quadtree?
-//   - dynamically update quadtree without rebuilding?
 //   - add icon for manifest... https://developers.google.com/web/fundamentals/web-app-manifest/
-//
-// h/t https://github.com/shiffman/The-Nature-of-Code-Examples/blob/master/chp06_agents/NOC_6_09_Flocking/Boid.pde
 
 let FLOCKS = [];
 
 const MOBILE = /Mobi|Android/i.test(navigator.userAgent);
 const GROUP_SIZE_RANDBOUND = [100, 160];
 const NUM_GROUPS_RANDBOUND = [2, 3];
+const SPEED_RANDBOUND = [2, 5];
 const NODE_SIZE_RANDBOUND = MOBILE ? [3, 8] : [5, 13];
 
 // When increasing/decreasing flock sizes, change by this frac of existing size.
 const FLOCK_SIZE_CHANGE_FRAC = 0.1;
-
-// TODO: expose these as controllable things?
-let SPEED_LIMIT_MULT = 10;
+const SPEED_LIMIT_MULT = 10;
 
 // Control panel input elements.
 let PAUSED = false;
@@ -62,7 +58,7 @@ function bright_shift(col, mult) {
 }
 
 function draw_triangle(middle, dir, size) {
-  dir = dir.copy().normalize().mult(size);
+  dir = dir.copy().setMag(size);
   const halfdir = dir.copy().mult(.5);
   const v1 = p5.Vector.add(middle, halfdir);
   const base = p5.Vector.sub(middle, halfdir);
@@ -168,7 +164,6 @@ class Node {
     return nodes_and_dists_sf.concat(nodes_and_dists_nf);
   }
 
-  // TODO: optimize?
   get_surrounding_nodes(flocks, qt) {
     // HACK: reusing existing sliders...
     const num_segments = NUM_NEIGHBORS;
@@ -227,16 +222,15 @@ class Node {
         )); ++sep_n;
       }
       if (DEBUG_NEIGHBORS && (!DEBUG_FORCE || this.debugf)) {
-        // TODO: fix these mappings. min map dist doesn't work well for small nodes.
         if (same_flock && dist < this.zspace_need) {
           strokeWeight(2);
-          stroke(330, 90, map(dist, 10, this.zspace_need, 100, 40));
+          stroke(330, 90, map(dist, 3, this.zspace_need, 100, 40));
         } else if (same_flock) {
           strokeWeight(0.5);
           stroke(120, 85, map(dist, this.zspace_need, max_space_awareness, 35, 100));
         } else {
           strokeWeight(1);
-          stroke(210, 95, map(dist, 10, max_space_awareness, 100, 20));
+          stroke(210, 95, map(dist, 3, max_space_awareness, 100, 20));
         }
         line(this.pos.x, this.pos.y, other.pos.x, other.pos.y);
       }
@@ -248,7 +242,6 @@ class Node {
       ali_force.div(ali_n).sub(this.vel);
       tot_force.add(ali_force.mult(ALIGNMENT_FORCE));
     }
-    // TODO: better display...
     if (this.debugf) {
       const dpos = createVector(this.pos.x - 10, this.pos.y + 10);
       fill(0, 90, 90); draw_triangle(dpos, sep_force, sep_force.mag() * 10);
@@ -273,17 +266,16 @@ function create_random_flock(flock_id) {
   const flock = [];
   const c = rand_color();
   const size = rand_bound(NODE_SIZE_RANDBOUND);
-  const space_need = size * 2.5 * random(0.8, 1.2);
-  // TODO: pull out constants?
+  const space_need = size * 2 * random(0.8, 1.2);
   // TODO: make speed variant match size, with smaller being faster, or vice versa?
-  const speed = random(2, 5);
+  const speed = rand_bound(SPEED_RANDBOUND);
   const pos = rand_position();
   const vel = p5.Vector.random2D().mult(speed);
   for (let i = 0; i < rand_bound(GROUP_SIZE_RANDBOUND); ++i) {
     // TODO: more principled random fuzz amount.
-    const posfuzzed = p5.Vector.add(pos, p5.Vector.random2D().mult(random(space_need * 4)));
+    const posfuzzed = p5.Vector.add(pos, p5.Vector.random2D().mult(random(space_need * 3)));
     // Note: speed set to same value.
-    const velfuzzed = p5.Vector.random2D().mult(speed/5).add(vel).setMag(speed);
+    const velfuzzed = p5.Vector.random2D().mult(speed/3).add(vel).setMag(speed);
     flock.push(new Node(i, flock_id, posfuzzed, velfuzzed, space_need,
                         hue_shift(c, random(0.97, 1.03)), size * random(0.8, 1.2)));
   }
@@ -309,7 +301,7 @@ function copy_flocks_build_quadtree(flocks) {
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
-  frameRate(30);
+  frameRate(25);
   colorMode(HSB);
 
   create_control_panel();
@@ -360,7 +352,7 @@ function toggle_paused() {
 
 function update_count_displays() {
   NUM_FLOCKS_ELT.html(`# flocks [${FLOCKS.length}]`);
-  FLOCKS_SIZE_ELT.html(`flock size [${FLOCKS.map(a=>a.length).reduce((a,b)=>a+b, 0)}]`);
+  NUM_NODES_ELT.html(`# nodes [${FLOCKS.map(a=>a.length).reduce((a,b)=>a+b, 0)}]`);
 }
 
 function change_num_flocks(dir) {
@@ -399,7 +391,6 @@ function change_flock_size(dir) {
 
 // Creates slider with label, including display of value.
 function make_slider(label, min, max, startval, step, parent, updatefn) {
-  // TODO: nicer display of slider value.
   const container = createDiv().parent(parent);
   const labelelt = createSpan(`${label} [${startval}]`).parent(container);
   const slider = createSlider(min, max, startval, step).parent(container);
@@ -412,7 +403,7 @@ function make_slider(label, min, max, startval, step, parent, updatefn) {
   return slider;
 }
 
-// Creates number input with label. TODO: make it look nicer..?
+// Creates number input with label.
 function make_number_input(label, min, max, startval, step, size, parent, updatefn) {
   const container = createDiv().parent(parent);
   createSpan(label + ' ').parent(container);
@@ -443,8 +434,7 @@ function make_button(label, parent, f) {
   b.mousePressed(f);
   b.elt.onkeydown = (e) => {
     if (e.key === ' ' || e.key === 'Enter') {
-      // TODO: is this needed/useful?
-      // e.preventDefault();
+      // e.preventDefault();  // is this needed/useful?
       f();
     }
   }
@@ -453,7 +443,7 @@ function make_button(label, parent, f) {
 
 let CONTROL_PANEL;
 let TOGGLE_CONTROL_PANEL_BUTTON;
-let NUM_FLOCKS_ELT, FLOCKS_SIZE_ELT, FRAMERATE_ELT;
+let NUM_FLOCKS_ELT, NUM_NODES_ELT, FRAMERATE_ELT;
 
 function toggle_control_panel() {
   if (CONTROL_PANEL.attribute('status') === 'hidden') {
@@ -468,7 +458,6 @@ function toggle_control_panel() {
   }
 }
 
-// TODO: some other way of hiding/showing besides keyboard? (needed for mobile)
 function create_control_panel() {
   CONTROL_PANEL = createDiv().id('controlPanelFull').attribute('status', 'shown');
   TOGGLE_CONTROL_PANEL_BUTTON = make_button('hide', CONTROL_PANEL, toggle_control_panel).id('showControlPanelButton');
@@ -479,45 +468,43 @@ function create_control_panel() {
   // Basic controls: pause, reinit, change speed, size, # flocks.
   const basic_controls = createDiv().parent(main);
   const br = () => createElement('br').parent(basic_controls);
-  // TODO: don't include this if not supported (e.g. on mobile).
-  make_button('full', basic_controls, toggle_fullscreen); br();
+  if (fullscreen_supported())
+    make_button('full', basic_controls, toggle_fullscreen);
   make_button('pause', basic_controls, toggle_paused); br();
   make_button('reinit flocks', basic_controls, init_node_flocks); br();
-  make_number_input('speed', 0.1, null, 1, 0.1, 32, basic_controls, x=>SPEED=x);
-  make_number_input('size', 0.1, null, 1, 0.1, 32, basic_controls, x=>ZOOM=x);
+  const framerate_elt = createDiv().parent(basic_controls);
+  setInterval(() => framerate_elt.html(`framerate ${frameRate().toFixed(1)}`), 1000);
   NUM_FLOCKS_ELT = createSpan().parent(basic_controls);
   make_button('-', basic_controls, () => change_num_flocks(-1));
   make_button('+', basic_controls, () => change_num_flocks(+1));
   br();
-  FLOCKS_SIZE_ELT = createSpan().parent(basic_controls);
+  NUM_NODES_ELT = createSpan().parent(basic_controls);
   make_button('-', basic_controls, () => change_flock_size(-1));
   make_button('-', basic_controls, () => change_flock_size(+1));
   update_count_displays();
-  br();
-  const framerate_elt = createSpan().parent(basic_controls);
-  setInterval(() => framerate_elt.html(`framerate ${frameRate().toFixed(1)}`), 1000);
+  make_number_input('speed', 0.1, null, 1, 0.1, 32, basic_controls, x=>SPEED=x);
+  make_number_input('size', 0.1, null, 1, 0.1, 32, basic_controls, x=>ZOOM=x);
 
   // Debugging tools.
-  createElement('hr').parent(basic_controls).size('50%');
-  make_checkbox('forces',     false, basic_controls, x=>DEBUG_FORCE=x);
-  make_checkbox('links',      false, basic_controls, x=>DEBUG_NEIGHBORS=x);
   make_checkbox('surround',    true, basic_controls, x=>SURROUND_OR_CLOSEST=x);
+  make_checkbox('links',      false, basic_controls, x=>DEBUG_NEIGHBORS=x);
   make_checkbox('space need', false, basic_controls, x=>DEBUG_DISTANCE=x);
+  make_checkbox('forces',     false, basic_controls, x=>DEBUG_FORCE=x);
+  make_checkbox('quadtree',   false, basic_controls, x=>DEBUG_QUADTREE=x);
   // Purely visual options.
   make_checkbox('circles',    false, basic_controls, x=>CIRCLES=x);
-  make_checkbox('quadtree',   false, basic_controls, x=>DEBUG_QUADTREE=x);
 
-  // Sliders for forces and such. TODO: make some of these plain numeric inputs?
+  // Sliders for forces and such.
   const sliders = createDiv().id('sliders').parent(main);
 
   make_slider('nf separation', 0, 10, 5, .05, sliders, x=>NF_SEPARATION_FORCE=x);
   make_slider('separation',    0, 10, 2, .05, sliders, x=>SEPARATION_FORCE=x);
   make_slider('cohesion',      0, 10, 1, .05, sliders, x=>COHESION_FORCE=x);
   make_slider('alignment',     0, 10, 1, .05, sliders, x=>ALIGNMENT_FORCE=x);
-  // createElement('hr').parent(sliders).size('10%');
-  make_slider('max force',        0, 5, .5, .05, sliders, x=>MAX_FORCE=x);
+
+  make_slider('max force',        0, 5, .6, .05, sliders, x=>MAX_FORCE=x);
   make_slider('nat speed weight', 0, 1, .2, .05, sliders, x=>NATURAL_SPEED_WEIGHT=x);
-  // createElement('hr').parent(sliders).size('10%');
+
   make_slider('space aware mult', 0, 10, 6, .5, sliders, x=>SPACE_AWARE_MULT=x);
   make_slider('# neighbors (#seg)',     1, 30, 5, 1, sliders, x=>NUM_NEIGHBORS=x);
   make_slider('# nf neighbors (#/seg)', 1, 30, 1, 1, sliders, x=>NF_NUM_NEIGHBORS=x);
@@ -526,14 +513,20 @@ function create_control_panel() {
 }
 
 // h/t https://developers.google.com/web/fundamentals/native-hardware/fullscreen/
-function toggle_fullscreen() {
+function fullscreen_junk() {
   const doc = window.document;
   const docEl = doc.documentElement;
-  const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
-  const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
-  if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-    requestFullScreen.call(docEl);
-  } else {
-    cancelFullScreen.call(doc);
-  }
+  const elt = doc.fullscreenElement || doc.mozFullScreenElement || doc.webkitFullscreenElement || doc.msFullscreenElement;
+  const request = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+  const cancel = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+  return [elt, request, cancel, doc, docEl];
+}
+function fullscreen_supported() {
+  const [fs_elt, request_fs, cancel_fs] = fullscreen_junk();
+  return !(request_fs === undefined || cancel_fs === undefined);
+}
+function toggle_fullscreen() {
+  const [fs_elt, request_fs, cancel_fs, doc, docEl] = fullscreen_junk();
+  if (!fs_elt) { request_fs.call(docEl); }
+  else { cancel_fs.call(doc); }
 }
