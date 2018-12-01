@@ -9,6 +9,7 @@
 //   - module-ify quadtree?
 //   - add icon for manifest... https://developers.google.com/web/fundamentals/web-app-manifest/
 //   - break this up more? e.g. dom / control panel code
+//   - make random movement less jittery.
 
 let FLOCKS = [];
 
@@ -21,6 +22,8 @@ const NODE_SIZE_RANDBOUND = MOBILE ? [4, 7] : [6, 12];
 // When increasing/decreasing flock sizes, change by this frac of existing size.
 const FLOCK_SIZE_CHANGE_FRAC = 0.1;
 const SPEED_LIMIT_MULT = 10;
+let SPEED_AVG_WEIGHT = 0.90;
+let SPEED_CUR_WEIGHT = 0.1;
 let TOUCH_RAD = 70;
 
 // Control panel input elements.
@@ -60,11 +63,21 @@ function rand_position() { return createVector(random(0, width), random(0, heigh
 // Plus 1 for int upper bound so that bounds are inclusive.
 function rand_bound(bounds) { return floor(random(bounds[0], bounds[1] + 1)); }
 
-function hue_shift(col, mult) {
-  return color((hue(col) * mult) % 360, saturation(col), brightness(col));
+function map2(x, dom_lo, dom_mid, dom_hi, rng_lo, rng_mid, rng_hi) {
+  if (x >= dom_mid) { return map(x, dom_mid, dom_hi, rng_mid, rng_hi); }
+  else { return map(x, dom_lo, dom_mid, rng_lo, rng_mid); }
 }
-function bright_shift(col, mult) {
-  return color(hue(col), saturation(col), constrain(brightness(col) * mult, 0, 100));
+
+// Note: the effect is highly dependent on SPEED_{AVG,CUR}_WEIGHT. Oh well.
+function relspeed_color_shift(col, relspeed) {
+  let h = hue(col), s = saturation(col), b = brightness(col);
+
+  const hue_delta = constrain(map(relspeed, 0.5, 1.5, -50, 50), -100, 100);
+  h = h + hue_delta % 360;
+
+  b = constrain(b * map2(relspeed, 0.5, 1.0, 1.2,  0.25, 1.0, 2.0), 10, 100);
+
+  return color(h, s, b);
 }
 
 function draw_triangle(middle, dir, size) {
@@ -109,8 +122,7 @@ class Node {
     this.pos = pos; this.vel = vel;
     this.space_need = space_need;
     this.col = col; this.size = size;
-    this.natural_speed = this.vel.mag();
-    this.speed_avg = this.natural_speed;
+    this.speed_avg = this.speed_cur = this.natural_speed = this.vel.mag();
   }
   copy() {
     return new Node(this.id, this.flock_id, this.pos.copy(), this.vel.copy(),
@@ -129,12 +141,7 @@ class Node {
   draw() {
     noStroke();
     if (this.debugf) { fill(100); }
-    else {
-      const relvel = this.speed_avg / this.natural_speed;
-      let hshift = constrain(relvel, 0.9, 1.1);
-      let bshift = constrain(relvel, 0.6, 2);
-      fill(bright_shift(hue_shift(this.col, hshift), bshift));
-    }
+    else { fill(relspeed_color_shift(this.col, this.speed_cur/this.speed_avg)); }
     this.draw_shape();
     if (DEBUG_DISTANCE) {
       noFill();
@@ -268,10 +275,7 @@ class Node {
 
     const tot_force = createVector();
     if (sep_n) { tot_force.add(sep_force.div(sep_n)); }
-    if (ali_n) {
-      ali_force.div(ali_n).sub(this.vel);
-      tot_force.add(ali_force.mult(ALIGNMENT_FORCE));
-    }
+    if (ali_n) { tot_force.add(ali_force.div(ali_n).sub(this.vel).mult(ALIGNMENT_FORCE)); }
     if (this.debugf) {
       const dpos = createVector(this.pos.x - 10, this.pos.y + 10);
       fill(0, 90, 90); draw_triangle(dpos, sep_force, sep_force.mag() * 10);
@@ -280,13 +284,14 @@ class Node {
 
     this.vel.add(tot_force.limit(MAX_FORCE));
     if (random(1) < RAND_MOVE_FREQ) {
-      this.vel.add(p5.Vector.random2D().setMag(this.vel.mag() * RAND_MOVE_MULT));
+      this.vel.add(p5.Vector.random2D().mult(curspeed * RAND_MOVE_MULT));
     }
     const nsw = NATURAL_SPEED_WEIGHT;
     const mag = min(this.vel.mag() * (1-nsw) + this.natural_speed * nsw, this.speed_limit);
     this.vel.setMag(mag);
-    const speed_avg_weight = 0.5;
-    this.speed_avg = mag * (1-speed_avg_weight) + this.speed_avg * speed_avg_weight;
+    this.speed_cur = lerp(this.speed_cur, mag, 1-SPEED_CUR_WEIGHT);
+    this.speed_avg = lerp(this.speed_avg, mag, 1-SPEED_AVG_WEIGHT);
+
     this.pos.add(this.vel.copy().mult(SPEED));
     wrap_vector(this.pos);
   }
@@ -296,8 +301,8 @@ function create_random_flock(flock_id) {
   const flock = [];
   const c = rand_color();
   const size = rand_bound(NODE_SIZE_RANDBOUND);
+  // TODO: make space_need or speed match size?
   const space_need = size * 2 * random(0.8, 1.2);
-  // TODO: make speed variant match size, with smaller being faster, or vice versa?
   const speed = rand_bound(SPEED_RANDBOUND);
   const pos = rand_position();
   const vel = p5.Vector.random2D().mult(speed);
@@ -307,7 +312,7 @@ function create_random_flock(flock_id) {
     // Note: speed set to same value.
     const velfuzzed = p5.Vector.random2D().mult(speed/3).add(vel).setMag(speed);
     flock.push(new Node(i, flock_id, posfuzzed, velfuzzed, space_need,
-                        hue_shift(c, random(0.97, 1.03)), size * random(0.8, 1.2)));
+                        c, size * random(0.8, 1.2)));
   }
   return flock;
 }
