@@ -109,7 +109,7 @@ class Node {
   }
   get speed_limit() { return this.natural_speed * SPEED_LIMIT_MULT; }
   get zspace_need() { return this.space_need * ZOOM; }
-  get debugf() { return DEBUG_FORCE && this.id == 0; }
+  get debugf() { return DEBUG_FORCE && this.id === 0; }
 
   draw_shape() {
     const siz = this.size * ZOOM;
@@ -130,12 +130,12 @@ class Node {
     if (DEBUG_DISTANCE) {
       noFill();
       strokeWeight(0.5);
-      stroke(this.id == 0 ? 85 : 35);
+      stroke(this.id === 0 ? 85 : 35);
       // Note: this is drawing a diameter of space_need instead of the radius.
       // This works out since with 2 nodes, the 2 bubbles looks like they're
       // bumping against each other.
       ellipse(this.pos.x, this.pos.y, this.zspace_need, this.zspace_need);
-      if (this.id == 0) {
+      if (this.id === 0) {
         stroke(110, 80, 60);
         // Here, we do properly draw the radius since we're only showing 1 side.
         const s = 2 * SPACE_AWARE_MULT * this.zspace_need;
@@ -151,8 +151,8 @@ class Node {
     const nodes_and_dists_nf = [];
     for (const flock of flocks) {
       for (const other of flock) {
-        const same_flock = this.flock_id == other.flock_id;
-        if (same_flock && this.id == other.id) continue;
+        const same_flock = this.flock_id === other.flock_id;
+        if (same_flock && this.id === other.id) continue;
         const dist = this.pos.dist(other.pos);
         if (dist < SPACE_AWARE_MULT * (this.zspace_need + other.zspace_need) / 2) {
           if (same_flock) { nodes_and_dists_sf.push([other, dist]); }
@@ -176,7 +176,7 @@ class Node {
     for (let i = 0; i < num_segments; ++i) { nodes_and_dists_per_segment[i] = []; }
     for (const flock of flocks) {
       for (const other of flock) {
-        if (this.flock_id == other.flock_id && this.id == other.id) continue;
+        if (this.flock_id === other.flock_id && this.id === other.id) continue;
         const dist = this.pos.dist(other.pos);
         if (dist < (SPACE_AWARE_MULT
                     * (this.zspace_need + other.zspace_need) / 2)) {
@@ -207,7 +207,7 @@ class Node {
       // numerator for separation force computation. with divisor of dist^2,
       // this works out to 1 when other node is zspace_need away.
       const sep_force_num = this.zspace_need * other.zspace_need;
-      const same_flock = this.flock_id == other.flock_id;
+      const same_flock = this.flock_id === other.flock_id;
       const away = p5.Vector.sub(this.pos, other.pos).normalize();
       if (same_flock) {
         sep_force.add(away.copy().mult(
