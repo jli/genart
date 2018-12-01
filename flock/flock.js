@@ -195,7 +195,7 @@ class Node {
   }
 
   update(flocks) {
-    const nearby_nodes = (SURROUND_OR_CLOSEST.value()
+    const nearby_nodes = (SURROUND_OR_CLOSEST.checked()
                           ? this.get_surrounding_nodes(flocks)
                           : this.get_nearest_nodes(flocks));
 
