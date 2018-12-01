@@ -249,13 +249,13 @@ class Node {
       const away = this.pos.copy().sub(mouse_pos);
       const dist_sq = away.magSq();
       if (MOUSE_REPEL && dist_sq < sq(TOUCH_RAD)) {
+        ++sep_n;
         sep_force.add(away.setMag(
           10 * SEPARATION_FORCE * curspeed * TOUCH_RAD * this.zspace_need / dist_sq));
-        ++sep_n;
       } else if (!MOUSE_REPEL) {
-        sep_force.add(away.setMag(
-          -COHESION_FORCE * curspeed * log(dist_sq) / this.zspace_need));
         ++sep_n;
+        sep_force.add(away.setMag(
+          -2 * COHESION_FORCE * curspeed * log(dist_sq) / this.zspace_need));
       }
     }
 
@@ -333,6 +333,13 @@ function setup() {
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
+// Note: we need touchMoved() to return false in order for touch interactions to
+// work on mobile. However, this also disables the ability to use the sliders in
+// the control panel. Sooo, we toggle this value depending on whether the
+// control  panel is shown.
+let ALLOW_TOUCH_MOVED = false;
+function touchMoved() { return ALLOW_TOUCH_MOVED; }
+
 function draw() {
   background(225, 22, 7);
   let mouse_pos = mouseIsPressed ? createVector(mouseX, mouseY) : null;
@@ -344,7 +351,7 @@ function draw() {
     mouse_pos = createVector();
     for (const {x,y} of touches) {
       mouse_pos.add(createVector(x, y));
-      fill(0,100,50); ellipse(x,y,40,40);  // temporary debugging
+      noStroke(); fill(355, 90, 30, .5); ellipse(x, y, 40, 40);
     }
     mouse_pos.div(touches.length);
   }
@@ -356,11 +363,18 @@ function draw() {
       node.update(tmp_flocks, qt, mouse_pos);
     }
   }
-  if (mouse_pos && MOUSE_REPEL) {
-    strokeWeight(1); stroke(0, 100, 30);
-    fill(350, 90, 60, .10);
-    ellipse(mouse_pos.x, mouse_pos.y, TOUCH_RAD*2, TOUCH_RAD*2);
+
+  if (mouse_pos) {
+    strokeWeight(1);
+    if (MOUSE_REPEL) {
+      stroke(0, 100, 30); fill(350, 90, 60, .10);
+      ellipse(mouse_pos.x, mouse_pos.y, TOUCH_RAD*2, TOUCH_RAD*2);
+    } else {
+      stroke(120, 100, 20); fill(110, 90, 60, .10);
+      ellipse(mouse_pos.x, mouse_pos.y, TOUCH_RAD/2, TOUCH_RAD/2);
+    }
   }
+
   if (DEBUG_QUADTREE) draw_quadtree(qt, 0);
 }
 
@@ -463,7 +477,8 @@ function make_number_input(label, min, max, startval, step, size, parent, update
 function make_checkbox(label, startval, parent, updatefn) {
   const checkbox = createCheckbox(label, startval).parent(parent);
   if (updatefn) {
-    checkbox.input((e) => updatefn(e.target.checked));
+    // Note: input() works on desktop (mouse, keyboard), but not mobile :-/.
+    checkbox.changed((e) => updatefn(e.target.checked));
     updatefn(startval);
   }
   return checkbox;
@@ -491,11 +506,13 @@ function toggle_control_panel() {
     CONTROL_PANEL.attribute('status', 'shown');
     CONTROL_PANEL.style('translate', 0, 0);
     TOGGLE_CONTROL_PANEL_BUTTON.html('hide');
+    ALLOW_TOUCH_MOVED = true;
   } else {
     CONTROL_PANEL.attribute('status', 'hidden');
     const ty = CONTROL_PANEL.size()['height'] + parseInt(CONTROL_PANEL.style('bottom'), 10);
     CONTROL_PANEL.style('translate', 0, ty);
     TOGGLE_CONTROL_PANEL_BUTTON.html('show');
+    ALLOW_TOUCH_MOVED = false;
   }
 }
 
