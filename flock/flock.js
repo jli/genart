@@ -3,12 +3,12 @@
 // TODO:
 // - behavior:
 // - display:
-//   - try to make colors more distinct
 //   - make hue shift more uniform across hue spectrum
 //   - less bleh control panel
 // - misc:
 //   - module-ify quadtree?
 //   - add icon for manifest... https://developers.google.com/web/fundamentals/web-app-manifest/
+//   - break this up more? e.g. dom / control panel code
 
 let FLOCKS = [];
 
@@ -46,9 +46,16 @@ let RAND_MOVE_FREQ;
 let RAND_MOVE_MULT;
 let MOUSE_REPEL;
 
-function rand_position() { return createVector(random(0, width), random(0, height)); }
+
 // Note: has high saturation and brightness minimums.
-function rand_color() { return color(random(0, 360), random(85, 100), random(80, 85)); }
+let RAND_HUE;  // initialized in setup.
+function rand_color() {
+  const c = color(RAND_HUE, random(85, 100), random(80, 85));
+  RAND_HUE = (RAND_HUE + random(60, 100)) % 360;
+  return c;
+}
+
+function rand_position() { return createVector(random(0, width), random(0, height)); }
 
 // Plus 1 for int upper bound so that bounds are inclusive.
 function rand_bound(bounds) { return floor(random(bounds[0], bounds[1] + 1)); }
@@ -322,12 +329,11 @@ function copy_flocks_build_quadtree(flocks) {
 }
 
 function setup() {
-  createCanvas(windowWidth, windowHeight);
+  RAND_HUE = random(0, 360);
   frameRate(25);
   colorMode(HSB);
-
-  create_control_panel();
-  setTimeout(toggle_control_panel, 1000);
+  createCanvas(windowWidth, windowHeight);
+  create_control_panel(); setTimeout(toggle_control_panel, 1000);
   init_node_flocks();
 }
 
