@@ -347,7 +347,7 @@ let ALLOW_TOUCH_MOVED = false;
 function touchMoved() { return ALLOW_TOUCH_MOVED; }
 
 function draw() {
-  background(225, 22, 7);
+  background(225, 22, 3);
   let mouse_pos = mouseIsPressed ? createVector(mouseX, mouseY) : null;
   if (touches.length > 0) {
     // HACK: with 2 touches, always attract.
@@ -371,12 +371,12 @@ function draw() {
   }
 
   if (mouse_pos) {
-    strokeWeight(1);
+    strokeWeight(1); noFill();
     if (MOUSE_REPEL) {
-      stroke(0, 100, 30); fill(350, 90, 60, .10);
+      stroke(0, 100, 30);
       ellipse(mouse_pos.x, mouse_pos.y, TOUCH_RAD*2, TOUCH_RAD*2);
     } else {
-      stroke(120, 100, 20); fill(110, 90, 60, .10);
+      stroke(120, 100, 20);
       ellipse(mouse_pos.x, mouse_pos.y, TOUCH_RAD/2, TOUCH_RAD/2);
     }
   }
