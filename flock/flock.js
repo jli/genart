@@ -4,17 +4,20 @@
 //   - add mouse/touch interaction: attract, repel
 // - display:
 //   - better debug display
+//   - # nodes, # flocks, framerate
 // - misc:
+//   - replace dist with distSq
+//   - module-ify quadtree?
+//   - dynamically update quadtree without rebuilding?
 //   - add icon for manifest... https://developers.google.com/web/fundamentals/web-app-manifest/
-//   - quadtrees
 //
 // h/t https://github.com/shiffman/The-Nature-of-Code-Examples/blob/master/chp06_agents/NOC_6_09_Flocking/Boid.pde
 
 let FLOCKS = [];
 
 const MOBILE = /Mobi|Android/i.test(navigator.userAgent);
-const GROUP_SIZE_RANDBOUND = [50, 150];
-const NUM_GROUPS_RANDBOUND = [2, 4];
+const GROUP_SIZE_RANDBOUND = [100, 200];
+const NUM_GROUPS_RANDBOUND = [2, 3];
 const NODE_SIZE_RANDBOUND = MOBILE ? [3, 8] : [5, 13];
 
 // When increasing/decreasing flock sizes, change by this frac of existing size.
@@ -31,6 +34,7 @@ let DEBUG_FORCE;
 let DEBUG_NEIGHBORS;
 let SURROUND_OR_CLOSEST;
 let DEBUG_DISTANCE;
+let DEBUG_QUADTREE;
 let CIRCLES;
 let NF_SEPARATION_FORCE;
 let SEPARATION_FORCE;
@@ -145,28 +149,28 @@ class Node {
     }
   }
 
-  get_nearest_nodes(flocks) {
+  get_nearest_nodes(flocks, qt) {
     // same flock and not-same flock
     const nodes_and_dists_sf = [];
     const nodes_and_dists_nf = [];
-    for (const flock of flocks) {
-      for (const other of flock) {
-        const same_flock = this.flock_id === other.flock_id;
-        if (same_flock && this.id === other.id) continue;
-        const dist = this.pos.dist(other.pos);
-        if (dist < SPACE_AWARE_MULT * (this.zspace_need + other.zspace_need) / 2) {
-          if (same_flock) { nodes_and_dists_sf.push([other, dist]); }
-          else { nodes_and_dists_nf.push([other, dist]); }
-        }
+    const max_dist = SPACE_AWARE_MULT * this.zspace_need;
+    const near = qt.queryCenter(this.pos, max_dist, max_dist);
+    for (const [other, _] of near) {
+      const same_flock = this.flock_id === other.flock_id;
+      if (same_flock && this.id === other.id) continue;
+      const dist = this.pos.dist(other.pos);
+      if (dist < max_dist) {
+        if (same_flock) { nodes_and_dists_sf.push([other, dist]); }
+        else { nodes_and_dists_nf.push([other, dist]); }
       }
     }
-    const sf = nodes_and_dists_sf.sort((a, b) => a[1] - b[1]).splice(0, NUM_NEIGHBORS);
-    const nf = nodes_and_dists_nf.sort((a, b) => a[1] - b[1]).splice(0, NF_NUM_NEIGHBORS);
-    return sf.concat(nf);
+    nodes_and_dists_sf.sort((a, b) => a[1] - b[1]).splice(NUM_NEIGHBORS);
+    nodes_and_dists_nf.sort((a, b) => a[1] - b[1]).splice(NF_NUM_NEIGHBORS);
+    return nodes_and_dists_sf.concat(nodes_and_dists_nf);
   }
 
-  // TODO: optimize.
-  get_surrounding_nodes(flocks) {
+  // TODO: optimize?
+  get_surrounding_nodes(flocks, qt) {
     // HACK: reusing existing sliders...
     const num_segments = NUM_NEIGHBORS;
     const num_per_segment = NF_NUM_NEIGHBORS;
@@ -174,30 +178,33 @@ class Node {
     const nodes_and_dists_per_segment = [];
     // Initialize.
     for (let i = 0; i < num_segments; ++i) { nodes_and_dists_per_segment[i] = []; }
-    for (const flock of flocks) {
-      for (const other of flock) {
-        if (this.flock_id === other.flock_id && this.id === other.id) continue;
-        const dist = this.pos.dist(other.pos);
-        if (dist < (SPACE_AWARE_MULT
-                    * (this.zspace_need + other.zspace_need) / 2)) {
-          const to_other = other.pos.copy().sub(this.pos);
-          const segment = int(heading_pos(to_other) / rad_per_segment);
-          nodes_and_dists_per_segment[segment].push([other, dist]);
-        }
+    // TODO: previously, used avg of this and other's spaceneed to react. should
+    // we still do that? if we don't then neighbors from flocks w/ greater space
+    // need react to this node before this node reacts to it. could add some
+    // safety factor to account, maybe? bleh.
+    const max_dist = SPACE_AWARE_MULT * this.zspace_need;
+    const near = qt.queryCenter(this.pos, max_dist, max_dist);
+    for (const [other, _] of near) {
+      if (this.flock_id === other.flock_id && this.id === other.id) continue;
+      const dist = this.pos.dist(other.pos);
+      if (dist < max_dist) {
+        const to_other = other.pos.copy().sub(this.pos);
+        const segment = int(heading_pos(to_other) / rad_per_segment);
+        nodes_and_dists_per_segment[segment].push([other, dist]);
       }
     }
     let nodes_and_dists = []
     for (const segment of nodes_and_dists_per_segment) {
       segment.sort((a, b) => a[1] - b[1]).splice(num_per_segment);
-      nodes_and_dists = nodes_and_dists.concat(segment);
+      segment.forEach(nd => nodes_and_dists.push(nd));
     }
     return nodes_and_dists;
   }
 
-  update(flocks) {
+  update(flocks, qt) {
     const nearby_nodes = (SURROUND_OR_CLOSEST
-                          ? this.get_surrounding_nodes(flocks)
-                          : this.get_nearest_nodes(flocks));
+                          ? this.get_surrounding_nodes(flocks, qt)
+                          : this.get_nearest_nodes(flocks, qt));
 
     const curspeed = this.vel.mag();
     const max_space_awareness = SPACE_AWARE_MULT * this.zspace_need;
@@ -291,7 +298,14 @@ function init_node_flocks() {
     FLOCKS.push(create_random_flock(i));
 }
 
-function copy_flocks(flocks) { return flocks.map(f => f.map(n => n.copy())); }
+function copy_flocks_build_quadtree(flocks) {
+  const qt = new Quadtree(createVector(0,0), width, height);
+  const flocks_copy = flocks.map(f => f.map(n => {
+    qt.insert(n, n.pos);
+    return n.copy();
+  }));
+  return [flocks_copy, qt];
+}
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -307,16 +321,30 @@ function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
 function draw() {
   background(225, 22, 7);
-  const tmp_flocks = copy_flocks(FLOCKS);
+  const [tmp_flocks, qt] = copy_flocks_build_quadtree(FLOCKS);
   for (const flock of FLOCKS) {
     for (const node of flock) {
       node.draw();
-      node.update(tmp_flocks);
+      node.update(tmp_flocks, qt);
     }
+  }
+  if (DEBUG_QUADTREE) draw_quadtree(qt, 0);
+}
+
+function draw_quadtree(tree, level) {
+  strokeWeight(1);
+  stroke(color(level * 55 % 360, 100, 90));
+  noFill();
+  rect(tree.topleft.x + level, tree.topleft.y + level,
+       tree.width-level, tree.height-level);
+  if (tree.nw !== null) {
+    draw_quadtree(tree.nw, ++level);
+    draw_quadtree(tree.ne, level);
+    draw_quadtree(tree.se, level);
+    draw_quadtree(tree.sw, level);
   }
 }
 
-// TODO: remove entirely (aside from control panel toggle)? or too useful?
 function keyPressed() {
   switch (key) {
     case 'p': toggle_paused(); break;
@@ -443,6 +471,7 @@ function create_control_panel() {
   // Basic controls: pause, reinit, change speed, size, # flocks.
   const basic_controls = createDiv().parent(main);
   const br = () => createElement('br').parent(basic_controls);
+  // TODO: don't include this if not supported (e.g. on mobile).
   make_button('full', basic_controls, toggle_fullscreen); br();
   make_button('pause', basic_controls, toggle_paused); br();
   make_button('reinit flocks', basic_controls, init_node_flocks); br();
@@ -464,6 +493,7 @@ function create_control_panel() {
   make_checkbox('space need', false, basic_controls, x=>DEBUG_DISTANCE=x);
   // Purely visual options.
   make_checkbox('circles',    false, basic_controls, x=>CIRCLES=x);
+  make_checkbox('quadtree',   false, basic_controls, x=>DEBUG_QUADTREE=x);
 
   // Sliders for forces and such. TODO: make some of these plain numeric inputs?
   const sliders = createDiv().id('sliders').parent(main);
