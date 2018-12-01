@@ -109,11 +109,11 @@ class Node {
   }
   get speed_limit() { return this.natural_speed * SPEED_LIMIT_MULT; }
   get zspace_need() { return this.space_need * ZOOM; }
-  get debugf() { return DEBUG_FORCE.checked() && this.id == 0; }
+  get debugf() { return DEBUG_FORCE && this.id == 0; }
 
   draw_shape() {
     const siz = this.size * ZOOM;
-    if (CIRCLES.checked()) { ellipse(this.pos.x, this.pos.y, siz, siz); }
+    if (CIRCLES) { ellipse(this.pos.x, this.pos.y, siz, siz); }
     else { draw_triangle(this.pos, this.vel, siz); }
   }
 
@@ -127,7 +127,7 @@ class Node {
       fill(bright_shift(hue_shift(this.col, hshift), bshift));
     }
     this.draw_shape();
-    if (DEBUG_DISTANCE.checked()) {
+    if (DEBUG_DISTANCE) {
       noFill();
       strokeWeight(0.5);
       stroke(this.id == 0 ? 85 : 35);
@@ -195,7 +195,7 @@ class Node {
   }
 
   update(flocks) {
-    const nearby_nodes = (SURROUND_OR_CLOSEST.checked()
+    const nearby_nodes = (SURROUND_OR_CLOSEST
                           ? this.get_surrounding_nodes(flocks)
                           : this.get_nearest_nodes(flocks));
 
@@ -220,7 +220,7 @@ class Node {
           NF_SEPARATION_FORCE * curspeed * sep_force_num / pow(dist, 2)
         )); ++sep_n;
       }
-      if (DEBUG_NEIGHBORS.checked() && (!DEBUG_FORCE.checked() || this.debugf)) {
+      if (DEBUG_NEIGHBORS && (!DEBUG_FORCE || this.debugf)) {
         // TODO: fix these mappings. min map dist doesn't work well for small nodes.
         if (same_flock && dist < this.zspace_need) {
           strokeWeight(2);
@@ -379,16 +379,27 @@ function make_slider(label, min, max, startval, step, parent, updatefn) {
 
 // Creates number input with label. TODO: make it look nicer..?
 function make_number_input(label, min, max, startval, step, size, parent, updatefn) {
-  let container = createDiv().parent(parent);
+  const container = createDiv().parent(parent);
   createSpan(label + ' ').parent(container);
   const input = createInput(str(startval), 'number').parent(container);
   if (min !== null) input.attribute('min', min);
   if (max !== null) input.attribute('max', max);
   if (step !== null) input.attribute('step', step);
   if (size !== null) input.size(size);
-  input.input((e) => { updatefn(e.target.valueAsNumber) });
-  if (updatefn) updatefn(startval);
+  if (updatefn) {
+    input.input((e) => { updatefn(e.target.valueAsNumber) });
+    updatefn(startval);
+  }
   return input;
+}
+
+function make_checkbox(label, startval, parent, updatefn) {
+  const checkbox = createCheckbox(label, startval).parent(parent);
+  if (updatefn) {
+    checkbox.input((e) => updatefn(e.target.checked));
+    updatefn(startval);
+  }
+  return checkbox;
 }
 
 // Creates button. 'f' is both mousePressed and keydown (space, enter) handle.
@@ -447,12 +458,12 @@ function create_control_panel() {
 
   // Debugging tools.
   createElement('hr').parent(basic_controls).size('50%');
-  DEBUG_FORCE = createCheckbox('forces', false).parent(basic_controls);
-  DEBUG_NEIGHBORS = createCheckbox('links', false).parent(basic_controls);
-  SURROUND_OR_CLOSEST = createCheckbox('surround', true).parent(basic_controls);
-  DEBUG_DISTANCE = createCheckbox('space need', false).parent(basic_controls);
+  make_checkbox('forces',     false, basic_controls, x=>DEBUG_FORCE=x);
+  make_checkbox('links',      false, basic_controls, x=>DEBUG_NEIGHBORS=x);
+  make_checkbox('surround',    true, basic_controls, x=>SURROUND_OR_CLOSEST=x);
+  make_checkbox('space need', false, basic_controls, x=>DEBUG_DISTANCE=x);
   // Purely visual options.
-  CIRCLES = createCheckbox('circles', false).parent(basic_controls);
+  make_checkbox('circles',    false, basic_controls, x=>CIRCLES=x);
 
   // Sliders for forces and such. TODO: make some of these plain numeric inputs?
   const sliders = createDiv().id('sliders').parent(main);
@@ -462,11 +473,11 @@ function create_control_panel() {
   make_slider('cohesion',      0, 10, 1, .05, sliders, x=>COHESION_FORCE=x);
   make_slider('alignment',     0, 10, 1, .05, sliders, x=>ALIGNMENT_FORCE=x);
   // createElement('hr').parent(sliders).size('10%');
-  make_slider('max force', 0, 5, .25, .05, sliders, x=>MAX_FORCE=x);
+  make_slider('max force',        0, 5, .25, .05, sliders, x=>MAX_FORCE=x);
   make_slider('nat speed weight', 0, 1, .3, .05, sliders, x=>NATURAL_SPEED_WEIGHT=x);
   // createElement('hr').parent(sliders).size('10%');
   make_slider('space aware mult', 0, 10, 8, .25, sliders, x=>SPACE_AWARE_MULT=x);
-  make_slider('# neighbors (#seg)', 1, 30, 6, 1, sliders, x=>NUM_NEIGHBORS=x);
+  make_slider('# neighbors (#seg)',     1, 30, 6, 1, sliders, x=>NUM_NEIGHBORS=x);
   make_slider('# nf neighbors (#/seg)', 1, 30, 1, 1, sliders, x=>NF_NUM_NEIGHBORS=x);
   make_slider('rand move freq', 0, 1, .1, .02, sliders, x=>RAND_MOVE_FREQ=x);
   make_slider('rand move mult', 0, 1, .05, .01, sliders, x=>RAND_MOVE_MULT=x);
