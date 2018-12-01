@@ -15,7 +15,7 @@
 let FLOCKS = [];
 
 const MOBILE = /Mobi|Android/i.test(navigator.userAgent);
-const GROUP_SIZE_RANDBOUND = [100, 200];
+const GROUP_SIZE_RANDBOUND = [100, 160];
 const NUM_GROUPS_RANDBOUND = [2, 3];
 const NODE_SIZE_RANDBOUND = MOBILE ? [3, 8] : [5, 13];
 
@@ -510,16 +510,16 @@ function create_control_panel() {
   // Sliders for forces and such. TODO: make some of these plain numeric inputs?
   const sliders = createDiv().id('sliders').parent(main);
 
-  make_slider('nf separation', 0, 10, 4, .05, sliders, x=>NF_SEPARATION_FORCE=x);
+  make_slider('nf separation', 0, 10, 5, .05, sliders, x=>NF_SEPARATION_FORCE=x);
   make_slider('separation',    0, 10, 2, .05, sliders, x=>SEPARATION_FORCE=x);
   make_slider('cohesion',      0, 10, 1, .05, sliders, x=>COHESION_FORCE=x);
   make_slider('alignment',     0, 10, 1, .05, sliders, x=>ALIGNMENT_FORCE=x);
   // createElement('hr').parent(sliders).size('10%');
-  make_slider('max force',        0, 5, .25, .05, sliders, x=>MAX_FORCE=x);
-  make_slider('nat speed weight', 0, 1, .3, .05, sliders, x=>NATURAL_SPEED_WEIGHT=x);
+  make_slider('max force',        0, 5, .5, .05, sliders, x=>MAX_FORCE=x);
+  make_slider('nat speed weight', 0, 1, .2, .05, sliders, x=>NATURAL_SPEED_WEIGHT=x);
   // createElement('hr').parent(sliders).size('10%');
-  make_slider('space aware mult', 0, 10, 8, .25, sliders, x=>SPACE_AWARE_MULT=x);
-  make_slider('# neighbors (#seg)',     1, 30, 6, 1, sliders, x=>NUM_NEIGHBORS=x);
+  make_slider('space aware mult', 0, 10, 6, .5, sliders, x=>SPACE_AWARE_MULT=x);
+  make_slider('# neighbors (#seg)',     1, 30, 5, 1, sliders, x=>NUM_NEIGHBORS=x);
   make_slider('# nf neighbors (#/seg)', 1, 30, 1, 1, sliders, x=>NF_NUM_NEIGHBORS=x);
   make_slider('rand move freq', 0, 1, .1, .02, sliders, x=>RAND_MOVE_FREQ=x);
   make_slider('rand move mult', 0, 1, .05, .01, sliders, x=>RAND_MOVE_MULT=x);
