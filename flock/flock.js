@@ -108,13 +108,13 @@ class Node {
                     this.space_need, this.col, this.size);
   }
   get speed_limit() { return this.natural_speed * SPEED_LIMIT_MULT; }
-  get zspace_need() { return this.space_need * parseFloat(ZOOM.value()); }
+  get zspace_need() { return this.space_need * ZOOM; }
   get debugf() { return DEBUG_FORCE.checked() && this.id == 0; }
 
   draw_shape() {
-    const z = parseFloat(ZOOM.value());
-    if (CIRCLES.checked()) { ellipse(this.pos.x, this.pos.y, this.size * z, this.size * z); }
-    else { draw_triangle(this.pos, this.vel, this.size * z); }
+    const siz = this.size * ZOOM;
+    if (CIRCLES.checked()) { ellipse(this.pos.x, this.pos.y, siz, siz); }
+    else { draw_triangle(this.pos, this.vel, siz); }
   }
 
   draw() {
@@ -138,7 +138,7 @@ class Node {
       if (this.id == 0) {
         stroke(110, 80, 60);
         // Here, we do properly draw the radius since we're only showing 1 side.
-        const s = 2 * SPACE_AWARE_MULT.value() * this.zspace_need;
+        const s = 2 * SPACE_AWARE_MULT * this.zspace_need;
         ellipse(this.pos.x, this.pos.y, s, s);
         line(this.pos.x, this.pos.y, this.pos.x + s/2, this.pos.y);
       }
@@ -154,22 +154,22 @@ class Node {
         const same_flock = this.flock_id == other.flock_id;
         if (same_flock && this.id == other.id) continue;
         const dist = this.pos.dist(other.pos);
-        if (dist < SPACE_AWARE_MULT.value() * (this.zspace_need + other.zspace_need) / 2) {
+        if (dist < SPACE_AWARE_MULT * (this.zspace_need + other.zspace_need) / 2) {
           if (same_flock) { nodes_and_dists_sf.push([other, dist]); }
           else { nodes_and_dists_nf.push([other, dist]); }
         }
       }
     }
-    const sf = nodes_and_dists_sf.sort((a, b) => a[1] - b[1]).splice(0, NUM_NEIGHBORS.value());
-    const nf = nodes_and_dists_nf.sort((a, b) => a[1] - b[1]).splice(0, NF_NUM_NEIGHBORS.value());
+    const sf = nodes_and_dists_sf.sort((a, b) => a[1] - b[1]).splice(0, NUM_NEIGHBORS);
+    const nf = nodes_and_dists_nf.sort((a, b) => a[1] - b[1]).splice(0, NF_NUM_NEIGHBORS);
     return sf.concat(nf);
   }
 
   // TODO: optimize.
   get_surrounding_nodes(flocks) {
     // HACK: reusing existing sliders...
-    const num_segments = NUM_NEIGHBORS.value();
-    const num_per_segment = NF_NUM_NEIGHBORS.value();
+    const num_segments = NUM_NEIGHBORS;
+    const num_per_segment = NF_NUM_NEIGHBORS;
     const rad_per_segment = 2 * PI / num_segments;
     const nodes_and_dists_per_segment = [];
     // Initialize.
@@ -178,7 +178,7 @@ class Node {
       for (const other of flock) {
         if (this.flock_id == other.flock_id && this.id == other.id) continue;
         const dist = this.pos.dist(other.pos);
-        if (dist < (SPACE_AWARE_MULT.value()
+        if (dist < (SPACE_AWARE_MULT
                     * (this.zspace_need + other.zspace_need) / 2)) {
           const to_other = other.pos.copy().sub(this.pos);
           const segment = int(heading_pos(to_other) / rad_per_segment);
@@ -200,7 +200,7 @@ class Node {
                           : this.get_nearest_nodes(flocks));
 
     const curspeed = this.vel.mag();
-    const max_space_awareness = SPACE_AWARE_MULT.value() * this.zspace_need;
+    const max_space_awareness = SPACE_AWARE_MULT * this.zspace_need;
     const sep_force = createVector(); let sep_n = 0;
     const ali_force = createVector(); let ali_n = 0;
     for (const [other, dist] of nearby_nodes) {
@@ -211,13 +211,13 @@ class Node {
       const away = p5.Vector.sub(this.pos, other.pos).normalize();
       if (same_flock) {
         sep_force.add(away.copy().mult(
-          SEPARATION_FORCE.value() * curspeed * sep_force_num / pow(dist, 2)
-          - COHESION_FORCE.value() * curspeed * dist / this.zspace_need
+          SEPARATION_FORCE * curspeed * sep_force_num / pow(dist, 2)
+          - COHESION_FORCE * curspeed * dist / this.zspace_need
         )); ++sep_n;
         ali_force.add(other.vel); ++ali_n;
       } else {
         sep_force.add(away.copy().mult(
-          NF_SEPARATION_FORCE.value() * curspeed * sep_force_num / pow(dist, 2)
+          NF_SEPARATION_FORCE * curspeed * sep_force_num / pow(dist, 2)
         )); ++sep_n;
       }
       if (DEBUG_NEIGHBORS.checked() && (!DEBUG_FORCE.checked() || this.debugf)) {
@@ -240,7 +240,7 @@ class Node {
     if (sep_n) { tot_force.add(sep_force.div(sep_n)); }
     if (ali_n) {
       ali_force.div(ali_n).sub(this.vel);
-      tot_force.add(ali_force.mult(ALIGNMENT_FORCE.value()));
+      tot_force.add(ali_force.mult(ALIGNMENT_FORCE));
     }
     // TODO: better display...
     if (this.debugf) {
@@ -249,17 +249,16 @@ class Node {
       fill(120, 90, 90); draw_triangle(dpos, ali_force, ali_force.mag() * 10);
     }
 
-    this.vel.add(tot_force.limit(MAX_FORCE.value()));
-    if (random(1) < RAND_MOVE_FREQ.value()) {
-      this.vel.add(p5.Vector.random2D().setMag(this.vel.mag() * RAND_MOVE_MULT.value()));
+    this.vel.add(tot_force.limit(MAX_FORCE));
+    if (random(1) < RAND_MOVE_FREQ) {
+      this.vel.add(p5.Vector.random2D().setMag(this.vel.mag() * RAND_MOVE_MULT));
     }
-    const nsw = NATURAL_SPEED_WEIGHT.value();
+    const nsw = NATURAL_SPEED_WEIGHT;
     const mag = min(this.vel.mag() * (1-nsw) + this.natural_speed * nsw, this.speed_limit);
     this.vel.setMag(mag);
     const speed_avg_weight = 0.5;
     this.speed_avg = mag * (1-speed_avg_weight) + this.speed_avg * speed_avg_weight;
-    // this.vel.limit(this.speed_limit);
-    this.pos.add(this.vel.copy().mult(parseFloat(SPEED.value())));
+    this.pos.add(this.vel.copy().mult(SPEED));
     wrap_vector(this.pos);
   }
 }  // Node
@@ -364,17 +363,22 @@ function change_flock_size(dir) {
 }
 
 // Creates slider with label, including display of value.
-function make_slider(label, min, max, startval, step, parent) {
+function make_slider(label, min, max, startval, step, parent, updatefn) {
   // TODO: nicer display of slider value.
   const container = createDiv().parent(parent);
   const labelelt = createSpan(`${label} [${startval}]`).parent(container);
   const slider = createSlider(min, max, startval, step).parent(container);
-  slider.input(() => { labelelt.html(`${label} [${slider.value()}]`) });
+  slider.input((e) => {
+    const val = e.target.valueAsNumber;
+    labelelt.html(`${label} [${val}]`);
+    if (updatefn) updatefn(val);
+  });
+  if (updatefn) updatefn(startval);
   return slider;
 }
 
 // Creates number input with label. TODO: make it look nicer..?
-function make_number_input(label, min, max, startval, step, size, parent) {
+function make_number_input(label, min, max, startval, step, size, parent, updatefn) {
   let container = createDiv().parent(parent);
   createSpan(label + ' ').parent(container);
   const input = createInput(str(startval), 'number').parent(container);
@@ -382,6 +386,8 @@ function make_number_input(label, min, max, startval, step, size, parent) {
   if (max !== null) input.attribute('max', max);
   if (step !== null) input.attribute('step', step);
   if (size !== null) input.size(size);
+  input.input((e) => { updatefn(e.target.valueAsNumber) });
+  if (updatefn) updatefn(startval);
   return input;
 }
 
@@ -429,8 +435,8 @@ function create_control_panel() {
   make_button('full', basic_controls, toggle_fullscreen); br();
   make_button('pause', basic_controls, toggle_paused); br();
   make_button('reinit flocks', basic_controls, init_node_flocks); br();
-  SPEED = make_number_input('speed', 0.1, null, 1, 0.1, 32, basic_controls);
-  ZOOM = make_number_input('size', 0.1, null, 1, 0.1, 32, basic_controls);
+  make_number_input('speed', 0.1, null, 1, 0.1, 32, basic_controls, x=>SPEED=x);
+  make_number_input('size', 0.1, null, 1, 0.1, 32, basic_controls, x=>ZOOM=x);
   createSpan('# flocks').parent(basic_controls);
   make_button('-', basic_controls, () => change_num_flocks(-1));
   make_button('+', basic_controls, () => change_num_flocks(+1));
@@ -451,19 +457,19 @@ function create_control_panel() {
   // Sliders for forces and such. TODO: make some of these plain numeric inputs?
   const sliders = createDiv().id('sliders').parent(main);
 
-  NF_SEPARATION_FORCE = make_slider('nf separation', 0, 10, 4, .05, sliders);
-  SEPARATION_FORCE    = make_slider('separation',    0, 10, 2, .05, sliders);
-  COHESION_FORCE      = make_slider('cohesion',      0, 10, 1, .05, sliders);
-  ALIGNMENT_FORCE     = make_slider('alignment',     0, 10, 1, .05, sliders);
+  make_slider('nf separation', 0, 10, 4, .05, sliders, x=>NF_SEPARATION_FORCE=x);
+  make_slider('separation',    0, 10, 2, .05, sliders, x=>SEPARATION_FORCE=x);
+  make_slider('cohesion',      0, 10, 1, .05, sliders, x=>COHESION_FORCE=x);
+  make_slider('alignment',     0, 10, 1, .05, sliders, x=>ALIGNMENT_FORCE=x);
   // createElement('hr').parent(sliders).size('10%');
-  MAX_FORCE = make_slider('max force', 0, 5, .25, .05, sliders);
-  NATURAL_SPEED_WEIGHT = make_slider('nat speed weight', 0, 1, .3, .05, sliders);
+  make_slider('max force', 0, 5, .25, .05, sliders, x=>MAX_FORCE=x);
+  make_slider('nat speed weight', 0, 1, .3, .05, sliders, x=>NATURAL_SPEED_WEIGHT=x);
   // createElement('hr').parent(sliders).size('10%');
-  SPACE_AWARE_MULT = make_slider('space aware mult', 0, 10, 8, .25, sliders);
-  NUM_NEIGHBORS = make_slider('# neighbors (#seg)', 1, 30, 6, 1, sliders);
-  NF_NUM_NEIGHBORS = make_slider('# nf neighbors (#/seg)', 1, 30, 1, 1, sliders);
-  RAND_MOVE_FREQ = make_slider('rand move freq', 0, 1, .1, .02, sliders);
-  RAND_MOVE_MULT = make_slider('rand move mult', 0, 1, .05, .01, sliders);
+  make_slider('space aware mult', 0, 10, 8, .25, sliders, x=>SPACE_AWARE_MULT=x);
+  make_slider('# neighbors (#seg)', 1, 30, 6, 1, sliders, x=>NUM_NEIGHBORS=x);
+  make_slider('# nf neighbors (#/seg)', 1, 30, 1, 1, sliders, x=>NF_NUM_NEIGHBORS=x);
+  make_slider('rand move freq', 0, 1, .1, .02, sliders, x=>RAND_MOVE_FREQ=x);
+  make_slider('rand move mult', 0, 1, .05, .01, sliders, x=>RAND_MOVE_MULT=x);
 }
 
 // h/t https://developers.google.com/web/fundamentals/native-hardware/fullscreen/
