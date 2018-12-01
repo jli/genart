@@ -4,7 +4,6 @@
 //   - add mouse/touch interaction: attract, repel
 // - display:
 //   - better debug display
-//   - # nodes, # flocks, framerate
 // - misc:
 //   - replace dist with distSq
 //   - module-ify quadtree?
@@ -296,6 +295,7 @@ function init_node_flocks() {
   FLOCKS = [];
   for (let i = 0; i < rand_bound(NUM_GROUPS_RANDBOUND); ++i)
     FLOCKS.push(create_random_flock(i));
+  update_count_displays();
 }
 
 function copy_flocks_build_quadtree(flocks) {
@@ -312,9 +312,9 @@ function setup() {
   frameRate(30);
   colorMode(HSB);
 
-  init_node_flocks();
   create_control_panel();
   setTimeout(toggle_control_panel, 1000);
+  init_node_flocks();
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
@@ -358,6 +358,11 @@ function toggle_paused() {
   if (PAUSED) { noLoop(); } else { loop(); }
 }
 
+function update_count_displays() {
+  NUM_FLOCKS_ELT.html(`# flocks [${FLOCKS.length}]`);
+  FLOCKS_SIZE_ELT.html(`flock size [${FLOCKS.map(a=>a.length).reduce((a,b)=>a+b, 0)}]`);
+}
+
 function change_num_flocks(dir) {
   if (dir > 0) {
     FLOCKS.push(create_random_flock(FLOCKS.length));
@@ -370,6 +375,7 @@ function change_num_flocks(dir) {
       for (const n of FLOCKS[i])
         n.flock_id = i;
   }
+  update_count_displays();
 }
 
 function change_flock_size(dir) {
@@ -388,6 +394,7 @@ function change_flock_size(dir) {
       flock.splice(target_size);
     }
   }
+  update_count_displays();
 }
 
 // Creates slider with label, including display of value.
@@ -446,6 +453,7 @@ function make_button(label, parent, f) {
 
 let CONTROL_PANEL;
 let TOGGLE_CONTROL_PANEL_BUTTON;
+let NUM_FLOCKS_ELT, FLOCKS_SIZE_ELT, FRAMERATE_ELT;
 
 function toggle_control_panel() {
   if (CONTROL_PANEL.attribute('status') === 'hidden') {
@@ -477,13 +485,17 @@ function create_control_panel() {
   make_button('reinit flocks', basic_controls, init_node_flocks); br();
   make_number_input('speed', 0.1, null, 1, 0.1, 32, basic_controls, x=>SPEED=x);
   make_number_input('size', 0.1, null, 1, 0.1, 32, basic_controls, x=>ZOOM=x);
-  createSpan('# flocks').parent(basic_controls);
+  NUM_FLOCKS_ELT = createSpan().parent(basic_controls);
   make_button('-', basic_controls, () => change_num_flocks(-1));
   make_button('+', basic_controls, () => change_num_flocks(+1));
   br();
-  createSpan('flock size').parent(basic_controls);
+  FLOCKS_SIZE_ELT = createSpan().parent(basic_controls);
   make_button('-', basic_controls, () => change_flock_size(-1));
   make_button('-', basic_controls, () => change_flock_size(+1));
+  update_count_displays();
+  br();
+  const framerate_elt = createSpan().parent(basic_controls);
+  setInterval(() => framerate_elt.html(`framerate ${frameRate().toFixed(1)}`), 1000);
 
   // Debugging tools.
   createElement('hr').parent(basic_controls).size('50%');
