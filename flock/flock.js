@@ -512,6 +512,10 @@ function create_control_panel() {
   // Sliders for forces and such.
   const sliders = createDiv().id('sliders').parent(main);
 
+  make_button('reset', sliders, sliders_reset);
+  make_button('fish', sliders, sliders_fish);
+  make_button('bees', sliders, sliders_bees);
+  make_button('birds', sliders, sliders_birds);
   I_NF_SEPARATION_FORCE = new Slider('nf separation', 0, 20, 10, .5, sliders);
   I_SEPARATION_FORCE    = new Slider('separation',    0, 10, 2, .25, sliders);
   I_COHESION_FORCE      = new Slider('cohesion',      0, 10, 1, .25, sliders);
@@ -525,4 +529,55 @@ function create_control_panel() {
   I_NF_NUM_NEIGHBORS = new Slider('#/seg (#nf nbrs)',   0, 10, 1, 1, sliders);
   I_RAND_MOVE_FREQ = new Slider('rand move freq', 0, 1,  0, .02, sliders);
   I_RAND_MOVE_MULT = new Slider('rand move mult', 0, 1, .1, .02, sliders);
+}
+
+function sliders_reset() {
+  I_NF_SEPARATION_FORCE.reset();
+  I_SEPARATION_FORCE.reset();
+  I_COHESION_FORCE.reset();
+  I_ALIGNMENT_FORCE.reset();
+  I_MAX_FORCE.reset();
+  I_NATURAL_SPEED_WEIGHT.reset();
+  I_SPACE_AWARE_MULT.reset();
+  I_NUM_NEIGHBORS.reset();
+  I_NF_NUM_NEIGHBORS.reset();
+  I_RAND_MOVE_FREQ.reset();
+  I_RAND_MOVE_MULT.reset();
+}
+
+function sliders_fish() {
+  sliders_reset();
+  I_NF_SEPARATION_FORCE.set(20);
+  I_SEPARATION_FORCE.set(1);
+  I_COHESION_FORCE.set(5);
+  I_ALIGNMENT_FORCE.set(4);
+  I_MAX_FORCE.set(1);
+  I_NATURAL_SPEED_WEIGHT.set(0.2);
+  I_NUM_NEIGHBORS.set(8);
+  I_NF_NUM_NEIGHBORS.set(1);
+}
+
+function sliders_birds() {
+  sliders_reset();
+  I_NF_SEPARATION_FORCE.set(20);
+  I_SEPARATION_FORCE.set(3);
+  I_COHESION_FORCE.set(1);
+  I_ALIGNMENT_FORCE.set(2);
+  I_MAX_FORCE.set(0.5);
+  I_NATURAL_SPEED_WEIGHT.set(0.3);
+  I_SPACE_AWARE_MULT.set(15);
+  I_NUM_NEIGHBORS.set(4);
+  I_NF_NUM_NEIGHBORS.set(1);
+}
+
+function sliders_bees() {
+  sliders_reset();
+  I_NF_SEPARATION_FORCE.set(20);
+  I_SEPARATION_FORCE.set(2.5);
+  I_COHESION_FORCE.set(5);
+  I_ALIGNMENT_FORCE.set(0.5);
+  I_MAX_FORCE.set(2);
+  I_NATURAL_SPEED_WEIGHT.set(0.1);
+  I_NUM_NEIGHBORS.set(8);
+  I_NF_NUM_NEIGHBORS.set(2);
 }
