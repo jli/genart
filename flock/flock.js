@@ -27,6 +27,7 @@ let TOUCH_RAD = 70;
 
 // Control panel input elements.
 let PAUSED = false;
+let BACKGROUND;
 let SPEED;
 let ZOOM;
 let DEBUG_FORCE;
@@ -351,7 +352,8 @@ let ALLOW_TOUCH_MOVED = false;
 function touchMoved() { return ALLOW_TOUCH_MOVED; }
 
 function draw() {
-  background(225, 22, 3);
+  if (BACKGROUND) background(225, 22, 5);
+
   let mouse_pos = mouseIsPressed ? createVector(mouseX, mouseY) : null;
   if (touches.length > 0) {
     // HACK: with 4 touches, flip repel vs. attract..
@@ -375,14 +377,10 @@ function draw() {
   }
 
   if (mouse_pos) {
-    strokeWeight(1); noFill();
-    if (MOUSE_REPEL) {
-      stroke(0, 100, 30);
-      ellipse(mouse_pos.x, mouse_pos.y, TOUCH_RAD*2, TOUCH_RAD*2);
-    } else {
-      stroke(120, 100, 20);
-      ellipse(mouse_pos.x, mouse_pos.y, TOUCH_RAD/2, TOUCH_RAD/2);
-    }
+    strokeWeight(1); noFill(); let size;
+    if (MOUSE_REPEL) { stroke(0, 100, 30); size = TOUCH_RAD*2; }
+    else { stroke(120, 100, 20); size = TOUCH_RAD/2; }
+    ellipse(mouse_pos.x, mouse_pos.y, size, size);
   }
 
   if (DEBUG_QUADTREE) draw_quadtree(qt, 0);
@@ -562,6 +560,7 @@ function create_control_panel() {
   make_checkbox('quadtree',   false, basic_controls, x=>DEBUG_QUADTREE=x);
   // Purely visual options.
   make_checkbox('circles',    false, basic_controls, x=>CIRCLES=x);
+  make_checkbox('background',  true, basic_controls, x=>BACKGROUND=x);
 
   // Sliders for forces and such.
   const sliders = createDiv().id('sliders').parent(main);
