@@ -3,7 +3,6 @@
 // TODO:
 // - behavior:
 // - display:
-//   - make hue shift more uniform across hue spectrum
 //   - less bleh control panel
 // - misc:
 //   - module-ify quadtree?
@@ -229,7 +228,7 @@ class Node {
       const away = p5.Vector.sub(this.pos, other.pos).normalize();
       if (same_flock) {
         sep_force.add(away.copy().mult(
-          SEPARATION_FORCE * curspeed * sep_force_num / pow(dist, 2)
+          SEPARATION_FORCE * curspeed * sep_force_num / sq(dist)
           - COHESION_FORCE * curspeed * dist / this.zspace_need
         )); ++sep_n;
         ali_force.add(other.vel); ++ali_n;
@@ -265,7 +264,7 @@ class Node {
       if (MOUSE_REPEL && dist_sq < sq(TOUCH_RAD)) {
         ++sep_n;
         sep_force.add(away.setMag(
-          10 * SEPARATION_FORCE * curspeed * TOUCH_RAD * this.zspace_need / dist_sq));
+          50 * SEPARATION_FORCE * curspeed * TOUCH_RAD * this.zspace_need / dist_sq));
       } else if (!MOUSE_REPEL) {
         ++sep_n;
         sep_force.add(away.setMag(
@@ -444,7 +443,7 @@ function change_flock_size(dir) {
       for (let i = orig_length; i < orig_length + num_to_add; ++i) {
         const example = flock[int(random(flock.length))];
         const pos = example.pos.copy().add(p5.Vector.random2D().mult(example.space_need));
-        const vel = example.vel.copy().rotate(random(2*PI));
+        const vel = example.vel.copy().rotate(random(-PI/3, PI/3));
         flock.push(new Node(i, example.flock_id, pos, vel, example.space_need, example.col, example.size));
       }
     } else {
@@ -575,7 +574,7 @@ function create_control_panel() {
   make_slider('max force',        0, 5, .6, .05, sliders, x=>MAX_FORCE=x);
   make_slider('nat speed weight', 0, 1, .2, .05, sliders, x=>NATURAL_SPEED_WEIGHT=x);
 
-  make_slider('space aware mult', 0, 10, 6, .5, sliders, x=>SPACE_AWARE_MULT=x);
+  make_slider('space aware mult', 0, 12, 8, .5, sliders, x=>SPACE_AWARE_MULT=x);
   make_slider('# segments (#nbrs)', 0, 30, 5, 1, sliders, x=>NUM_NEIGHBORS=x);
   make_slider('#/seg (#nf nbrs)',   0, 30, 1, 1, sliders, x=>NF_NUM_NEIGHBORS=x);
   make_slider('rand move freq', 0, 1, .1, .02, sliders, x=>RAND_MOVE_FREQ=x);
