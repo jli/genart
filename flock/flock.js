@@ -354,9 +354,9 @@ function draw() {
   background(225, 22, 3);
   let mouse_pos = mouseIsPressed ? createVector(mouseX, mouseY) : null;
   if (touches.length > 0) {
-    // HACK: with 2 touches, always attract.
-    if (touches.length > 1) {
-      MOUSE_REPEL = false; MOUSE_REPEL_CHECKBOX.checked(false);
+    // HACK: with 4 touches, flip repel vs. attract..
+    if (touches.length === 4) {
+      MOUSE_REPEL = !MOUSE_REPEL; MOUSE_REPEL_CHECKBOX.checked(MOUSE_REPEL);
     }
     mouse_pos = createVector();
     for (const {x,y} of touches) {
