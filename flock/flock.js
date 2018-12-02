@@ -574,19 +574,19 @@ function create_control_panel() {
   // Sliders for forces and such.
   const sliders = createDiv().id('sliders').parent(main);
 
-  make_slider('nf separation', 0, 10, 5, .05, sliders, x=>NF_SEPARATION_FORCE=x);
-  make_slider('separation',    0, 10, 2, .05, sliders, x=>SEPARATION_FORCE=x);
-  make_slider('cohesion',      0, 10, 1, .05, sliders, x=>COHESION_FORCE=x);
-  make_slider('alignment',     0, 10, 1, .05, sliders, x=>ALIGNMENT_FORCE=x);
+  make_slider('nf separation', 0, 20, 10, .5, sliders, x=>NF_SEPARATION_FORCE=x);
+  make_slider('separation',    0, 10, 2, .25, sliders, x=>SEPARATION_FORCE=x);
+  make_slider('cohesion',      0, 10, 1, .25, sliders, x=>COHESION_FORCE=x);
+  make_slider('alignment',     0, 10, 1, .25, sliders, x=>ALIGNMENT_FORCE=x);
 
-  make_slider('max force',        0, 5, .6, .05, sliders, x=>MAX_FORCE=x);
-  make_slider('nat speed weight', 0, 1, .2, .05, sliders, x=>NATURAL_SPEED_WEIGHT=x);
+  make_slider('max force',        0, 5, .6,  .1, sliders, x=>MAX_FORCE=x);
+  make_slider('nat speed weight', 0, 1, .2, .02, sliders, x=>NATURAL_SPEED_WEIGHT=x);
 
-  make_slider('space aware mult', 0, 12, 8, .5, sliders, x=>SPACE_AWARE_MULT=x);
-  make_slider('# segments (#nbrs)', 0, 30, 5, 1, sliders, x=>NUM_NEIGHBORS=x);
-  make_slider('#/seg (#nf nbrs)',   0, 30, 1, 1, sliders, x=>NF_NUM_NEIGHBORS=x);
-  make_slider('rand move freq', 0, 1, .1, .02, sliders, x=>RAND_MOVE_FREQ=x);
-  make_slider('rand move mult', 0, 1, .05, .01, sliders, x=>RAND_MOVE_MULT=x);
+  make_slider('space aware mult',   0, 15, 8, .5, sliders, x=>SPACE_AWARE_MULT=x);
+  make_slider('# segments (#nbrs)', 0, 16, 5, 1, sliders, x=>NUM_NEIGHBORS=x);
+  make_slider('#/seg (#nf nbrs)',   0, 10, 1, 1, sliders, x=>NF_NUM_NEIGHBORS=x);
+  make_slider('rand move freq', 0, 1,  0, .02, sliders, x=>RAND_MOVE_FREQ=x);
+  make_slider('rand move mult', 0, 1, .1, .02, sliders, x=>RAND_MOVE_MULT=x);
 }
 
 // h/t https://developers.google.com/web/fundamentals/native-hardware/fullscreen/
