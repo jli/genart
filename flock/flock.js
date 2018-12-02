@@ -529,6 +529,7 @@ function create_control_panel() {
   I_NF_NUM_NEIGHBORS = new Slider('#/seg (#nf nbrs)',   0, 10, 1, 1, sliders);
   I_RAND_MOVE_FREQ = new Slider('rand move freq', 0, 1,  0, .02, sliders);
   I_RAND_MOVE_MULT = new Slider('rand move mult', 0, 1, .1, .02, sliders);
+  createA('https://github.com/jli/processing-sketches/tree/master/flock', 'src').parent(sliders);
 }
 
 function sliders_reset() {

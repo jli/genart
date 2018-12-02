@@ -2,10 +2,11 @@
 
 Flocking simulation. Birds, fish, bees, etc.
 
+live: http://circularly.org/flock
+
 Significantly inspired by boids:
 
-- [Processing example](https://processing.org/examples/flocking.html) [(on
-  github)](https://github.com/shiffman/The-Nature-of-Code-Examples/tree/master/chp06_agents/NOC_6_09_Flocking)
+- [Processing example](https://processing.org/examples/flocking.html) ([Nature of Code example](https://github.com/shiffman/The-Nature-of-Code-Examples/tree/master/chp06_agents/NOC_6_09_Flocking) on github)
 - [Craig Reynolds's site](http://www.red3d.com/cwr/boids/)
 
 
