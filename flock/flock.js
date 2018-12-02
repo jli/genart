@@ -356,10 +356,6 @@ function draw() {
 
   let mouse_pos = mouseIsPressed ? createVector(mouseX, mouseY) : null;
   if (touches.length > 0) {
-    // HACK: with 4 touches, flip repel vs. attract..
-    if (touches.length === 4) {
-      MOUSE_REPEL = !MOUSE_REPEL; MOUSE_REPEL_CHECKBOX.checked(MOUSE_REPEL);
-    }
     mouse_pos = createVector();
     for (const {x,y} of touches) {
       mouse_pos.add(createVector(x, y));
@@ -397,6 +393,19 @@ function draw_quadtree(tree, level) {
     draw_quadtree(tree.ne, level);
     draw_quadtree(tree.se, level);
     draw_quadtree(tree.sw, level);
+  }
+}
+
+function touchStarted() {
+  // 3 touches to toggle repel v. attract.
+  switch (touches.length) {
+    case 3:
+      MOUSE_REPEL = !MOUSE_REPEL;
+      MOUSE_REPEL_CHECKBOX.checked(MOUSE_REPEL);
+      break;
+    case 4:
+      init_node_flocks();
+      break;
   }
 }
 
