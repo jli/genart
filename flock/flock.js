@@ -167,7 +167,7 @@ class Node {
     const nodes_and_dists_sf = [];
     const nodes_and_dists_nf = [];
     const max_dist = I_SPACE_AWARE_MULT.value * this.zspace_need;
-    const near = qt.queryCenter(this.pos, max_dist, max_dist);
+    const near = qt.queryCenter(this.pos, max_dist * 2, max_dist * 2);
     for (const [other, _] of near) {
       const same_flock = this.flock_id === other.flock_id;
       if (same_flock && this.id === other.id) continue;
@@ -195,7 +195,7 @@ class Node {
     // need react to this node before this node reacts to it. could add some
     // safety factor to account, maybe? bleh.
     const max_dist = I_SPACE_AWARE_MULT.value * this.zspace_need;
-    const near = qt.queryCenter(this.pos, max_dist, max_dist);
+    const near = qt.queryCenter(this.pos, max_dist * 2, max_dist * 2);
     for (const [other, _] of near) {
       if (this.flock_id === other.flock_id && this.id === other.id) continue;
       const dist = this.pos.dist(other.pos);
@@ -538,7 +538,7 @@ function create_control_panel() {
   I_LAZINESS             = new Slider('laziness',         0, 1,  0, .02, sliders);
   I_SPEED_LIMIT          = new Slider('speed limit',      0, 50, 10, 2, sliders);
 
-  I_SPACE_AWARE_MULT = new Slider('space aware mult',   0, 15, 8, .5, sliders);
+  I_SPACE_AWARE_MULT = new Slider('space aware mult',   0, 15, 5, .5, sliders);
   I_NUM_NEIGHBORS    = new Slider('# segments (#nbrs)', 0, 16, 5, 1, sliders);
   I_NF_NUM_NEIGHBORS = new Slider('#/seg (#nf nbrs)',   0, 10, 1, 1, sliders);
   I_RAND_MOVE_FREQ = new Slider('rand move freq', 0, 1,  0, .02, sliders);
