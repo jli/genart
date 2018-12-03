@@ -11,9 +11,10 @@
 
 let FLOCKS = [];
 
+const DEBUG_MODE = false;
 const MOBILE = /Mobi|Android/i.test(navigator.userAgent);
-const GROUP_SIZE_RANDBOUND = MOBILE ? [70, 150] : [100, 200];
-const NUM_GROUPS_RANDBOUND = MOBILE ? [2, 2] : [2, 3];
+const GROUP_SIZE_RANDBOUND = DEBUG_MODE?[5,5]: MOBILE ? [70, 150] : [100, 200];
+const NUM_GROUPS_RANDBOUND = DEBUG_MODE?[1,1]: MOBILE ? [2, 2] : [2, 3];
 const SPEED_RANDBOUND = [2, 5];
 const NODE_SIZE_RANDBOUND = MOBILE ? [4, 7] : [6, 12];
 
@@ -130,7 +131,7 @@ class Node {
                     this.space_need, this.col, this.size);
   }
   get zspace_need() { return this.space_need * I_ZOOM.value; }
-  get debugf() { return I_DEBUG_FORCE.value && this.id === 0; }
+  get debugf() { return DEBUG_MODE || (I_DEBUG_FORCE.value && this.id === 0); }
 
   draw_shape() {
     const siz = this.size * I_ZOOM.value;
@@ -277,9 +278,13 @@ class Node {
     if (sep_n) { tot_force.add(sep_force.div(sep_n)); }
     if (ali_n) { tot_force.add(ali_force.div(ali_n).sub(this.vel).mult(I_ALIGNMENT_FORCE.value)); }
     if (this.debugf) {
-      const dpos = createVector(this.pos.x - 10, this.pos.y + 10);
-      fill(0, 90, 90); draw_triangle(dpos, sep_force, sep_force.mag() * 10);
-      fill(120, 90, 90); draw_triangle(dpos, ali_force, ali_force.mag() * 10);
+      stroke(220,90,90);
+      const sp = createVector(this.pos.x - 30, this.pos.y + 15);
+      fill(0, 90, 90, .5); draw_triangle(sp, sep_force, min(50, sep_force.mag() * 10));
+      const ap = createVector(this.pos.x + 30, this.pos.y + 15);
+      fill(120, 90, 90, .5); draw_triangle(ap, ali_force, min(50, ali_force.mag() * 10));
+      const tp = createVector(this.pos.x, this.pos.y + 15);
+      fill(0, 0, 90, .5); draw_triangle(tp, tot_force, min(50, tot_force.mag() * 10));
     }
 
     this.vel.add(tot_force.limit(I_MAX_FORCE.value));
@@ -502,8 +507,8 @@ function create_control_panel() {
   make_button('-', basic_controls, () => change_flock_size(-1));
   make_button('-', basic_controls, () => change_flock_size(+1));
   update_count_displays();
-  I_SPEED_MULT = new NumInput('speed', 0.1, null, 1, 0.1, 32, basic_controls);
-  I_ZOOM = new NumInput('size', 0.1, null, 1, 0.1, 32, basic_controls);
+  I_SPEED_MULT = new NumInput('speed', 0.1, null, DEBUG_MODE?0.2: 1, 0.1, 32, basic_controls);
+  I_ZOOM = new NumInput('size', 0.1, null, DEBUG_MODE?3: 1, 0.1, 32, basic_controls);
 
   // Debugging tools.
   // Purely visual options.
@@ -511,9 +516,9 @@ function create_control_panel() {
   I_CIRCLES = new Checkbox('circles',  false, basic_controls);
   I_BACKGROUND = new Checkbox('background', true, basic_controls);
   I_SURROUND_OR_CLOSEST = new Checkbox('better nbors',  true, basic_controls);
-  I_DEBUG_NEIGHBORS = new Checkbox('debug links', false, basic_controls);
-  I_DEBUG_DISTANCE = new Checkbox('debug space', false, basic_controls);
-  I_DEBUG_FORCE = new Checkbox('debug force',  false, basic_controls);
+  I_DEBUG_NEIGHBORS = new Checkbox('debug links', DEBUG_MODE, basic_controls);
+  I_DEBUG_DISTANCE = new Checkbox('debug space', DEBUG_MODE, basic_controls);
+  I_DEBUG_FORCE = new Checkbox('debug force', DEBUG_MODE, basic_controls);
   I_DEBUG_QUADTREE = new Checkbox('debug qtree', false, basic_controls);
 
   // Sliders for forces and such.
