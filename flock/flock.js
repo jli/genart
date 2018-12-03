@@ -266,7 +266,7 @@ class Node {
         ++sep_n;
         sep_force.add(away.setMag(
           50 * I_SEPARATION_FORCE.value * curspeed * TOUCH_RAD * this.zspace_need / dist_sq));
-      } else if (!I_MOUSE_REPEL.value) {
+      } else if (!I_MOUSE_REPEL.value && dist_sq < sq(TOUCH_RAD*2)) {
         ++sep_n;
         sep_force.add(away.setMag(
           -2 * I_COHESION_FORCE.value * curspeed * log(dist_sq) / this.zspace_need));
@@ -366,7 +366,7 @@ function draw() {
   if (mouse_pos) {
     strokeWeight(1); noFill(); let size;
     if (I_MOUSE_REPEL.value) { stroke(0, 100, 30); size = TOUCH_RAD*2; }
-    else { stroke(120, 100, 20); size = TOUCH_RAD/2; }
+    else { stroke(120, 100, 20); size = TOUCH_RAD*4; }
     ellipse(mouse_pos.x, mouse_pos.y, size, size);
   }
 
