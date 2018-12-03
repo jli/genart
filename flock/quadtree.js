@@ -16,9 +16,8 @@ function bb_overlap(tl1, w1, h1, tl2, w2, h2) {
 }
 
 class Quadtree {
-  constructor(topleft, width, height, parent) {
+  constructor(topleft, width, height) {
     this.topleft = topleft; this.width = width; this.height = height;
-    this.parent = parent;
     this.objs = [];
     this.nw = this.ne = this.se = this.sw = null;
   }
