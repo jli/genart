@@ -19,7 +19,6 @@ const NODE_SIZE_RANDBOUND = MOBILE ? [4, 7] : [6, 12];
 
 // When increasing/decreasing flock sizes, change by this frac of existing size.
 const FLOCK_SIZE_CHANGE_FRAC = 0.1;
-const SPEED_LIMIT_MULT = 10;
 let SPEED_AVG_WEIGHT = 0.90;
 let SPEED_CUR_WEIGHT = 0.1;
 let TOUCH_RAD = 70;
@@ -43,6 +42,8 @@ let I_COHESION_FORCE;
 let I_ALIGNMENT_FORCE;
 let I_MAX_FORCE;
 let I_NATURAL_SPEED_WEIGHT;
+let I_LAZINESS;
+let I_SPEED_LIMIT;
 let I_SPACE_AWARE_MULT;
 let I_NUM_NEIGHBORS;
 let I_NF_NUM_NEIGHBORS;
@@ -128,7 +129,6 @@ class Node {
     return new Node(this.id, this.flock_id, this.pos.copy(), this.vel.copy(),
                     this.space_need, this.col, this.size);
   }
-  get speed_limit() { return this.natural_speed * SPEED_LIMIT_MULT; }
   get zspace_need() { return this.space_need * I_ZOOM.value; }
   get debugf() { return I_DEBUG_FORCE.value && this.id === 0; }
 
@@ -286,11 +286,12 @@ class Node {
     if (random(1) < I_RAND_MOVE_FREQ.value) {
       this.vel.add(p5.Vector.random2D().mult(curspeed * I_RAND_MOVE_MULT.value));
     }
-    const nsw = I_NATURAL_SPEED_WEIGHT.value;
-    const mag = min(this.vel.mag() * (1-nsw) + this.natural_speed * nsw, this.speed_limit);
+    let mag = lerp(this.vel.mag(), this.natural_speed, I_NATURAL_SPEED_WEIGHT.value);
+    mag = lerp(mag, 0, I_LAZINESS.value);
+    mag = constrain(mag, 0.001, I_SPEED_LIMIT.value);
     this.vel.setMag(mag);
-    this.speed_cur = lerp(this.speed_cur, mag, 1-SPEED_CUR_WEIGHT);
-    this.speed_avg = lerp(this.speed_avg, mag, 1-SPEED_AVG_WEIGHT);
+    this.speed_cur = lerp(mag, this.speed_cur, SPEED_CUR_WEIGHT);
+    this.speed_avg = lerp(mag, this.speed_avg, SPEED_AVG_WEIGHT);
 
     this.pos.add(this.vel.copy().mult(I_SPEED_MULT.value));
     wrap_vector(this.pos);
@@ -529,6 +530,8 @@ function create_control_panel() {
 
   I_MAX_FORCE            = new Slider('max force',        0, 5, .6,  .1, sliders);
   I_NATURAL_SPEED_WEIGHT = new Slider('nat speed weight', 0, 1, .2, .02, sliders);
+  I_LAZINESS             = new Slider('laziness',         0, 1,  0, .02, sliders);
+  I_SPEED_LIMIT          = new Slider('speed limit',      0, 50, 10, 2, sliders);
 
   I_SPACE_AWARE_MULT = new Slider('space aware mult',   0, 15, 8, .5, sliders);
   I_NUM_NEIGHBORS    = new Slider('# segments (#nbrs)', 0, 16, 5, 1, sliders);
@@ -545,6 +548,8 @@ function sliders_reset() {
   I_ALIGNMENT_FORCE.reset();
   I_MAX_FORCE.reset();
   I_NATURAL_SPEED_WEIGHT.reset();
+  I_LAZINESS.reset();
+  I_SPEED_LIMIT.reset();
   I_SPACE_AWARE_MULT.reset();
   I_NUM_NEIGHBORS.reset();
   I_NF_NUM_NEIGHBORS.reset();
