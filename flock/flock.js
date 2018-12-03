@@ -392,9 +392,9 @@ function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 // Note: we need touchMoved() to return false in order for touch interactions to
 // work on mobile. However, this also disables the ability to use the sliders in
 // the control panel. Sooo, we toggle this value depending on whether the
-// control  panel is shown.
-let ALLOW_TOUCH_MOVED = false;
-function touchMoved() { return ALLOW_TOUCH_MOVED; }
+// control panel is shown.
+let CONTROL_PANEL_OPEN = false;
+function touchMoved() { return CONTROL_PANEL_OPEN; }
 
 function touchStarted() {
   switch (touches.length) {
@@ -468,14 +468,14 @@ function toggle_control_panel() {
     panel.attribute('status', 'shown');
     panel.style('translate', 0, 0);
     button.html('hide');
-    ALLOW_TOUCH_MOVED = true;
+    CONTROL_PANEL_OPEN = true;
   } else {
     panel.attribute('status', 'hidden');
     // Move the full control panel down by the height of the main section. This
     // leaves the toggle button exposed, but the main section hidden.
     panel.style('translate', 0, panel.elt.querySelector('#'+CONTROL_PANEL_MAIN_ID).scrollHeight);
     button.html('show');
-    ALLOW_TOUCH_MOVED = false;
+    CONTROL_PANEL_OPEN = false;
   }
 }
 
