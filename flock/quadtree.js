@@ -1,6 +1,6 @@
 'use strict';
 
-const QT_CAPACITY = 25;
+const QT_CAPACITY = 10;
 
 // Checks if the bounding box contains point v.
 function bb_contains(topleft, width, height, v) {
@@ -33,20 +33,28 @@ class Quadtree {
     this.sw = new Quadtree(sw, w, h);
     const se = sw.copy(); se.x += w;
     this.se = new Quadtree(se, w, h);
-    // TODO: should i empty out this.objs?
+    // create_children is executed when inserting after objs is full. Once
+    // children are created, we re-insert existing objects in order to move them
+    // to children. insert() only adds to this node's own objs when children
+    // aren't created yet.
+    //
+    // The purpose of this is to avoid returning nodes that are not close during
+    // query-time.
+    this.objs.forEach(([o,p]) => this.insert(o, p));
+    this.objs = [];
   }
 
-  insert(obj, v) {
-    if (!bb_contains(this.topleft, this.width, this.height, v)) return false;
-    if (this.objs.length < QT_CAPACITY) {
-      this.objs.push([obj,  v]);
+  insert(obj, p) {
+    if (!bb_contains(this.topleft, this.width, this.height, p)) return false;
+    if (this.objs.length < QT_CAPACITY && this.nw === null) {
+      this.objs.push([obj, p]);
       return true;
     }
     this.create_children();
-    if (this.nw.insert(obj, v)) return true;
-    if (this.ne.insert(obj, v)) return true;
-    if (this.se.insert(obj, v)) return true;
-    if (this.sw.insert(obj, v)) return true;
+    if (this.nw.insert(obj, p)) return true;
+    if (this.ne.insert(obj, p)) return true;
+    if (this.se.insert(obj, p)) return true;
+    if (this.sw.insert(obj, p)) return true;
     throw new Error(`failed to insert object??? ${v}`);
   }
 
@@ -60,9 +68,9 @@ class Quadtree {
     if (!bb_overlap(topleft, width, height, this.topleft, this.width, this.height)) {
       return results;
     }
-    for (const [o, v] of this.objs) {
-      if (bb_contains(topleft, width, height, v)) {
-        results.push([o, v]);
+    for (const [o, p] of this.objs) {
+      if (bb_contains(topleft, width, height, p)) {
+        results.push([o, p]);
       }
     }
     if (this.nw !== null) {
