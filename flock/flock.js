@@ -266,11 +266,11 @@ class Node {
       if (I_MOUSE_REPEL.value && dist_sq < sq(TOUCH_RAD)) {
         ++sep_n;
         sep_force.add(away.setMag(
-          50 * I_SEPARATION_FORCE.value * curspeed * TOUCH_RAD * this.zspace_need / dist_sq));
+          20 * I_SEPARATION_FORCE.value * curspeed * TOUCH_RAD * this.zspace_need / dist_sq));
       } else if (!I_MOUSE_REPEL.value && dist_sq < sq(TOUCH_RAD*2)) {
         ++sep_n;
         sep_force.add(away.setMag(
-          -2 * I_COHESION_FORCE.value * curspeed * log(dist_sq) / this.zspace_need));
+          -20 * I_COHESION_FORCE.value * curspeed * log(dist_sq) / this.zspace_need));
       }
     }
 
