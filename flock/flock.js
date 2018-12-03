@@ -450,48 +450,54 @@ function change_flock_size(dir) {
   update_count_displays();
 }
 
-let CONTROL_PANEL;
-let TOGGLE_CONTROL_PANEL_BUTTON;
-let NUM_FLOCKS_ELT, NUM_NODES_ELT, FRAMERATE_ELT;
+const CONTROL_PANEL_FULL_ID = 'controlPanelFull';
+const CONTROL_PANEL_MAIN_ID = 'controlPanelMain';
+const CONTROL_PANEL_BUTTON_ID = 'showControlPanelButton';
+const NUM_FLOCKS_SPAN_ID = 'statusNumFlocks';
+const NUM_NODES_SPAN_ID = 'statusNumNodes';
 
 function update_count_displays() {
-  NUM_FLOCKS_ELT.html(`flocks [${FLOCKS.length}] `);
-  NUM_NODES_ELT.html(`nodes [${FLOCKS.map(a=>a.length).reduce((a,b)=>a+b, 0)}] `);
+  select('#'+NUM_FLOCKS_SPAN_ID).html(`flocks [${FLOCKS.length}] `);
+  select('#'+NUM_NODES_SPAN_ID).html(`nodes [${FLOCKS.map(a=>a.length).reduce((a,b)=>a+b, 0)}] `);
 }
 
 function toggle_control_panel() {
-  if (CONTROL_PANEL.attribute('status') === 'hidden') {
-    CONTROL_PANEL.attribute('status', 'shown');
-    CONTROL_PANEL.style('translate', 0, 0);
-    TOGGLE_CONTROL_PANEL_BUTTON.html('hide');
+  const panel = select('#'+CONTROL_PANEL_FULL_ID);
+  const button = select('#'+CONTROL_PANEL_BUTTON_ID);
+  if (panel.attribute('status') === 'hidden') {
+    panel.attribute('status', 'shown');
+    panel.style('translate', 0, 0);
+    button.html('hide');
     ALLOW_TOUCH_MOVED = true;
   } else {
-    CONTROL_PANEL.attribute('status', 'hidden');
-    const ty = CONTROL_PANEL.size()['height'] + parseInt(CONTROL_PANEL.style('bottom'), 10);
-    CONTROL_PANEL.style('translate', 0, ty);
-    TOGGLE_CONTROL_PANEL_BUTTON.html('show');
+    panel.attribute('status', 'hidden');
+    // Move the full control panel down by the height of the main section. This
+    // leaves the toggle button exposed, but the main section hidden.
+    panel.style('translate', 0, panel.elt.querySelector('#'+CONTROL_PANEL_MAIN_ID).scrollHeight);
+    button.html('show');
     ALLOW_TOUCH_MOVED = false;
   }
 }
 
 function create_control_panel() {
-  CONTROL_PANEL = createDiv().id('controlPanelFull').attribute('status', 'shown');
-  TOGGLE_CONTROL_PANEL_BUTTON = make_button('hide', CONTROL_PANEL, toggle_control_panel).id('showControlPanelButton');
+  const panel_full = createDiv().id(CONTROL_PANEL_FULL_ID).attribute('status', 'shown');
+  const toggle_div = createDiv().parent(panel_full).id('showControlPanelButtonConainer');
+  make_button('hide', toggle_div, toggle_control_panel).id(CONTROL_PANEL_BUTTON_ID);
 
-  // Holds all the controls. Excludes the toggle button
-  const main = createDiv().id('controlPanelMain').parent(CONTROL_PANEL);
+  // Holds all the controls. Excludes the toggle button.
+  const panel_main = createDiv().id(CONTROL_PANEL_MAIN_ID).parent(panel_full);
 
   // Basic controls: pause, reinit, change speed, size, # flocks.
-  const basic_controls = createDiv().parent(main);
+  const basic_controls = createDiv().parent(panel_main);
   const br = () => createElement('br').parent(basic_controls);
   const framerate_elt = createDiv().parent(basic_controls);
   setInterval(() => framerate_elt.html(`framerate ${frameRate().toFixed(1)}`), 1000);
   make_button('reinit', basic_controls, init_node_flocks); br();
-  NUM_FLOCKS_ELT = createSpan().parent(basic_controls);
+  createSpan().parent(basic_controls).id(NUM_FLOCKS_SPAN_ID);
   make_button('-', basic_controls, () => change_num_flocks(-1));
   make_button('+', basic_controls, () => change_num_flocks(+1));
   br();
-  NUM_NODES_ELT = createSpan().parent(basic_controls);
+  createSpan().parent(basic_controls).id(NUM_NODES_SPAN_ID);
   make_button('-', basic_controls, () => change_flock_size(-1));
   make_button('-', basic_controls, () => change_flock_size(+1));
   update_count_displays();
@@ -510,7 +516,7 @@ function create_control_panel() {
   I_DEBUG_QUADTREE = new Checkbox('debug qtree', false, basic_controls);
 
   // Sliders for forces and such.
-  const sliders = createDiv().id('sliders').parent(main);
+  const sliders = createDiv().id('sliders').parent(panel_main);
 
   make_button('reset', sliders, sliders_reset);
   make_button('fish', sliders, sliders_fish);
