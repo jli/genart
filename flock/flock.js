@@ -162,7 +162,7 @@ class Node {
     }
   }
 
-  get_nearest_nodes(flocks, qt) {
+  get_nearest_nodes(qt) {
     // same flock and not-same flock
     const nodes_and_dists_sf = [];
     const nodes_and_dists_nf = [];
@@ -182,7 +182,7 @@ class Node {
     return nodes_and_dists_sf.concat(nodes_and_dists_nf);
   }
 
-  get_surrounding_nodes(flocks, qt) {
+  get_surrounding_nodes(qt) {
     // HACK: reusing existing sliders...
     const num_segments = I_NUM_NEIGHBORS.value;
     const num_per_segment = I_NF_NUM_NEIGHBORS.value;
@@ -213,10 +213,10 @@ class Node {
     return nodes_and_dists;
   }
 
-  update(flocks, qt, mouse_pos) {
+  update(qt, mouse_pos) {
     const nearby_nodes = (I_SURROUND_OR_CLOSEST.value
-                          ? this.get_surrounding_nodes(flocks, qt)
-                          : this.get_nearest_nodes(flocks, qt));
+                          ? this.get_surrounding_nodes(qt)
+                          : this.get_nearest_nodes(qt));
 
     const curspeed = this.vel.mag();
     const max_space_awareness = I_SPACE_AWARE_MULT.value * this.zspace_need;
@@ -330,13 +330,13 @@ function init_node_flocks() {
   update_count_displays();
 }
 
-function copy_flocks_build_quadtree(flocks) {
+function build_quadtree(flocks) {
   const qt = new Quadtree(createVector(0,0), width, height);
-  const flocks_copy = flocks.map(f => f.map(n => {
-    qt.insert(n, n.pos);
-    return n.copy();
+  flocks.forEach(f => f.forEach(n => {
+    const n2 = n.copy();
+    qt.insert(n2, n2.pos);
   }));
-  return [flocks_copy, qt];
+  return qt;
 }
 
 function setup() {
@@ -361,11 +361,11 @@ function draw() {
     mouse_pos.div(touches.length);
   }
 
-  const [tmp_flocks, qt] = copy_flocks_build_quadtree(FLOCKS);
+  const qt = build_quadtree(FLOCKS);
   for (const flock of FLOCKS) {
     for (const node of flock) {
       node.draw();
-      node.update(tmp_flocks, qt, mouse_pos);
+      node.update(qt, mouse_pos);
     }
   }
 
