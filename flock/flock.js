@@ -75,7 +75,7 @@ function relspeed_color_shift(col, relspeed) {
   const hue_delta = constrain(map(relspeed, 0.5, 1.5, -50, 50), -100, 100);
   h = h + hue_delta % 360;
 
-  b = constrain(b * map2(relspeed, 0.5, 1.0, 1.2,  0.25, 1.0, 2.0), 10, 100);
+  b = constrain(b * map2(relspeed, 0.5, 1.0, 1.2,  0.25, 1.0, 2.0), 30, 100);
 
   return color(h, s, b);
 }
