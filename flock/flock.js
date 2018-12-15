@@ -2,7 +2,9 @@
 
 // TODO:
 // - behavior:
+//   - restrict visibility to forwards?
 // - display:
+//   - trails: space further apart (not every update)?
 //   - less bleh control panel
 // - misc:
 //   - module-ify quadtree?
@@ -28,6 +30,7 @@ let TOUCH_RAD = 70;
 let PAUSED = false;
 let I_SPEED_MULT;
 let I_ZOOM;
+let I_TRAILS;
 let I_MOUSE_REPEL;
 let I_CIRCLES;
 let I_BACKGROUND;
@@ -82,6 +85,10 @@ function relspeed_color_shift(col, relspeed) {
   return color(h, s, b);
 }
 
+function opacity_shift(col, opacity) {
+  return color(hue(col), saturation(col), brightness(col), opacity);
+}
+
 function draw_triangle(middle, dir, size) {
   dir = dir.copy().setMag(size);
   const halfdir = dir.copy().mult(.5);
@@ -125,6 +132,7 @@ class Node {
     this.space_need = space_need;
     this.col = col; this.size = size;
     this.speed_avg = this.speed_cur = this.natural_speed = this.vel.mag();
+    this.trails = [];
   }
   copy() {
     return new Node(this.id, this.flock_id, this.pos.copy(), this.vel.copy(),
@@ -133,17 +141,23 @@ class Node {
   get zspace_need() { return this.space_need * I_ZOOM.value; }
   get debugf() { return DEBUG_MODE || (I_DEBUG_FORCE.value && this.id === 0); }
 
-  draw_shape() {
+  draw_shape(pos, vel) {
     const siz = this.size * I_ZOOM.value;
-    if (I_CIRCLES.value) { ellipse(this.pos.x, this.pos.y, siz, siz); }
-    else { draw_triangle(this.pos, this.vel, siz); }
+    if (I_CIRCLES.value) { ellipse(pos.x, pos.y, siz, siz); }
+    else { draw_triangle(pos, vel, siz); }
   }
 
   draw() {
     noStroke();
-    if (this.debugf) { fill(100); }
-    else { fill(relspeed_color_shift(this.col, this.speed_cur/this.speed_avg)); }
-    this.draw_shape();
+    let col;
+    if (this.debugf) { col = color(0, 0, 100); }
+    else { col = relspeed_color_shift(this.col, this.speed_cur/this.speed_avg); }
+    fill(col);
+    this.draw_shape(this.pos, this.vel);
+    this.trails.forEach(([pos, vel], i) => {
+      fill(opacity_shift(col, i / this.trails.length));
+      this.draw_shape(pos, vel);
+    });
     if (I_DEBUG_DISTANCE.value) {
       noFill();
       strokeWeight(0.5);
@@ -214,6 +228,12 @@ class Node {
   }
 
   update(qt, mouse_pos) {
+    if (I_TRAILS.value === 0) { this.trails = []; }
+    else {
+      this.trails.push([this.pos.copy(), this.vel.copy()]);
+      while (this.trails.length > I_TRAILS.value) { this.trails.shift(); }
+    }
+
     const nearby_nodes = (I_SURROUND_OR_CLOSEST.value
                           ? this.get_surrounding_nodes(qt)
                           : this.get_nearest_nodes(qt));
@@ -509,6 +529,7 @@ function create_control_panel() {
   update_count_displays();
   I_SPEED_MULT = new NumInput('speed', 0.1, null, DEBUG_MODE?0.2: 1, 0.1, 32, basic_controls);
   I_ZOOM = new NumInput('size', 0.1, null, DEBUG_MODE?3: 1, 0.1, 32, basic_controls);
+  I_TRAILS = new NumInput('trails', 0, null, 5, 2, 32, basic_controls);
 
   // Debugging tools.
   // Purely visual options.
