@@ -6,6 +6,8 @@
 class Slider {
   constructor(label, min, max, startval, step, parent) {
     this.default = startval;
+    this.min = min;
+    this.max = max;
     this.value = startval;
     this.label_text = label;
     const container = createDiv().parent(parent);
@@ -22,6 +24,7 @@ class Slider {
     this.update_label()
   }
   reset() { this.set(this.default); }
+  randomize() { this.set(random(this.min, this.max)); }
 }
 
 class Checkbox {
