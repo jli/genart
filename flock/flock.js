@@ -107,14 +107,17 @@ function draw_triangle(middle, dir, size) {
 const WRAP_HACK = 10;
 
 function wrap_dimension(x, upper) {
-  if (x > upper) { x = x - upper + WRAP_HACK; }
-  else if (x < 0) { x = upper - x - WRAP_HACK; }
-  return x;
+  let wrapped = false;
+  if (x > upper) { x = x - upper + WRAP_HACK; wrapped = true; }
+  else if (x < 0) { x = upper - x - WRAP_HACK; wrapped = true;}
+  return [x, wrapped];
 }
 
 function wrap_vector(v) {
-  v.x = wrap_dimension(v.x, width);
-  v.y = wrap_dimension(v.y, height);
+  const [x, wrapped1] = wrap_dimension(v.x, width);
+  const [y, wrapped2] = wrap_dimension(v.y, height);
+  v.x = x; v.y = y;
+  return wrapped1 || wrapped2;
 }
 
 // Returns heading from 0 to 2PI instead of 0 to PI and 0 to -PI.
@@ -154,10 +157,26 @@ class Node {
     else { col = relspeed_color_shift(this.col, this.speed_cur/this.speed_avg); }
     fill(col);
     this.draw_shape(this.pos, this.vel);
-    this.trails.forEach(([pos, vel], i) => {
-      fill(opacity_shift(col, i / this.trails.length));
-      this.draw_shape(pos, vel);
-    });
+    // this.trails.forEach(([pos, vel], i) => {
+    //   fill(opacity_shift(col, i / this.trails.length));
+    //   this.draw_shape(pos, vel);
+    // });
+    // let prev_pos = this.pos;
+    beginShape(QUAD_STRIP);
+    for (const [pos, vel] of this.trails) {
+      // const orth = prev_pos.copy().sub(pos).rotate(HALF_PI).setMag(this.size * I_ZOOM.value / 4);
+      const orth = vel.copy().rotate(HALF_PI).setMag(this.size * I_ZOOM.value / 4);
+      const one = pos.copy().add(orth);
+      const two = pos.copy().sub(orth);
+      vertex(one.x, one.y);
+      vertex(two.x, two.y);
+      // ellipse(one.x, one.y, this.size, this.size);
+      // ellipse(two.x, two.y, this.size, this.size);
+      // prev_pos = pos;
+    }
+    // vertex(prev_pos);
+    endShape();
+
     if (I_DEBUG_DISTANCE.value) {
       noFill();
       strokeWeight(0.5);
@@ -319,7 +338,8 @@ class Node {
     this.speed_avg = lerp(mag, this.speed_avg, SPEED_AVG_WEIGHT);
 
     this.pos.add(this.vel.copy().mult(I_SPEED_MULT.value));
-    wrap_vector(this.pos);
+    const wrapped = wrap_vector(this.pos);
+    if (wrapped) { this.trails = []; }
   }
 }  // Node
 
