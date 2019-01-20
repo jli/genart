@@ -364,7 +364,8 @@ function setup() {
   frameRate(25);
   colorMode(HSB);
   createCanvas(windowWidth, windowHeight);
-  create_control_panel(); setTimeout(toggle_control_panel, 1000);
+  create_control_panel();
+  toggle_control_panel();
   init_node_flocks();
 }
 
@@ -489,17 +490,20 @@ function update_count_displays() {
 
 function toggle_control_panel() {
   const panel = select('#'+CONTROL_PANEL_FULL_ID);
+  const panel_main = select('#'+CONTROL_PANEL_MAIN_ID);
   const button = select('#'+CONTROL_PANEL_BUTTON_ID);
   if (panel.attribute('status') === 'hidden') {
     panel.attribute('status', 'shown');
-    panel.style('translate', 0, 0);
+    panel_main.style('display', 'flex');
+    // panel.style('translate', 0, 0);
     button.html('hide');
     CONTROL_PANEL_OPEN = true;
   } else {
     panel.attribute('status', 'hidden');
     // Move the full control panel down by the height of the main section. This
     // leaves the toggle button exposed, but the main section hidden.
-    panel.style('translate', 0, panel.elt.querySelector('#'+CONTROL_PANEL_MAIN_ID).scrollHeight);
+    panel_main.style('display', 'none');
+    // panel.style('translate', 0, panel.elt.querySelector('#'+CONTROL_PANEL_MAIN_ID).scrollHeight);
     button.html('show');
     CONTROL_PANEL_OPEN = false;
   }
