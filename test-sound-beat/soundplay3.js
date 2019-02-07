@@ -2,6 +2,7 @@
 
 let mic;
 let fft_smooths = [0, 0.35, 0.7, 0.9, 0.98]
+// https://sandiegotroubadour.com/2012/10/whats-the-frequency-kenneth/
 let beat_thresholds = [20, 300, 600, 1200, 2400, 20000];
 let analyzers = [];
 let INIT = false;
