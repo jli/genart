@@ -12,6 +12,9 @@
 //   - make random movement less jittery.
 
 let FLOCKS = [];
+let ANALYZER;
+let BEAT_SPEED_MULT_DECAY = 0.8;
+let MAX_BEAT_SPEED_MULT = 5;
 
 const DEBUG_MODE = false;
 const MOBILE = /Mobi|Android/i.test(navigator.userAgent);
@@ -123,6 +126,30 @@ function heading_pos(v) {
   // heading is weird: goes from 0 to 180, then -180 to 0.
   if (h >= 0) return h;
   return map(h, -PI, 0, PI, 2*PI);
+}
+
+class Analyzer {
+  constructor(smooth_val, audio_in) {
+    smooth_val = smooth_val || 0.5;
+    if (audio_in === undefined) {
+      audio_in = new p5.AudioIn();
+      audio_in.start();
+    }
+    this.smooth_val = smooth_val;
+    this.fft = new p5.FFT(smooth_val);
+    this.fft.setInput(audio_in);
+    this.detector = new p5.PeakDetect(20, 20000, .15);
+    this.beat_speed_mult = 1;
+  }
+  analyze() {
+    const _spectrum = this.fft.analyze();
+    this.detector.update(this.fft);
+    if (this.detector.isDetected) {
+      this.beat_speed_mult = MAX_BEAT_SPEED_MULT;
+    } else {
+      this.beat_speed_mult = max(1, this.beat_speed_mult * BEAT_SPEED_MULT_DECAY);
+    }
+  }
 }
 
 class Node {
@@ -307,18 +334,19 @@ class Node {
       fill(0, 0, 90, .5); draw_triangle(tp, tot_force, min(50, tot_force.mag() * 10));
     }
 
-    this.vel.add(tot_force.limit(I_MAX_FORCE.value));
+    this.vel.add(tot_force.limit(I_MAX_FORCE.value * ANALYZER.beat_speed_mult));
     if (random(1) < I_RAND_MOVE_FREQ.value) {
       this.vel.add(p5.Vector.random2D().mult(curspeed * I_RAND_MOVE_MULT.value));
     }
     let mag = lerp(this.vel.mag(), this.natural_speed, I_NATURAL_SPEED_WEIGHT.value);
     mag = lerp(mag, 0, I_LAZINESS.value);
-    mag = constrain(mag, 0.001, I_SPEED_LIMIT.value);
+    mag = constrain(mag, 0.001, I_SPEED_LIMIT.value * ANALYZER.beat_speed_mult);
     this.vel.setMag(mag);
     this.speed_cur = lerp(mag, this.speed_cur, SPEED_CUR_WEIGHT);
     this.speed_avg = lerp(mag, this.speed_avg, SPEED_AVG_WEIGHT);
 
-    this.pos.add(this.vel.copy().mult(I_SPEED_MULT.value));
+    this.pos.add(this.vel.copy().mult(I_SPEED_MULT.value * ANALYZER.beat_speed_mult));
+    //this.pos.add(this.vel.copy().mult(I_SPEED_MULT.value));
     wrap_vector(this.pos);
   }
 }  // Node
@@ -361,16 +389,22 @@ function build_quadtree(flocks) {
 
 function setup() {
   RAND_HUE = random(0, 360);
-  frameRate(25);
+  frameRate(60);
   colorMode(HSB);
   createCanvas(windowWidth, windowHeight);
   create_control_panel();
   toggle_control_panel();
   init_node_flocks();
+  ANALYZER = new Analyzer();
 }
 
 function draw() {
-  if (I_BACKGROUND.value) background(225, 22, 5);
+  ANALYZER.analyze();
+
+  if (I_BACKGROUND.value) {
+    // background(225, 22, ANALYZER.beat_speed_mult * 5);
+    background(225, 22, 5);
+  }
 
   let mouse_pos = mouseIsPressed ? createVector(mouseX, mouseY) : null;
   if (touches.length > 0) {
