@@ -42,7 +42,7 @@ function setup() {
   colorMode(HSB);
   rectMode(CENTER);
   createCanvas(windowWidth, windowHeight);
-  frameRate(30);
+  frameRate(60);
   init();
 }
 
