@@ -2,43 +2,63 @@
 
 let mic;
 let fft_smooths = [0, 0.35, 0.7, 0.9, 0.98]
+let beat_thresholds = [20, 300, 600, 1200, 2400, 20000];
 let analyzers = [];
 let INIT = false;
+
+class PeakDetector {
+  constructor(low, hi) {
+    this.low = low;
+    this.hi = hi;
+    this.detector = new p5.PeakDetect(low, hi);
+    this.ellipse_w = 50;
+  }
+  update(fft, max_w) {
+    this.detector.update(fft);
+    if (this.detector.isDetected) {
+      this.ellipse_w = max_w;
+    } else {
+      this.ellipse_w *= 0.95;
+    }
+  }
+}
 
 class Analyzer {
   constructor(audio_in, smooth_val) {
     this.smooth_val = smooth_val
     this.fft = new p5.FFT(smooth_val);
     this.fft.setInput(audio_in);
-    this.peak_detector = new p5.PeakDetect();
-    this.ellipse_w = 10;
-
+    this.peak_detectors = [];
+    for (let i = 0; i < beat_thresholds.length-1; ++i) {
+      this.peak_detectors.push(
+        new PeakDetector(beat_thresholds[i], beat_thresholds[i+1]));
+    }
     this.spectrum = [];
-    this.beat = false;
   }
   analyze() {
     this.spectrum = this.fft.analyze();
-    this.peak_detector.update(this.fft);
-    this.beat = this.peak_detector.isDetected;
+    for (const pd of this.peak_detectors) {
+      pd.update(this.fft, 30);
+    }
   }
   draw(low_y, hi_y) {
-    noFill();
+    fill(0, 0.1);
     beginShape();
     for (const [i, x] of this.spectrum.entries()) {
       vertex(
-        map(i, 0, this.spectrum.length, 0, width),
+        map(i, 0, this.spectrum.length-1, 0, width),
         map(x, 0, 255, low_y, hi_y));
+    }
+    for (let i = 0; i < this.spectrum.length; ++i) {
+      vertex(map(i, 0, this.spectrum.length-1, width, 0), low_y);
     }
     endShape();
 
-    if (this.beat) {
-      this.ellipse_w = abs(hi_y - low_y);
-    } else {
-      this.ellipse_w *= map(this.smooth_val, 0, 1, 0.5, 1);
+    for (const [i, pd] of this.peak_detectors.entries()) {
+      ellipse(map(i, 0, this.peak_detectors.length-1, width * .1, width * .9),
+              low_y - abs(low_y - hi_y)/2,
+              pd.ellipse_w, pd.ellipse_w); // 20, 20);//
     }
-    fill(0, .5);
-    ellipse(width * .8, low_y + (hi_y-low_y)/2,
-            this.ellipse_w, this.ellipse_w);
   }
 }
 
@@ -55,13 +75,13 @@ function setup() {
   colorMode(HSB);
   rectMode(CENTER);
   createCanvas(windowWidth, windowHeight);
-  frameRate(30);
-  init();
+  frameRate(60);
+  //init();
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
-// function mouseClicked() { if (!INIT) { init(); } }
+function mouseClicked() { if (!INIT) { init(); } }
 
 function draw() {
   if (!INIT) { textSize(30); text('not initialized... maybe click?', width * .1, height / 2); return; }
