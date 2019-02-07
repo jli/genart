@@ -138,7 +138,7 @@ class Analyzer {
     this.smooth_val = smooth_val;
     this.fft = new p5.FFT(smooth_val);
     this.fft.setInput(audio_in);
-    this.detector = new p5.PeakDetect(20, 20000, .15);
+    this.detector = new p5.PeakDetect(20, 20000, .15, 5);
     this.beat_speed_mult = 1;
   }
   analyze() {
