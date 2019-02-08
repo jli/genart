@@ -19,7 +19,7 @@ class Analyzer {
     fill(50, 0.3);
     beginShape();
     for (const [i, x] of this.spectrum.entries()) {
-      const theta = map(i, 0, this.spectrum.length, 0, TWO_PI) + PI;
+      const theta = map(i, 0, this.spectrum.length, 0, TWO_PI) + PI + frameCount / 800;
       const rad_val = map(x, 0, 255, min_r, max_r);
       vertex(
         width/2 + cos(theta) * rad_val,
@@ -55,10 +55,10 @@ function draw() {
   if (!INIT) { textSize(30); text('not initialized... maybe click?', width * .1, height / 2); return; }
 
   background(130);
-  const per_display_height = min(height, width) / (analyzers.length * 2.5);
+  const per_display_height = min(height, width) / (analyzers.length * 3);
   for (const [i, analyzer] of analyzers.entries()) {
     analyzer.analyze();
     const min_r = (i+1) * per_display_height;
-    analyzer.draw(min_r, min_r + per_display_height);
+    analyzer.draw(min_r, min_r + per_display_height * map(i, 0, analyzers.length-1, 1, 5));
   }
 }
