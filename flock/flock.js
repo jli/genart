@@ -130,6 +130,7 @@ function heading_pos(v) {
 
 class Analyzer {
   constructor(smooth_val, audio_in) {
+    //getAudioContext().resume();
     smooth_val = smooth_val || 0.5;
     if (audio_in === undefined) {
       audio_in = new p5.AudioIn();
@@ -138,7 +139,7 @@ class Analyzer {
     this.smooth_val = smooth_val;
     this.fft = new p5.FFT(smooth_val);
     this.fft.setInput(audio_in);
-    this.detector = new p5.PeakDetect(20, 20000, .15, 5);
+    this.detector = new p5.PeakDetect(20, 10000, .18, 5);
     this.beat_speed_mult = 1;
   }
   analyze() {
@@ -398,7 +399,17 @@ function setup() {
   ANALYZER = new Analyzer();
 }
 
+function mouseClicked() {
+  if (!ANALYZER) {
+    ANALYZER = new Analyzer();
+  }
+}
+
 function draw() {
+  if (!ANALYZER) {
+    fill(0, 0, 100); textSize(20); text('click to initialize mic...', width * .1, height * .2);
+    return;
+  }
   ANALYZER.analyze();
 
   if (I_BACKGROUND.value) {
