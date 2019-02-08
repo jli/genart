@@ -30,6 +30,7 @@ class Analyzer {
 }
 
 function init() {
+  getAudioContext().resume();
   mic = new p5.AudioIn();
   mic.start();
   for (const [i, smooth_val] of fft_smooths.entries()) {
@@ -43,12 +44,12 @@ function setup() {
   rectMode(CENTER);
   createCanvas(windowWidth, windowHeight);
   frameRate(60);
-  init();
+  // init();
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
-// function mouseClicked() { if (!INIT) { init(); } }
+function mouseClicked() { if (!INIT) { init(); } }
 
 function draw() {
   if (!INIT) { textSize(30); text('not initialized... maybe click?', width * .1, height / 2); return; }

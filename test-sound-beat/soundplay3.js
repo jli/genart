@@ -64,6 +64,7 @@ class Analyzer {
 }
 
 function init() {
+  getAudioContext().resume();
   mic = new p5.AudioIn();
   mic.start();
   for (const [i, smooth_val] of fft_smooths.entries()) {
