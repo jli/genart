@@ -558,7 +558,7 @@ function create_control_panel() {
   I_NF_SEPARATION_FORCE = new Slider('nf separation', 0, 20, 10, .5, sliders);
   I_SEPARATION_FORCE    = new Slider('separation',    0, 10, 2, .25, sliders);
   I_COHESION_FORCE      = new Slider('cohesion',      0, 10, 1, .25, sliders);
-  I_ALIGNMENT_FORCE     = new Slider('alignment',     0, 10, 1, .25, sliders);
+  I_ALIGNMENT_FORCE     = new Slider('alignment',     0,  3, 1, .1, sliders);
 
   I_MAX_FORCE            = new Slider('max force',        0, 5, .6,  .1, sliders);
   I_NATURAL_SPEED_WEIGHT = new Slider('nat speed weight', 0, 1, .2, .02, sliders);
