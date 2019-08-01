@@ -1,6 +1,7 @@
 const GRID_SIZE = 8;
-const GRID_ROWS = 116;
-const GRID_COLS = 103;
+// if these are falsey, rows/cols are determined based on window size.
+let GRID_ROWS = 0;
+let GRID_COLS = 0;
 
 const INIT_PREY_FRAC = .04;
 const INIT_PREDATOR_FRAC = .03;
@@ -28,6 +29,12 @@ const RATE = 15;
 const CELL_EMPTY = 0;
 const CELL_PREDATOR = 2;
 const CELL_PREY = 1;
+
+const NEIGHBOR_DIRS = [
+  [-1, -1], [0, -1], [1, -1],
+  [-1, 0], [0, 1],
+  [-1, 1], [0, 1], [1, 1],
+];
 
 let WORLD;
 
@@ -118,8 +125,40 @@ class World {
     }
   }
 
+  resize(num_rows, num_cols) {
+    const old_grid = this.grid;
+    const old_nr = this.num_rows;
+    const old_nc = this.num_cols;
+    this.num_rows = num_rows;
+    this.num_cols = num_cols;
+    this.grid = array2d(num_rows, num_cols);
+    for2d(this.grid, (r, c, _) => {
+      if (r >= old_nr || c >= old_nc) {
+        this.grid[r][c] = new Cell(CELL_EMPTY);
+      } else {
+        this.grid[r][c] = old_grid[r][c];
+      }
+    });
+  }
+
   draw() {
     for2d(this.grid, (r, c, x) => x.draw(r, c));
+  }
+
+  find_cell(r, c, type) {
+    const dirs = shuffle(NEIGHBOR_DIRS);
+    for (const [rd, cd] of dirs) {
+      let r2 = rd + r;
+      let c2 = cd + c;
+      if (!WRAPAROUND_WORLD && (r2 < 0 || r2 >= this.num_rows || c2 < 0 || c2 >= this.num_cols)) {
+        continue;
+      }
+      r2 = index_wrap(r2, this.num_rows);
+      c2 = index_wrap(c2, this.num_cols);
+      const cell = this.grid[r2][c2];
+      if (cell.t === type) return [r2, c2];
+    }
+    return null;
   }
 
   update() {
@@ -137,7 +176,7 @@ class World {
   }
 
   predator_action(r, c, pred, changed_cb) {
-    const prey_pos = find_cell(this.grid, r, c, CELL_PREY);
+    const prey_pos = this.find_cell(r, c, CELL_PREY);
     if (prey_pos) {
       // move and eat prey
       this.grid[prey_pos[0]][prey_pos[1]] = pred;
@@ -151,7 +190,7 @@ class World {
       return;
     } else {
       // move to random empty cell
-      const pos = find_cell(this.grid, r, c, CELL_EMPTY);
+      const pos = this.find_cell(r, c, CELL_EMPTY);
       if (pos) {
         this.grid[pos[0]][pos[1]] = pred;
         this.grid[r][c] = new Cell(CELL_EMPTY);
@@ -161,8 +200,8 @@ class World {
     if (frameCount - pred.last_breed > PREDATOR_BREED_CYCLE
         && Math.random() < PREDATOR_BIRTH_PROB) {
       // Prefer to spawn into empty space, but spawn over a prey cell if necessary.
-      let pos = find_cell(this.grid, r, c, CELL_EMPTY);
-      if (!pos) { pos = find_cell(this.grid, r, c, CELL_PREY); }
+      let pos = this.find_cell(r, c, CELL_EMPTY);
+      if (!pos) { pos = this.find_cell(r, c, CELL_PREY); }
       if (pos) {
         this.grid[pos[0]][pos[1]] = new Cell(CELL_PREDATOR);
         pred.last_breed = frameCount;
@@ -172,8 +211,8 @@ class World {
   }
 
   prey_action(r, c, prey, changed_cb) {
-    const prey_pos = find_cell(this.grid, r, c, CELL_PREY);
-    const empty_pos = find_cell(this.grid, r, c, CELL_EMPTY);
+    const prey_pos = this.find_cell(r, c, CELL_PREY);
+    const empty_pos = this.find_cell(r, c, CELL_EMPTY);
     if (frameCount - prey.last_breed > PREY_BREED_CYCLE && empty_pos
         && Math.random() < PREY_BIRTH_PROB
         && (prey_pos || !PREY_NEEDS_PARTNER_TO_BREED)) {
@@ -193,30 +232,18 @@ class World {
   }
 }
 
-const NEIGHBOR_DIRS = [
-  [-1, -1], [0, -1], [1, -1],
-  [-1, 0], [0, 1],
-  [-1, 1], [0, 1], [1, 1],
-];
-
-function find_cell(grid, r, c, type) {
-  const dirs = shuffle(NEIGHBOR_DIRS);
-  for (const [rd, cd] of dirs) {
-    let r2 = rd + r;
-    let c2 = cd + c;
-    if (!WRAPAROUND_WORLD && (r2 < 0 || r2 >= GRID_ROWS || c2 < 0 || c2 >= GRID_COLS)) {
-      continue;
-    }
-    r2 = index_wrap(r2, GRID_ROWS);
-    c2 = index_wrap(c2, GRID_COLS);
-    const cell = grid[r2][c2];
-    if (cell.t === type) return [r2, c2];
-  }
-  return null;
+function init() {
+  const [rows, cols] = get_rows_cols();
+  WORLD = new World(rows, cols, INIT_PREDATOR_FRAC, INIT_PREY_FRAC);
 }
 
-function init() {
-  WORLD = new World(GRID_ROWS, GRID_COLS, INIT_PREDATOR_FRAC, INIT_PREY_FRAC);
+function get_rows_cols() {
+  if (GRID_ROWS && GRID_COLS) {
+    return [GRID_ROWS, GRID_COLS];
+  } else {
+    return [Math.floor(windowHeight / GRID_SIZE),
+            Math.floor(windowWidth / GRID_SIZE)];
+  }
 }
 
 function setup() {
@@ -227,7 +254,11 @@ function setup() {
   init();
 }
 
-function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  const [rows, cols] = get_rows_cols();
+  WORLD.resize(rows, cols);
+}
 
 let last_change = 0;
 
