@@ -1,6 +1,6 @@
-const GRID_SIZE = 15;
-const GRID_ROWS = 60;
-const GRID_COLS = 60;
+const GRID_SIZE = 8;
+const GRID_ROWS = 100;
+const GRID_COLS = 100;
 
 const INIT_PREY_FRAC = .04;
 const INIT_PREDATOR_FRAC = .03;
@@ -9,12 +9,16 @@ const INIT_PREDATOR_FRAC = .03;
 // const PREDATOR_FEED_CYCLE = 3;
 // const PREDATOR_BREED_CYCLE = 7;
 // const PREY_BREED_CYCLE = 3;
-const PREDATOR_FEED_CYCLE = 2;
+const PREDATOR_FEED_CYCLE = 5;
 const PREDATOR_BREED_CYCLE = 10;
-const PREY_BREED_CYCLE = 1;
+const PREY_BREED_CYCLE = 3;
 const PREY_BREED_NEED_CYCLE = 1000;
 
-const PREY_MOVES = false;
+// De-syncs the pulses a bit. Maybe should use a different randomization method.
+const PREDATOR_BIRTH_PROB = 0.6;
+const PREY_BIRTH_PROB = 0.8;
+
+const PREY_MOVES = true;
 const PREY_NEEDS_PARTNER_TO_BREED = false;
 
 const WRAPAROUND_WORLD = false;
@@ -66,8 +70,6 @@ function for2d(arr, f) {
 
 class Cell {
   constructor(type) {
-    // this.r = row;
-    // this.c = col;
     this.t = type;
     this.birth = frameCount;
     this.last_update = 0;
@@ -81,13 +83,13 @@ class Cell {
       case CELL_PREDATOR:
         // predators get darker the longer they don't eat
         const hunger = frameCount - this.last_feed;
-        const feed_mult = map(hunger, 0, PREDATOR_FEED_CYCLE, 1, .4);
+        const feed_mult = map(hunger, 0, PREDATOR_FEED_CYCLE, 1, .2);
         col = color(0, 100, 100 * feed_mult);
         break;
       case CELL_PREY:
         // new prey are brighter
         const age = frameCount - this.birth;
-        const age_mult = map(age, 0, 50, 2, .7, true);
+        const age_mult = map(age, 0, 100, 2, .5);
         col = color(120, 50, 50 * age_mult);
         break;
     }
@@ -156,7 +158,8 @@ class World {
         changed_cb();
       }
     }
-    if (frameCount - pred.last_breed > PREDATOR_BREED_CYCLE) {
+    if (frameCount - pred.last_breed > PREDATOR_BREED_CYCLE
+        && Math.random() < PREDATOR_BIRTH_PROB) {
       // Prefer to spawn into empty space, but spawn over a prey cell if necessary.
       let pos = find_cell(this.grid, r, c, CELL_EMPTY);
       if (!pos) { pos = find_cell(this.grid, r, c, CELL_PREY); }
@@ -171,7 +174,9 @@ class World {
   prey_action(r, c, prey, changed_cb) {
     const prey_pos = find_cell(this.grid, r, c, CELL_PREY);
     const empty_pos = find_cell(this.grid, r, c, CELL_EMPTY);
-    if (frameCount - prey.last_breed > PREY_BREED_CYCLE && empty_pos && (prey_pos || !PREY_NEEDS_PARTNER_TO_BREED)) {
+    if (frameCount - prey.last_breed > PREY_BREED_CYCLE && empty_pos
+        && Math.random() < PREY_BIRTH_PROB
+        && (prey_pos || !PREY_NEEDS_PARTNER_TO_BREED)) {
       // breed
       this.grid[empty_pos[0]][empty_pos[1]] = new Cell(CELL_PREY);
       prey.last_breed = frameCount;
