@@ -96,7 +96,7 @@ class Cell {
       case CELL_PREY:
         // new prey are brighter
         const age = frameCount - this.birth;
-        const age_mult = map(age, 0, 100, 2, .5);
+        const age_mult = map(age, 0, 150, 2, .4, true);
         col = color(120, 50, 50 * age_mult);
         break;
     }
