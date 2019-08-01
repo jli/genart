@@ -1,6 +1,6 @@
 const GRID_SIZE = 8;
-const GRID_ROWS = 100;
-const GRID_COLS = 100;
+const GRID_ROWS = 116;
+const GRID_COLS = 103;
 
 const INIT_PREY_FRAC = .04;
 const INIT_PREDATOR_FRAC = .03;
@@ -94,8 +94,8 @@ class Cell {
         break;
     }
     fill(col);
-    if (DRAW_RECT) rect(r * GRID_SIZE, c * GRID_SIZE, GRID_SIZE, GRID_SIZE);
-    else ellipse(r * GRID_SIZE + GRID_SIZE/2, c * GRID_SIZE + GRID_SIZE/2, GRID_SIZE, GRID_SIZE);
+    if (DRAW_RECT) rect(c * GRID_SIZE, r * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+    else ellipse(c * GRID_SIZE + GRID_SIZE/2, r * GRID_SIZE + GRID_SIZE/2, GRID_SIZE, GRID_SIZE);
   }
 }
 
@@ -204,7 +204,7 @@ function find_cell(grid, r, c, type) {
   for (const [rd, cd] of dirs) {
     let r2 = rd + r;
     let c2 = cd + c;
-    if (!WRAPAROUND_WORLD && (r2 < 0 || r2 >= GRID_ROWS || c2 < 0 || c2 >= GRID_ROWS)) {
+    if (!WRAPAROUND_WORLD && (r2 < 0 || r2 >= GRID_ROWS || c2 < 0 || c2 >= GRID_COLS)) {
       continue;
     }
     r2 = index_wrap(r2, GRID_ROWS);
