@@ -1,14 +1,25 @@
 const GRID_SIZE = 15;
-const GRID_ROWS = 40;
-const GRID_COLS = 40;
+const GRID_ROWS = 60;
+const GRID_COLS = 60;
 
-const INIT_PREY_FRAC = .40;
-const INIT_PREDATOR_FRAC = .05;
+const INIT_PREY_FRAC = .04;
+const INIT_PREDATOR_FRAC = .03;
 
-const PREDATOR_FEED_CYCLE = 4;
-const PREDATOR_BREED_CYCLE = 5;
-const PREY_BREED_CYCLE = 2;
-const PREY_BREED_NEED_CYCLE = 20;
+// js's settings:
+// const PREDATOR_FEED_CYCLE = 3;
+// const PREDATOR_BREED_CYCLE = 7;
+// const PREY_BREED_CYCLE = 3;
+const PREDATOR_FEED_CYCLE = 2;
+const PREDATOR_BREED_CYCLE = 10;
+const PREY_BREED_CYCLE = 1;
+const PREY_BREED_NEED_CYCLE = 1000;
+
+const PREY_MOVES = false;
+const PREY_NEEDS_PARTNER_TO_BREED = false;
+
+const WRAPAROUND_WORLD = false;
+const DRAW_RECT = true;
+const RATE = 15;
 
 const CELL_EMPTY = 0;
 const CELL_PREDATOR = 2;
@@ -59,6 +70,7 @@ class Cell {
     // this.c = col;
     this.t = type;
     this.birth = frameCount;
+    this.last_update = 0;
     this.last_breed = frameCount;
     this.last_feed = frameCount;  // predator-only field
   }
@@ -69,19 +81,19 @@ class Cell {
       case CELL_PREDATOR:
         // predators get darker the longer they don't eat
         const hunger = frameCount - this.last_feed;
-        const feed_mult = map(hunger, 0, PREDATOR_FEED_CYCLE, 1, .6);
-        col = color(0, 80, 90 * feed_mult);
+        const feed_mult = map(hunger, 0, PREDATOR_FEED_CYCLE, 1, .4);
+        col = color(0, 100, 100 * feed_mult);
         break;
       case CELL_PREY:
         // new prey are brighter
         const age = frameCount - this.birth;
-        const age_mult = map(age, 0, 20, 2, .9, true);
+        const age_mult = map(age, 0, 50, 2, .7, true);
         col = color(120, 50, 50 * age_mult);
         break;
     }
     fill(col);
-    //rect(r * GRID_SIZE, c * GRID_SIZE, GRID_SIZE, GRID_SIZE);
-    ellipse(r * GRID_SIZE + GRID_SIZE/2, c * GRID_SIZE + GRID_SIZE/2, GRID_SIZE, GRID_SIZE);
+    if (DRAW_RECT) rect(r * GRID_SIZE, c * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+    else ellipse(r * GRID_SIZE + GRID_SIZE/2, c * GRID_SIZE + GRID_SIZE/2, GRID_SIZE, GRID_SIZE);
   }
 }
 
@@ -111,12 +123,13 @@ class World {
   update() {
     let changed = [false];
     const change_cb = () => changed[0] = true;
-    console.log('world update', frameCount);
     for2d(this.grid, (r, c, cell) => {
+      if (cell.last_update === frameCount) return;
       switch (cell.t) {
         case CELL_PREDATOR: this.predator_action(r, c, cell, change_cb); break;
         case CELL_PREY: this.prey_action(r, c, cell, change_cb); break;
       }
+      cell.last_update = frameCount;
     });
     return changed[0];
   }
@@ -144,7 +157,9 @@ class World {
       }
     }
     if (frameCount - pred.last_breed > PREDATOR_BREED_CYCLE) {
-      const pos = find_cell(this.grid, r, c, CELL_EMPTY);
+      // Prefer to spawn into empty space, but spawn over a prey cell if necessary.
+      let pos = find_cell(this.grid, r, c, CELL_EMPTY);
+      if (!pos) { pos = find_cell(this.grid, r, c, CELL_PREY); }
       if (pos) {
         this.grid[pos[0]][pos[1]] = new Cell(CELL_PREDATOR);
         pred.last_breed = frameCount;
@@ -156,7 +171,7 @@ class World {
   prey_action(r, c, prey, changed_cb) {
     const prey_pos = find_cell(this.grid, r, c, CELL_PREY);
     const empty_pos = find_cell(this.grid, r, c, CELL_EMPTY);
-    if (frameCount - prey.last_breed > PREY_BREED_CYCLE && prey_pos && empty_pos) {
+    if (frameCount - prey.last_breed > PREY_BREED_CYCLE && empty_pos && (prey_pos || !PREY_NEEDS_PARTNER_TO_BREED)) {
       // breed
       this.grid[empty_pos[0]][empty_pos[1]] = new Cell(CELL_PREY);
       prey.last_breed = frameCount;
@@ -165,7 +180,7 @@ class World {
       // die
       this.grid[r][c] = new Cell(CELL_EMPTY);
       changed_cb();
-    } else if (empty_pos) {
+    } else if (empty_pos && PREY_MOVES) {
       this.grid[empty_pos[0]][empty_pos[1]] = prey;
       this.grid[r][c] = new Cell(CELL_EMPTY);
       changed_cb();
@@ -182,8 +197,13 @@ const NEIGHBOR_DIRS = [
 function find_cell(grid, r, c, type) {
   const dirs = shuffle(NEIGHBOR_DIRS);
   for (const [rd, cd] of dirs) {
-    const r2 = index_wrap(rd + r, GRID_ROWS);
-    const c2 = index_wrap(cd + c, GRID_COLS);
+    let r2 = rd + r;
+    let c2 = cd + c;
+    if (!WRAPAROUND_WORLD && (r2 < 0 || r2 >= GRID_ROWS || c2 < 0 || c2 >= GRID_ROWS)) {
+      continue;
+    }
+    r2 = index_wrap(r2, GRID_ROWS);
+    c2 = index_wrap(c2, GRID_COLS);
     const cell = grid[r2][c2];
     if (cell.t === type) return [r2, c2];
   }
@@ -196,7 +216,7 @@ function init() {
 
 function setup() {
   colorMode(HSB);
-  frameRate(10);
+  frameRate(RATE);
   noStroke();
   createCanvas(windowWidth, windowHeight);
   init();
@@ -204,14 +224,15 @@ function setup() {
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
+let last_change = 0;
+
 async function draw() {
-  background(95);
+  background(0);
   const changed = WORLD.update();
   WORLD.draw();
-  if (!changed) {
-    console.log('no change!');
-    noLoop(); await new Promise(r => setTimeout(r, 1000));
+  if (changed) last_change = frameCount;
+  if (frameCount - last_change > 10) {
     console.log('resetting...');
-    init(); loop();
+    init();
   }
 }
