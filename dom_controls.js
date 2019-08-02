@@ -62,6 +62,12 @@ class NumInput {
     this.input.value(value);
   }
   reset() { this.set(this.default); }
+  onchange(f) {
+    this.input.input((e) => {
+      this.value = e.target.valueAsNumber;
+      f(this.value);
+    });
+  }
 }
 
 // Creates button. 'f' is both mousePressed and keydown (space, enter) handle.
