@@ -9,14 +9,14 @@ let I_INIT_PREDATOR_FRAC;
 let I_WRAPAROUND;
 let I_DRAW_RECT;
 
-let I_PREDATOR_BREED_DELAY;
-let I_PREDATOR_FEED_REQ;
-let I_PREY_BREED_DELAY;
+let I_PREDATOR_BREED_CYCLE;
+let I_PREDATOR_FEED_CYCLE;
+let I_PREY_BREED_CYCLE;
 let I_PREY_BREED_REQ;
 
 // De-syncs the pulses a bit. Maybe should use a different randomization method.
-let I_PREDATOR_BIRTH_PROB;
-let I_PREY_BIRTH_PROB;
+let I_PREDATOR_BREED_PROB;
+let I_PREY_BREED_PROB;
 
 let I_PREY_MOVES;
 let I_PREY_BREED_ASEXUALLY;
@@ -84,7 +84,7 @@ class Cell {
       case CELL_PREDATOR:
         // predators get darker the longer they don't eat
         const hunger = frameCount - this.last_feed;
-        const feed_mult = map(hunger, 0, I_PREDATOR_FEED_REQ.value, 1, .2);
+        const feed_mult = map(hunger, 0, I_PREDATOR_FEED_CYCLE.value, 1, .2);
         col = color(0, 100, 100 * feed_mult);
         break;
       case CELL_PREY:
@@ -178,7 +178,7 @@ class World {
       this.grid[r][c] = new Cell(CELL_EMPTY);
       pred.last_feed = frameCount;
       changed_cb();
-    } else if (frameCount - pred.last_feed > I_PREDATOR_FEED_REQ.value) {
+    } else if (frameCount - pred.last_feed > I_PREDATOR_FEED_CYCLE.value) {
       // die
       this.grid[r][c] = new Cell(CELL_EMPTY);
       changed_cb();
@@ -192,8 +192,8 @@ class World {
         changed_cb();
       }
     }
-    if (frameCount - pred.last_breed > I_PREDATOR_BREED_DELAY.value
-        && Math.random() < I_PREDATOR_BIRTH_PROB.value) {
+    if (frameCount - pred.last_breed > I_PREDATOR_BREED_CYCLE.value
+        && Math.random() < I_PREDATOR_BREED_PROB.value) {
       // Prefer to spawn into empty space, but spawn over a prey cell if necessary.
       let pos = this.find_cell(r, c, CELL_EMPTY);
       if (!pos) { pos = this.find_cell(r, c, CELL_PREY); }
@@ -208,8 +208,8 @@ class World {
   prey_action(r, c, prey, changed_cb) {
     const prey_pos = this.find_cell(r, c, CELL_PREY);
     const empty_pos = this.find_cell(r, c, CELL_EMPTY);
-    if (frameCount - prey.last_breed > I_PREY_BREED_DELAY.value && empty_pos
-        && Math.random() < I_PREY_BIRTH_PROB.value
+    if (frameCount - prey.last_breed > I_PREY_BREED_CYCLE.value && empty_pos
+        && Math.random() < I_PREY_BREED_PROB.value
         && (prey_pos || I_PREY_BREED_ASEXUALLY.value)) {
       // breed
       this.grid[empty_pos[0]][empty_pos[1]] = new Cell(CELL_PREY);
@@ -321,7 +321,7 @@ function create_control_panel() {
   const framerate_elt = createDiv().parent(basic_controls);
   setInterval(() => framerate_elt.html(`framerate ${frameRate().toFixed(1)}`), 1000);
   make_button('reinit', basic_controls, init_world); br();
-  I_RATE = new NumInput('frate', 1, 100, 10, 1, 32, basic_controls);
+  I_RATE = new NumInput('frate', 1, 100, 5, 1, 32, basic_controls);
   I_RATE.onchange((rate) => frameRate(rate));
   I_GRID_SIZE = new NumInput('cell size', 1, 100, 15, 1, 32, basic_controls);
   I_GRID_ROWS = new NumInput('rows', 0, null, 0, null, 32, basic_controls);
@@ -338,17 +338,17 @@ function create_control_panel() {
   make_button('reset', sliders, () => { for (const s of SLIDERS) s.reset(); });
 
   createDiv('predator').parent(sliders);
-  I_PREDATOR_BREED_DELAY = new Slider('breed delay', 1, 30, 10, 1, sliders);
-  I_PREDATOR_FEED_REQ = new Slider('feed req', 1, 30, 5, 1, sliders);
-  I_PREDATOR_BIRTH_PROB = new Slider('birth prob', 0, 1, 0.8, 0.05, sliders);
+  I_PREDATOR_BREED_CYCLE = new Slider('breed every', 1, 30, 10, 1, sliders);
+  I_PREDATOR_FEED_CYCLE = new Slider('feed every', 1, 30, 5, 1, sliders);
+  I_PREDATOR_BREED_PROB = new Slider('breed prob', 0, 1, 0.8, 0.05, sliders);
   I_INIT_PREDATOR_FRAC = new Slider('init %', 0, 1, 0.04, 0.01, sliders);
   createSpan('prey').parent(sliders);
-  I_PREY_BREED_DELAY = new Slider('breed delay', 1, 30, 3, 1, sliders);
+  I_PREY_BREED_CYCLE = new Slider('breed every', 1, 30, 3, 1, sliders);
   I_PREY_BREED_REQ = new Slider('breed req', 1, 1000, 500, 1, sliders);
-  I_PREY_BIRTH_PROB = new Slider('birth prob', 0, 1, 0.7, 0.05, sliders);
+  I_PREY_BREED_PROB = new Slider('breed prob', 0, 1, 0.7, 0.05, sliders);
   I_INIT_PREY_FRAC = new Slider('init %', 0, 1, 0.03, 0.01, sliders);
   SLIDERS = [
-    I_PREDATOR_BREED_DELAY, I_PREDATOR_FEED_REQ, I_PREDATOR_BIRTH_PROB, I_INIT_PREDATOR_FRAC,
-    I_PREY_BREED_DELAY, I_PREY_BREED_REQ, I_PREY_BIRTH_PROB, I_INIT_PREY_FRAC
+    I_PREDATOR_BREED_CYCLE, I_PREDATOR_FEED_CYCLE, I_PREDATOR_BREED_PROB, I_INIT_PREDATOR_FRAC,
+    I_PREY_BREED_CYCLE, I_PREY_BREED_REQ, I_PREY_BREED_PROB, I_INIT_PREY_FRAC
   ];
 }
