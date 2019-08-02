@@ -36,7 +36,7 @@ let PREDATOR_HUE;
 let PREY_HUE;
 let RAND_HUE = 0;
 function rand_hue() {
-  RAND_HUE = (RAND_HUE + random(60, 100)) % 360;
+  RAND_HUE = (RAND_HUE + random(80, 160)) % 360;
   return RAND_HUE;
 }
 
@@ -99,7 +99,7 @@ class Cell {
       case CELL_PREY:
         // new prey are brighter
         const age = frameCount - this.birth;
-        const age_mult = map(age, 0, 150, 1, .4, true);
+        const age_mult = map(age, 0, 100, 1, .4, true);
         col = color(PREY_HUE, 100 * max(age_mult, 0.7), 100 * age_mult);
         break;
     }
@@ -337,6 +337,7 @@ function create_control_panel() {
   I_GRID_SIZE = new NumInput('cell size', 1, 100, 15, 1, 32, basic_controls);
   I_GRID_ROWS = new NumInput('rows', 0, null, 0, null, 32, basic_controls);
   I_GRID_COLS = new NumInput('cols', 0, null, 0, null, 32, basic_controls);
+  I_GRID_SIZE.onchange(r => windowResized());
   I_GRID_ROWS.onchange(r => windowResized());
   I_GRID_COLS.onchange(r => windowResized());
   I_DRAW_RECT = new Checkbox('rect/circle', true, basic_controls);
