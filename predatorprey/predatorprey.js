@@ -32,6 +32,15 @@ const NEIGHBOR_DIRS = [
 
 let WORLD;
 
+let PREDATOR_HUE;
+let PREY_HUE;
+let RAND_HUE = 0;
+function rand_hue() {
+  RAND_HUE = (RAND_HUE + random(60, 100)) % 360;
+  return RAND_HUE;
+}
+
+
 // sigh.
 function shuffle(array) {
   let currentIndex = array.length, temporaryValue, randomIndex;
@@ -84,14 +93,14 @@ class Cell {
       case CELL_PREDATOR:
         // predators get darker the longer they don't eat
         const hunger = frameCount - this.last_feed;
-        const feed_mult = map(hunger, 0, I_PREDATOR_FEED_CYCLE.value, 1, .2);
-        col = color(0, 100, 100 * feed_mult);
+        const feed_mult = map(hunger, 0, I_PREDATOR_FEED_CYCLE.value, 1, .3);
+        col = color(PREDATOR_HUE, 100 * max(feed_mult, 0.7), 100 * feed_mult);
         break;
       case CELL_PREY:
         // new prey are brighter
         const age = frameCount - this.birth;
-        const age_mult = map(age, 0, 150, 2, .4, true);
-        col = color(120, 50, 50 * age_mult);
+        const age_mult = map(age, 0, 150, 1, .4, true);
+        col = color(PREY_HUE, 100 * max(age_mult, 0.7), 100 * age_mult);
         break;
     }
     fill(col);
@@ -228,6 +237,8 @@ class World {
 }
 
 function init_world() {
+  PREDATOR_HUE = rand_hue();
+  PREY_HUE = rand_hue();
   const [rows, cols] = get_rows_cols();
   WORLD = new World(rows, cols, I_INIT_PREDATOR_FRAC.value, I_INIT_PREY_FRAC.value);
 }
