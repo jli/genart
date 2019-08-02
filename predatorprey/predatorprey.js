@@ -306,6 +306,7 @@ function toggle_control_panel() {
   }
 }
 
+let SLIDERS = [];
 function create_control_panel() {
   const panel_full = createDiv().id('controlPanelFull');
   const toggle_div =     createDiv().parent(panel_full).id('showControlPanelButtonContainer').attribute('status', 'shown');
@@ -334,7 +335,9 @@ function create_control_panel() {
 
   // Sliders for main parameters.
   const sliders = createDiv().id('sliders').parent(panel_main);
-  createSpan('predator').parent(sliders);
+  make_button('reset', sliders, () => { for (const s of SLIDERS) s.reset(); });
+
+  createDiv('predator').parent(sliders);
   I_PREDATOR_BREED_DELAY = new Slider('breed delay', 1, 30, 10, 1, sliders);
   I_PREDATOR_FEED_REQ = new Slider('feed req', 1, 30, 5, 1, sliders);
   I_PREDATOR_BIRTH_PROB = new Slider('birth prob', 0, 1, 0.8, 0.05, sliders);
@@ -344,4 +347,8 @@ function create_control_panel() {
   I_PREY_BREED_REQ = new Slider('breed req', 1, 1000, 500, 1, sliders);
   I_PREY_BIRTH_PROB = new Slider('birth prob', 0, 1, 0.7, 0.05, sliders);
   I_INIT_PREY_FRAC = new Slider('init %', 0, 1, 0.03, 0.01, sliders);
+  SLIDERS = [
+    I_PREDATOR_BREED_DELAY, I_PREDATOR_FEED_REQ, I_PREDATOR_BIRTH_PROB, I_INIT_PREDATOR_FRAC,
+    I_PREY_BREED_DELAY, I_PREY_BREED_REQ, I_PREY_BIRTH_PROB, I_INIT_PREY_FRAC
+  ];
 }
