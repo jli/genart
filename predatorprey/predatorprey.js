@@ -255,7 +255,7 @@ function get_rows_cols() {
 function setup() {
   // needs to happen early so values like framerate and rows/cols are set.
   create_control_panel();
-  // toggle_control_panel();
+  toggle_control_panel();
   createCanvas(windowWidth, windowHeight);
 
   colorMode(HSB);
@@ -321,7 +321,7 @@ let SLIDERS = [];
 function create_control_panel() {
   const panel_full = createDiv().id('controlPanelFull');
   const toggle_div =     createDiv().parent(panel_full).id('showControlPanelButtonContainer').attribute('status', 'shown');
-  make_button('toggle', toggle_div, toggle_control_panel);
+  make_button('controls', toggle_div, toggle_control_panel);
 
   // Holds all the controls. Excludes the toggle button.
   const panel_main = createDiv().id(CONTROL_PANEL_MAIN_ID).parent(panel_full);
