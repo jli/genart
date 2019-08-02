@@ -1,0 +1,6 @@
+{
+  "short_name": "predator/prey",
+  "name": "predator/prey simulation",
+  "start_url": "index.html",
+  "display": "fullscreen"
+}
