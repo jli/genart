@@ -99,7 +99,7 @@ class Cell {
       case CELL_PREY:
         // new prey are brighter
         const age = frameCount - this.birth;
-        const age_mult = map(age, 0, 100, 1, .4, true);
+        const age_mult = map(age, 0, 50, 1, .3, true);
         col = color(PREY_HUE, 100 * max(age_mult, 0.7), 100 * age_mult);
         break;
     }
@@ -332,9 +332,9 @@ function create_control_panel() {
   const framerate_elt = createDiv().parent(basic_controls);
   setInterval(() => framerate_elt.html(`framerate ${frameRate().toFixed(1)}`), 1000);
   make_button('reinit', basic_controls, init_world); br();
-  I_RATE = new NumInput('frate', 1, 100, 5, 1, 32, basic_controls);
+  I_RATE = new NumInput('frate', 1, 100, 40, 1, 32, basic_controls);
   I_RATE.onchange((rate) => frameRate(rate));
-  I_GRID_SIZE = new NumInput('cell size', 1, 100, 15, 1, 32, basic_controls);
+  I_GRID_SIZE = new NumInput('cell size', 1, 100, 16, 1, 32, basic_controls);
   I_GRID_ROWS = new NumInput('rows', 0, null, 0, null, 32, basic_controls);
   I_GRID_COLS = new NumInput('cols', 0, null, 0, null, 32, basic_controls);
   I_GRID_SIZE.onchange(r => windowResized());
@@ -342,7 +342,7 @@ function create_control_panel() {
   I_GRID_COLS.onchange(r => windowResized());
   I_DRAW_RECT = new Checkbox('rect/circle', true, basic_controls);
   I_WRAPAROUND = new Checkbox('wraparound', false, basic_controls);
-  I_PREY_MOVES = new Checkbox('prey move', true, basic_controls);
+  I_PREY_MOVES = new Checkbox('prey move', false, basic_controls);
   I_PREY_BREED_ASEXUALLY = new Checkbox('prey asex', true, basic_controls);
 
   // Sliders for main parameters.
@@ -350,15 +350,15 @@ function create_control_panel() {
   make_button('reset', sliders, () => { for (const s of SLIDERS) s.reset(); });
 
   createDiv('predator').parent(sliders);
-  I_PREDATOR_BREED_CYCLE = new Slider('breed every', 1, 30, 10, 1, sliders);
-  I_PREDATOR_FEED_CYCLE = new Slider('feed every', 1, 30, 5, 1, sliders);
-  I_PREDATOR_BREED_PROB = new Slider('breed prob', 0, 1, 0.8, 0.05, sliders);
-  I_INIT_PREDATOR_FRAC = new Slider('init %', 0, 1, 0.04, 0.01, sliders);
+  I_PREDATOR_BREED_CYCLE = new Slider('breed every', 1, 30, 7, 1, sliders);
+  I_PREDATOR_FEED_CYCLE = new Slider('feed every', 1, 30, 4, 1, sliders);
+  I_PREDATOR_BREED_PROB = new Slider('breed prob', 0, 1, 0.85, 0.05, sliders);
+  I_INIT_PREDATOR_FRAC = new Slider('init %', 0, 1, 0.1, 0.01, sliders);
   createSpan('prey').parent(sliders);
-  I_PREY_BREED_CYCLE = new Slider('breed every', 1, 30, 3, 1, sliders);
+  I_PREY_BREED_CYCLE = new Slider('breed every', 1, 30, 1, 1, sliders);
   I_PREY_BREED_REQ = new Slider('breed req', 1, 1000, 500, 1, sliders);
-  I_PREY_BREED_PROB = new Slider('breed prob', 0, 1, 0.7, 0.05, sliders);
-  I_INIT_PREY_FRAC = new Slider('init %', 0, 1, 0.03, 0.01, sliders);
+  I_PREY_BREED_PROB = new Slider('breed prob', 0, 1, 0.80, 0.05, sliders);
+  I_INIT_PREY_FRAC = new Slider('init %', 0, 1, 0.2, 0.01, sliders);
   SLIDERS = [
     I_PREDATOR_BREED_CYCLE, I_PREDATOR_FEED_CYCLE, I_PREDATOR_BREED_PROB, I_INIT_PREDATOR_FRAC,
     I_PREY_BREED_CYCLE, I_PREY_BREED_REQ, I_PREY_BREED_PROB, I_INIT_PREY_FRAC
