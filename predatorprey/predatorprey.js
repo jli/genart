@@ -11,6 +11,7 @@ let I_INIT_PREY_FRAC;
 let I_INIT_PREDATOR_FRAC;
 let I_WRAPAROUND;
 let I_DRAW_RECT;
+let I_FULLBLEED;
 
 let I_PREDATOR_BREED_CYCLE;
 let I_PREDATOR_FEED_CYCLE;
@@ -114,8 +115,9 @@ class Cell {
     }
     fill(col);
     const grid = I_GRID_SIZE.value;
-    if (I_DRAW_RECT.value) rect(c * grid, r * grid, grid, grid);
-    else ellipse(c * grid + grid/2, r * grid + grid/2, grid, grid);
+    const width = I_FULLBLEED.value ? grid : grid - 1;
+    if (I_DRAW_RECT.value) rect(c * grid, r * grid, width, width);
+    else ellipse(c * grid + grid/2, r * grid + grid/2, grid*.75, grid*.75);
   }
 }
 
@@ -349,7 +351,7 @@ function create_control_panel() {
   const framerate_elt = createDiv().parent(basic_controls);
   setInterval(() => framerate_elt.html(`framerate ${frameRate().toFixed(1)}`), 1000);
   make_button('reinit', basic_controls, init_world); br();
-  I_RATE = new NumInput('frate', 1, 100, 10, 1, 32, basic_controls);
+  I_RATE = new NumInput('frate', 1, 100, 15, 1, 32, basic_controls);
   I_RATE.onchange((rate) => frameRate(rate));
   I_GRID_SIZE = new NumInput('cell size', 1, 100, 12, 1, 32, basic_controls);
   I_GRID_ROWS = new NumInput('rows', 0, null, 0, null, 32, basic_controls);
@@ -358,7 +360,8 @@ function create_control_panel() {
   I_GRID_ROWS.onchange(r => windowResized());
   I_GRID_COLS.onchange(r => windowResized());
   I_DRAW_RECT = new Checkbox('rect/circle', true, basic_controls);
-  I_WRAPAROUND = new Checkbox('wraparound', false, basic_controls);
+  I_FULLBLEED = new Checkbox('fullbleed', true, basic_controls);
+  I_WRAPAROUND = new Checkbox('wraparound', true, basic_controls);
   I_PREY_MOVES = new Checkbox('prey move', false, basic_controls);
   I_PREY_BREED_ASEXUALLY = new Checkbox('prey asex', true, basic_controls);
   I_BREED_OVER_PREY = new Checkbox('pred agg breed', false, basic_controls);
@@ -366,16 +369,17 @@ function create_control_panel() {
   // Sliders for main parameters.
   const sliders = createDiv().id('sliders').parent(panel_main);
   make_button('reset', sliders, () => { for (const s of SLIDERS) s.reset(); });
+  make_button('neo', sliders, () => { neo_opts(); });
 
   createDiv('predator').parent(sliders);
   I_PREDATOR_BREED_CYCLE = new Slider('breed every', 1, 30, 7, 1, sliders);
   I_PREDATOR_FEED_CYCLE = new Slider('feed every', 1, 30, 3, 1, sliders);
-  I_PREDATOR_BREED_PROB = new Slider('breed prob', 0, 1, 0.85, 0.05, sliders);
+  I_PREDATOR_BREED_PROB = new Slider('breed prob', 0, 1, 0.75, 0.05, sliders);
   I_INIT_PREDATOR_FRAC = new Slider('init %', 0, 1, 0.1, 0.01, sliders);
   createSpan('prey').parent(sliders);
   I_PREY_BREED_CYCLE = new Slider('breed every', 1, 30, 2, 1, sliders);
   I_PREY_BREED_REQ = new Slider('breed req', 1, 1000, 500, 1, sliders);
-  I_PREY_BREED_PROB = new Slider('breed prob', 0, 1, 0.80, 0.05, sliders);
+  I_PREY_BREED_PROB = new Slider('breed prob', 0, 1, 0.85, 0.05, sliders);
   I_INIT_PREY_FRAC = new Slider('init %', 0, 1, 0.2, 0.01, sliders);
   I_TOMB_CYCLE = new Slider('tomb cycle', 0, 10, 1, 1, sliders);
 
@@ -383,4 +387,13 @@ function create_control_panel() {
     I_PREDATOR_BREED_CYCLE, I_PREDATOR_FEED_CYCLE, I_PREDATOR_BREED_PROB, I_INIT_PREDATOR_FRAC,
     I_PREY_BREED_CYCLE, I_PREY_BREED_REQ, I_PREY_BREED_PROB, I_INIT_PREY_FRAC
   ];
+}
+
+function neo_opts() {
+  I_GRID_COLS.set(16);
+  I_GRID_ROWS.set(16);
+  I_GRID_SIZE.set(30);
+  I_RATE.set(5);
+  windowResized();
+  frameRate(I_RATE.value);
 }
