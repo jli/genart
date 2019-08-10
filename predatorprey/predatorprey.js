@@ -24,6 +24,7 @@ let I_PREY_BREED_PROB;
 
 let I_PREY_MOVES;
 let I_PREY_BREED_ASEXUALLY;
+let I_BREED_OVER_PREY;
 
 const CELL_EMPTY = 0;
 const CELL_PREY = 1;
@@ -221,8 +222,7 @@ class World {
         && Math.random() < I_PREDATOR_BREED_PROB.value) {
       // Prefer to spawn into empty space, but spawn over a prey cell if necessary.
       let pos = this.find_cell(r, c, CELL_EMPTY);
-      // TODO: make configurable
-      if (!pos) { pos = this.find_cell(r, c, CELL_PREY); }
+      if (I_BREED_OVER_PREY.value && !pos) { pos = this.find_cell(r, c, CELL_PREY); }
       if (pos) {
         this.grid[pos[0]][pos[1]] = new Cell(CELL_PREDATOR);
         pred.last_breed = frameCount;
@@ -361,6 +361,7 @@ function create_control_panel() {
   I_WRAPAROUND = new Checkbox('wraparound', false, basic_controls);
   I_PREY_MOVES = new Checkbox('prey move', false, basic_controls);
   I_PREY_BREED_ASEXUALLY = new Checkbox('prey asex', true, basic_controls);
+  I_BREED_OVER_PREY = new Checkbox('pred agg breed', false, basic_controls);
 
   // Sliders for main parameters.
   const sliders = createDiv().id('sliders').parent(panel_main);
