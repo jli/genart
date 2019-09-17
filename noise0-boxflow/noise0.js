@@ -9,7 +9,8 @@ let FLOW_NOISE_POS_MULT = 0.005;
 let FLOW_NOISE_TIME_MULT = 0.003;
 let SIZE_NOISE_MULT = 0.03;
 
-let RESET_EVERY_FRAMECOUNT = 500;
+let NUM_REFRESHED_THINGS_PER_FRAME = 5;
+let RESET_EVERY_FRAMECOUNT = 1000;
 let THINGS = [];
 
 function wrap(x, mx) {
@@ -22,11 +23,11 @@ function wrap_x(x) { return wrap(x, windowWidth); }
 function wrap_y(y) { return wrap(y, windowHeight); }
 
 class Thing {
-  constructor(pos, vel, acc, col) {
-    this.pos = pos;
-    this.vel = vel;
-    this.acc = acc;
-    // this.col = col;
+  constructor(pos, vel, acc) {
+    this.pos = pos || createVector(random(0, windowWidth),
+                                   random(0, windowHeight));
+    this.vel = vel || createVector();
+    this.acc = acc || createVector();
     this.size_mult = 1.0;
   }
 
@@ -41,7 +42,7 @@ class Thing {
       this.size_mult * map(
           noise(this.pos.x * SIZE_NOISE_MULT, this.pos.y * SIZE_NOISE_MULT),
           0, 1, 0.8, 1.2),
-      0.25, 2.5);
+      0.5, 2.5);
     let flow = createVector(
       map(noise(this.pos.x * FLOW_NOISE_POS_MULT,
                 this.pos.y * FLOW_NOISE_POS_MULT,
@@ -84,16 +85,25 @@ function init_things() {
   for (let r = 0; r < NUM_ROWS; ++r) {
     for (let c = 0; c < NUM_COLS; ++c) {
       const pos = createVector(c * BOX_SIZE, r * BOX_SIZE);
-      const vel = createVector();
-      const acc = createVector();
-      THINGS.push(new Thing(pos, vel, acc, 100));
+      THINGS.push(new Thing(pos));
     }
   }
+}
+
+function random_int(max) {
+  return Math.floor(Math.random() * Math.floor(max));
+}
+
+function refresh_random_thing() {
+  THINGS.splice(random_int(THINGS.length), 1);
+  THINGS.push(new Thing());
 }
 
 let dir = 1;
 let count = 0;
 function draw() {
+  for (let i = 0; i < NUM_REFRESHED_THINGS_PER_FRAME; ++i) refresh_random_thing();
+
   let bg;
   if (dir > 0) {
     bg = map(count/RESET_EVERY_FRAMECOUNT, 0, 1, 0, 35);
