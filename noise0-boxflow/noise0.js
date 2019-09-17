@@ -7,9 +7,9 @@ let ACC_LIMIT = 2.5;
 let VEL_LIMIT = 4.0;
 let FLOW_NOISE_POS_MULT = 0.005;
 let FLOW_NOISE_TIME_MULT = 0.003;
+let SIZE_NOISE_MULT = 0.03;
 
 let RESET_EVERY_FRAMECOUNT = 500;
-
 let THINGS = [];
 
 function wrap(x, mx) {
@@ -26,15 +26,22 @@ class Thing {
     this.pos = pos;
     this.vel = vel;
     this.acc = acc;
-    this.col = col;
+    // this.col = col;
+    this.size_mult = 1.0;
   }
 
-  draw() {
-    fill(this.col, OPACITY);
-    rect(this.pos.x, this.pos.y, BOX_SIZE, BOX_SIZE);
+  draw(col) {
+    fill(col, OPACITY);
+    rect(this.pos.x, this.pos.y,
+      BOX_SIZE * this.size_mult, BOX_SIZE * this.size_mult);
   }
 
   update() {
+    this.size_mult = constrain(
+      this.size_mult * map(
+          noise(this.pos.x * SIZE_NOISE_MULT, this.pos.y * SIZE_NOISE_MULT),
+          0, 1, 0.8, 1.2),
+      0.25, 2.5);
     let flow = createVector(
       map(noise(this.pos.x * FLOW_NOISE_POS_MULT,
                 this.pos.y * FLOW_NOISE_POS_MULT,
@@ -84,15 +91,28 @@ function init_things() {
   }
 }
 
+let dir = 1;
+let count = 0;
 function draw() {
-  background(map(frameCount/RESET_EVERY_FRAMECOUNT, 0, 1, 0, 90));
+  let bg;
+  if (dir > 0) {
+    bg = map(count/RESET_EVERY_FRAMECOUNT, 0, 1, 0, 35);
+  } else {
+    bg = map(count/RESET_EVERY_FRAMECOUNT, 0, 1, 100, 65);
+  }
+  const fg = 100 - bg;
+
+  background(bg);
   for (let t of THINGS) {
     t.update();
-    t.draw();
+    t.draw(fg);
   }
-  if (frameCount >= RESET_EVERY_FRAMECOUNT) {
+
+  ++count;
+  if (count >= RESET_EVERY_FRAMECOUNT) {
+    count = 0;
+    dir *= -1;
     init_things();
-    frameCount = 0;
   }
   // noLoop();
 }
