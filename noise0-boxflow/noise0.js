@@ -1,3 +1,12 @@
+// TODO:
+// - keybindings
+// - try stroke
+// - try deviations from exact direction (gaussian?), or more momentum?
+// - make new boxes smaller
+// - reset geometry every iteration (for window changes)
+// - use gui library
+
+
 let TARGET_NUM_BOXES = 10000;
 let BOX_SIZE;
 let NUM_ROWS, NUM_COLS;
@@ -72,14 +81,14 @@ function setup() {
   colorMode(HSB);
   noStroke();
   createCanvas(windowWidth, windowHeight);
-  setup_geometry();
-  init_things();
+  init_world();
   background(0);
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
-function init_things() {
+function init_world() {
+  setup_geometry();  // in case window size changed
   THINGS = [];
   let i = 0;
   for (let r = 0; r < NUM_ROWS; ++r) {
@@ -122,7 +131,20 @@ function draw() {
   if (count >= RESET_EVERY_FRAMECOUNT) {
     count = 0;
     dir *= -1;
-    init_things();
+    init_world();
   }
   // noLoop();
+}
+
+function keyPressed() {
+  switch (key) {
+    case 'p': toggle_paused(); break;
+    case 'r': init_world(); break;
+  }
+}
+
+let PAUSED = false;
+function toggle_paused() {
+  PAUSED = !PAUSED;
+  if (PAUSED) { noLoop(); } else { loop(); }
 }
