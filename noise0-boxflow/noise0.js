@@ -7,11 +7,13 @@
 // - use gui library
 
 
-let TARGET_NUM_BOXES = 10000;
+let TARGET_NUM_BOXES = 1500;
 let BOX_SIZE;
 let NUM_ROWS, NUM_COLS;
 let OPACITY = 0.1;
-let SPEED_MULT = 1.2;
+let STROKE_OPACITY = OPACITY * 2;
+let DRAW_STROKE = true;
+let SPEED_MULT = 1.1;
 
 let ACC_LIMIT = 2.5;
 let VEL_LIMIT = 4.0;
@@ -20,7 +22,7 @@ let FLOW_NOISE_TIME_MULT = 0.003;
 let SIZE_NOISE_MULT = 0.03;
 
 let NUM_REFRESHED_THINGS_PER_FRAME = 5;
-let RESET_EVERY_FRAMECOUNT = 1000;
+let RESET_EVERY_FRAMECOUNT = 500;
 let THINGS = [];
 
 function wrap(x, mx) {
@@ -43,6 +45,11 @@ class Thing {
 
   draw(col) {
     fill(col, OPACITY);
+    if (DRAW_STROKE) {
+      let stroke_bright = col > 50 ? 0 : 40;
+      stroke(stroke_bright, 0.8);
+      // stroke(col, 0.2);
+    }
     rect(this.pos.x, this.pos.y,
       BOX_SIZE * this.size_mult, BOX_SIZE * this.size_mult);
   }
