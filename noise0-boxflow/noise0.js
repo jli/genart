@@ -59,7 +59,7 @@ class Thing {
       this.size_mult * map(
           noise(this.pos.x * SIZE_NOISE_MULT, this.pos.y * SIZE_NOISE_MULT),
           0, 1, 0.8, 1.2),
-      0.5, 2.5);
+      0.4, 2.5);
     let flow = createVector(
       map(noise(this.pos.x * FLOW_NOISE_POS_MULT,
                 this.pos.y * FLOW_NOISE_POS_MULT,
