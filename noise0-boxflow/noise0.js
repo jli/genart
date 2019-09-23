@@ -1,19 +1,18 @@
 // TODO:
-// - keybindings
-// - try stroke
-// - try deviations from exact direction (gaussian?), or more momentum?
-// - make new boxes smaller
-// - reset geometry every iteration (for window changes)
+// - tweak stroke drawing
+// - try deviations from exact direction (gaussian, private noise?), or more momentum?
+// - make new boxes smaller.
+// - make old boxes shrink to 0 instead of just removing?
 // - use gui library
 
 
-let TARGET_NUM_BOXES = 1500;
+let TARGET_NUM_BOXES = 5000;
 let BOX_SIZE;
 let NUM_ROWS, NUM_COLS;
 let OPACITY = 0.1;
-let STROKE_OPACITY = OPACITY * 2;
+let STROKE_OPACITY = 0.3;
 let DRAW_STROKE = true;
-let SPEED_MULT = 1.1;
+let SPEED_MULT = 1.0;
 
 let ACC_LIMIT = 2.5;
 let VEL_LIMIT = 4.0;
@@ -47,7 +46,7 @@ class Thing {
     fill(col, OPACITY);
     if (DRAW_STROKE) {
       let stroke_bright = col > 50 ? 0 : 40;
-      stroke(stroke_bright, 0.8);
+      stroke(stroke_bright, STROKE_OPACITY);
       // stroke(col, 0.2);
     }
     rect(this.pos.x, this.pos.y,
