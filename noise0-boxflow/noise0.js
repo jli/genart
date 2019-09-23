@@ -11,6 +11,7 @@ let TARGET_NUM_BOXES = 10000;
 let BOX_SIZE;
 let NUM_ROWS, NUM_COLS;
 let OPACITY = 0.1;
+let SPEED_MULT = 1.2;
 
 let ACC_LIMIT = 2.5;
 let VEL_LIMIT = 4.0;
@@ -63,7 +64,7 @@ class Thing {
           0, 1, -.3, .3));
     this.acc.add(flow).limit(ACC_LIMIT);
     this.vel.add(this.acc).limit(VEL_LIMIT);
-    this.pos.add(this.vel);
+    this.pos.add(this.vel.mult(SPEED_MULT));
     this.pos.x = wrap_x(this.pos.x);
     this.pos.y = wrap_y(this.pos.y);
   }
