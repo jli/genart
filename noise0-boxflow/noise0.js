@@ -25,6 +25,7 @@ var SIZE_MULT_MAXL = 1.5;
 
 var NUM_REFRESHED_THINGS_PER_FRAME = 0;
 var RESET_EVERY_FRAMECOUNT = 1000;
+var NOISE_EVERY_N_FRAME = 10;
 let THINGS = [];
 
 let gui;
@@ -59,23 +60,26 @@ class Thing {
   }
 
   update() {
-    this.size_mult = constrain(
-      this.size_mult * map(
-          noise(this.pos.x * SIZE_NOISE_MULT, this.pos.y * SIZE_NOISE_MULT),
-          0, 1, 0.8, 1.2),
-      SIZE_MULT_MINL, SIZE_MULT_MAXL);
-    let flow = createVector(
-      map(noise(this.pos.x * FLOW_NOISE_POS_MULT,
-                this.pos.y * FLOW_NOISE_POS_MULT,
-                frameCount * FLOW_NOISE_TIME_MULT),
-          0, 1, -ACC_LIMIT, ACC_LIMIT),
-      map(noise(this.pos.x * FLOW_NOISE_POS_MULT + 10000,
-                this.pos.y * FLOW_NOISE_POS_MULT + 10000,
-                frameCount * FLOW_NOISE_TIME_MULT),
-          0, 1, -ACC_LIMIT, ACC_LIMIT));
+    let flow = createVector();
+    if (count % NOISE_EVERY_N_FRAME === 0) {
+      this.size_mult = constrain(
+        this.size_mult * map(
+            noise(this.pos.x * SIZE_NOISE_MULT, this.pos.y * SIZE_NOISE_MULT),
+            0, 1, 0.8, 1.2),
+        SIZE_MULT_MINL, SIZE_MULT_MAXL);
+      flow = createVector(
+          map(noise(this.pos.x * FLOW_NOISE_POS_MULT,
+                    this.pos.y * FLOW_NOISE_POS_MULT,
+                    frameCount * FLOW_NOISE_TIME_MULT),
+              0, 1, -ACC_LIMIT, ACC_LIMIT),
+          map(noise(this.pos.x * FLOW_NOISE_POS_MULT + 10000,
+                    this.pos.y * FLOW_NOISE_POS_MULT + 10000,
+                    frameCount * FLOW_NOISE_TIME_MULT),
+              0, 1, -ACC_LIMIT, ACC_LIMIT));
+    }
     //this.acc.add(flow).limit(ACC_LIMIT);
-    this.acc.mult(1 - DRAG);
     this.acc.add(flow);//.limit(ACC_LIMIT);
+    this.acc.mult(1 - DRAG);
     //this.vel.mult(1-VEL_DRAG);
     this.vel.add(this.acc).limit(VEL_LIMIT);
     //this.vel = flow.limit(VEL_LIMIT);
@@ -121,6 +125,8 @@ function setup() {
   gui.addGlobals('NUM_REFRESHED_THINGS_PER_FRAME');
   sliderRange(100, 10000, 50);
   gui.addGlobals('RESET_EVERY_FRAMECOUNT');
+  sliderRange(1, 100, 1);
+  gui.addGlobals('NOISE_EVERY_N_FRAME');
   gui.toggleCollapsed();
 }
 
@@ -179,6 +185,7 @@ function keyPressed() {
   switch (key) {
     case 'p': toggle_paused(); break;
     case 'r': init_world(); break;
+    case ';': gui.toggleCollapsed(); break;
   }
 }
 
