@@ -6,23 +6,28 @@
 // - use gui library
 
 
-let TARGET_NUM_BOXES = 5000;
+var TARGET_NUM_BOXES = 5000;
 let BOX_SIZE;
 let NUM_ROWS, NUM_COLS;
-let OPACITY = 0.1;
-let STROKE_OPACITY = 0.3;
-let DRAW_STROKE = true;
-let SPEED_MULT = 1.0;
+var OPACITY = 0.2;
+var STROKE_OPACITY = 0.0;
+var DRAW_STROKE = true;
+var SPEED_MULT = 1.0;
 
-let ACC_LIMIT = 2.5;
-let VEL_LIMIT = 4.0;
-let FLOW_NOISE_POS_MULT = 0.005;
-let FLOW_NOISE_TIME_MULT = 0.003;
-let SIZE_NOISE_MULT = 0.03;
+var ACC_LIMIT = 2.5;
+var VEL_LIMIT = 4.0;
+var DRAG = 0.3;
+var FLOW_NOISE_POS_MULT = 0.005;
+var FLOW_NOISE_TIME_MULT = 0.003;
+var SIZE_NOISE_MULT = 0.03;
+var SIZE_MULT_MINL = 0.5;
+var SIZE_MULT_MAXL = 1.5;
 
-let NUM_REFRESHED_THINGS_PER_FRAME = 5;
-let RESET_EVERY_FRAMECOUNT = 500;
+var NUM_REFRESHED_THINGS_PER_FRAME = 0;
+var RESET_EVERY_FRAMECOUNT = 1000;
 let THINGS = [];
+
+let gui;
 
 function wrap(x, mx) {
   if (x < -BOX_SIZE/2) return mx;
@@ -58,18 +63,22 @@ class Thing {
       this.size_mult * map(
           noise(this.pos.x * SIZE_NOISE_MULT, this.pos.y * SIZE_NOISE_MULT),
           0, 1, 0.8, 1.2),
-      0.4, 2.5);
+      SIZE_MULT_MINL, SIZE_MULT_MAXL);
     let flow = createVector(
       map(noise(this.pos.x * FLOW_NOISE_POS_MULT,
                 this.pos.y * FLOW_NOISE_POS_MULT,
                 frameCount * FLOW_NOISE_TIME_MULT),
-          0, 1, -.3, .3),
-      map(noise(this.pos.x * FLOW_NOISE_POS_MULT + 100,
-                this.pos.y * FLOW_NOISE_POS_MULT + 100,
+          0, 1, -ACC_LIMIT, ACC_LIMIT),
+      map(noise(this.pos.x * FLOW_NOISE_POS_MULT + 10000,
+                this.pos.y * FLOW_NOISE_POS_MULT + 10000,
                 frameCount * FLOW_NOISE_TIME_MULT),
-          0, 1, -.3, .3));
-    this.acc.add(flow).limit(ACC_LIMIT);
+          0, 1, -ACC_LIMIT, ACC_LIMIT));
+    //this.acc.add(flow).limit(ACC_LIMIT);
+    this.acc.mult(1 - DRAG);
+    this.acc.add(flow);//.limit(ACC_LIMIT);
+    //this.vel.mult(1-VEL_DRAG);
     this.vel.add(this.acc).limit(VEL_LIMIT);
+    //this.vel = flow.limit(VEL_LIMIT);
     this.pos.add(this.vel.mult(SPEED_MULT));
     this.pos.x = wrap_x(this.pos.x);
     this.pos.y = wrap_y(this.pos.y);
@@ -90,6 +99,29 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   init_world();
   background(0);
+
+  gui = createGui('settings');
+  sliderRange(100, 50000, 50);
+  gui.addGlobals('TARGET_NUM_BOXES');
+  sliderRange(0, 1, 0.005);
+  gui.addGlobals('OPACITY', 'STROKE_OPACITY');
+  sliderRange(0.1, 1.0, 0.01);
+  gui.addGlobals('SIZE_MULT_MINL');
+  sliderRange(1.0, 5.0, 0.05);
+  gui.addGlobals('SIZE_MULT_MAXL');
+  sliderRange(0.05, 5, 0.05);
+  gui.addGlobals('SPEED_MULT');
+  sliderRange(0.1, 10, 0.1);
+  gui.addGlobals('ACC_LIMIT', 'VEL_LIMIT');
+  sliderRange(0.01, 1.0, 0.01);
+  gui.addGlobals('DRAG');
+  sliderRange(0.00001, 0.1, 0.0001);
+  gui.addGlobals('FLOW_NOISE_POS_MULT', 'FLOW_NOISE_TIME_MULT', 'SIZE_NOISE_MULT');
+  sliderRange(0, 100, 1);
+  gui.addGlobals('NUM_REFRESHED_THINGS_PER_FRAME');
+  sliderRange(100, 10000, 50);
+  gui.addGlobals('RESET_EVERY_FRAMECOUNT');
+  gui.toggleCollapsed();
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
