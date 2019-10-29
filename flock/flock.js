@@ -16,9 +16,9 @@ let FLOCKS = [];
 const DEBUG_MODE = false;
 const MOBILE = /Mobi|Android/i.test(navigator.userAgent);
 const GROUP_SIZE_RANDBOUND = DEBUG_MODE?[5,5]: MOBILE ? [70, 150] : [100, 200];
-const NUM_GROUPS_RANDBOUND = DEBUG_MODE?[1,1]: MOBILE ? [2, 2] : [2, 3];
+const NUM_GROUPS_RANDBOUND = DEBUG_MODE?[1,1]: MOBILE ? [2, 4] : [2, 4];
 const SPEED_RANDBOUND = [2, 5];
-const NODE_SIZE_RANDBOUND = MOBILE ? [4, 7] : [6, 12];
+const NODE_SIZE_RANDBOUND = MOBILE ? [6, 12] : [6, 12];
 
 // When increasing/decreasing flock sizes, change by this frac of existing size.
 const FLOCK_SIZE_CHANGE_FRAC = 0.1;
@@ -143,8 +143,9 @@ class Node {
 
   draw_shape(pos, vel) {
     const siz = this.size * I_ZOOM.value;
+    // Multiple size by 1.5 for triangles to make visual weight more similar.
     if (I_CIRCLES.value) { ellipse(pos.x, pos.y, siz, siz); }
-    else { draw_triangle(pos, vel, siz); }
+    else { draw_triangle(pos, vel, siz * 1.5); }
   }
 
   draw() {
@@ -534,7 +535,7 @@ function create_control_panel() {
   update_count_displays();
   I_SPEED_MULT = new NumInput('speed', 0.1, null, DEBUG_MODE?0.2: 1, 0.1, 32, basic_controls);
   I_ZOOM = new NumInput('size', 0.1, null, DEBUG_MODE?3: 1, 0.1, 32, basic_controls);
-  I_TRAILS = new NumInput('trails', 0, null, 4, 2, 32, basic_controls);
+  I_TRAILS = new NumInput('trails', 0, null, 0, 2, 32, basic_controls);
 
   // Debugging tools.
   // Purely visual options.
@@ -555,18 +556,18 @@ function create_control_panel() {
   make_button('fish', sliders, sliders_fish);
   make_button('bees', sliders, sliders_bees);
   make_button('birds', sliders, sliders_birds);
-  I_NF_SEPARATION_FORCE = new Slider('nf separation', 0, 20, 10, .5, sliders);
+  I_NF_SEPARATION_FORCE = new Slider('nf separation', 0, 20, 3, .5, sliders);
   I_SEPARATION_FORCE    = new Slider('separation',    0, 10, 2, .25, sliders);
   I_COHESION_FORCE      = new Slider('cohesion',      0, 10, 1, .25, sliders);
-  I_ALIGNMENT_FORCE     = new Slider('alignment',     0,  3, 1, .1, sliders);
+  I_ALIGNMENT_FORCE     = new Slider('alignment',     0,  3, 0.6, .1, sliders);
 
-  I_MAX_FORCE            = new Slider('max force',        0, 5, .6,  .1, sliders);
-  I_NATURAL_SPEED_WEIGHT = new Slider('nat speed weight', 0, 1, .2, .02, sliders);
+  I_MAX_FORCE            = new Slider('max force',        0, 5, 3.0,  .1, sliders);
+  I_NATURAL_SPEED_WEIGHT = new Slider('nat speed weight', 0, 1, .1, .02, sliders);
   I_LAZINESS             = new Slider('laziness',         0, 1,  0, .02, sliders);
   I_SPEED_LIMIT          = new Slider('speed limit',      0, 50, 10, 2, sliders);
 
   I_SPACE_AWARE_MULT = new Slider('space aware mult',   0, 15, 5, .5, sliders);
-  I_NUM_NEIGHBORS    = new Slider('# segments (#nbrs)', 0, 16, 5, 1, sliders);
+  I_NUM_NEIGHBORS    = new Slider('# segments (#nbrs)', 0, 16, 3, 1, sliders);
   I_NF_NUM_NEIGHBORS = new Slider('#/seg (#nf nbrs)',   0, 10, 1, 1, sliders);
   I_RAND_MOVE_FREQ = new Slider('rand move freq', 0, 1,  0, .02, sliders);
   I_RAND_MOVE_MULT = new Slider('rand move mult', 0, 1, .1, .02, sliders);
