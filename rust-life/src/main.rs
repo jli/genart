@@ -1,3 +1,9 @@
+// TODO:
+// - bindings to reset
+// - resizable, fit to screen
+// - multithreaded
+// X framerate
+
 use std::time::Duration;
 use rand;
 use nannou::prelude::*;
@@ -36,6 +42,9 @@ impl Model {
 
 
 fn view(app: &App, model: &Model, frame: Frame) {
+    if app.elapsed_frames() % 10 == 0 {
+        println!("v: {} fps, {} frames", app.fps(), app.elapsed_frames());
+    }
     let (ww, wh) = app.main_window().inner_size_points();
     let xadj: f32 = ww as f32 / 2.0 - CELL_WIDTH as f32 / 2.0;
     let yadj: f32 = wh as f32 / 2.0 - CELL_WIDTH as f32 / 2.0;
@@ -84,12 +93,10 @@ fn live_neighbors(grid: &Grid, r: usize, c: usize) -> usize {
 }
 
 fn update(_app: &App, model: &mut Model, _update: Update) {
-    // println!("updating!");
     let prev = model.grid.clone();
     for (r, row) in prev.iter().enumerate() {
         for (c, val) in row.iter().enumerate() {
             model.grid[r][c] = alive(*val, live_neighbors(&prev, r, c));
-            // println!("grid {} {}: {} -> {}", r, c, val, model.grid[r][c]);
         }
     }
 }
