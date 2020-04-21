@@ -1,6 +1,6 @@
 // TODO:
-// - colors for lifetime
 // - multithreaded
+// X colors for lifetime
 // X resizable
 // X bindings to reset
 // X fit to screen
@@ -15,8 +15,10 @@ const CELL_WIDTH: u32 = 4;
 type Grid<T> = Vec<Vec<T>>;
 
 struct Model {
-    grid: Grid<bool>,
-    prev: Grid<bool>, // stored here for convenience
+    grid: Grid<u32>,
+    prev: Grid<u32>, // stored here for convenience
+    start_h: f32,
+    end_h: f32,
 }
 
 fn main() {
@@ -36,10 +38,15 @@ impl Model {
         let grid = helper::new_grid(
             num_rows.try_into().unwrap(),
             num_cols.try_into().unwrap(),
-            false,
+            0,
         );
         let prev = grid.clone();
-        let mut this = Model { grid, prev };
+        let mut this = Model {
+            grid,
+            prev,
+            start_h: 0.0,
+            end_h: 0.0,
+        };
         this.reinit();
         this
     }
@@ -64,14 +71,15 @@ impl Model {
         draw.background().color(BLACK);
         for (r, row) in model.grid.iter().enumerate() {
             for (c, val) in row.iter().enumerate() {
-                if *val {
+                if *val > 0 {
+                    let (h, s, v) = age_hsv(*val, model.start_h, model.end_h);
                     draw.rect()
                         .x_y(
                             (c as u32 * CELL_WIDTH) as f32 - xadj,
                             yadj - (r as u32 * CELL_WIDTH) as f32,
                         )
                         .w_h(CELL_WIDTH as f32, CELL_WIDTH as f32)
-                        .color(WHITE)
+                        .hsv(h, s, v)
                         .stroke(BLACK);
                 }
             }
@@ -82,9 +90,11 @@ impl Model {
     fn reinit(&mut self) {
         for row in self.grid.iter_mut() {
             for c in 0..row.len() {
-                row[c] = rand::random();
+                row[c] = if rand::random() { 1 } else { 0 };
             }
         }
+        self.start_h = random_f32();
+        self.end_h = random_f32();
     }
 
     fn resize(&mut self, ww: f32, wh: f32) {
@@ -93,8 +103,8 @@ impl Model {
             (ww as u32 / CELL_WIDTH).try_into().unwrap(),
             (wh as u32 / CELL_WIDTH).try_into().unwrap(),
         );
-        helper::resize_grid(&mut self.grid, num_rows, num_cols, false);
-        helper::resize_grid(&mut self.prev, num_rows, num_cols, false);
+        helper::resize_grid(&mut self.grid, num_rows, num_cols, 0);
+        helper::resize_grid(&mut self.prev, num_rows, num_cols, 0);
     }
 }
 
@@ -116,6 +126,13 @@ fn event(_app: &App, model: &mut Model, event: Event) {
 
 mod helper {
     use super::*;
+
+    // f32 doesn't implement Ord :( soooo safe
+    // pub fn bounded<T: Ord>(x: T, a: T, b: T) -> T {
+    //     let min = a.min(b);
+    //     let max = a.max(b);
+    //     x.min(max).max(min)
+    // }
 
     pub fn blit<T: Copy>(src: &Grid<T>, dst: &mut Grid<T>) {
         for r in 0..src.len() {
@@ -151,11 +168,19 @@ mod helper {
     }
 }
 
-fn alive(living: bool, num_neighbors: usize) -> bool {
-    match (living, num_neighbors) {
-        (true, 2..=3) => true,
-        (false, 3) => true,
-        _ => false,
+fn age_hsv(age: u32, start_h: f32, end_h: f32) -> (f32, f32, f32) {
+    // let h = map_range((age as f32).log2(), 1.0, 7.0, 0.0, -0.4).max(-0.4);
+    // TODO: should bound this value...
+    let h = map_range(age, 1, 500, start_h, end_h);
+    let v = map_range(age, 1, 10, 1.0, 0.3).max(0.3);
+    (h, 1.0, v)
+}
+
+fn alive(cell: u32, num_neighbors: usize) -> u32 {
+    match (cell > 0, num_neighbors) {
+        (true, 2..=3) => cell + 1,
+        (false, 3) => 1,
+        _ => 0,
     }
 }
 
@@ -169,32 +194,32 @@ fn neighbor_positions(x: usize, max: usize) -> (usize, usize) {
     }
 }
 
-fn live_neighbors(grid: &Grid<bool>, r: usize, c: usize) -> usize {
+fn live_neighbors(grid: &Grid<u32>, r: usize, c: usize) -> usize {
     let mut n = 0;
     let (r_1, r1) = neighbor_positions(r, grid.len());
     let (c_1, c1) = neighbor_positions(c, grid[0].len());
-    if grid[r_1][c_1] {
+    if grid[r_1][c_1] > 0 {
         n += 1
     }
-    if grid[r_1][c] {
+    if grid[r_1][c] > 0 {
         n += 1
     }
-    if grid[r_1][c1] {
+    if grid[r_1][c1] > 0 {
         n += 1
     }
-    if grid[r][c_1] {
+    if grid[r][c_1] > 0 {
         n += 1
     }
-    if grid[r][c1] {
+    if grid[r][c1] > 0 {
         n += 1
     }
-    if grid[r1][c_1] {
+    if grid[r1][c_1] > 0 {
         n += 1
     }
-    if grid[r1][c] {
+    if grid[r1][c] > 0 {
         n += 1
     }
-    if grid[r1][c1] {
+    if grid[r1][c1] > 0 {
         n += 1
     }
     n
