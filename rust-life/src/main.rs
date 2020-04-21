@@ -1,7 +1,9 @@
 // TODO:
-// - resizable, fit to screen
+// - colors for lifetime
 // - multithreaded
+// X resizable
 // X bindings to reset
+// X fit to screen
 // X framerate
 
 use rand;
@@ -10,11 +12,11 @@ use nannou::prelude::*;
 
 const CELL_WIDTH: u32 = 4;
 
-type Grid = Vec<Vec<bool>>;
+type Grid<T> = Vec<Vec<T>>;
 
 struct Model {
-    grid: Grid,
-    prev: Grid,  // stored here for convenience
+    grid: Grid<bool>,
+    prev: Grid<bool>,  // stored here for convenience
 }
 
 fn main() {
@@ -34,13 +36,12 @@ impl Model {
             .size(ww, wh)
             .build()
             .unwrap();
-        let mut rows = Vec::with_capacity(num_rows.try_into().unwrap());
-        for _r in 0..num_rows {
-            let col = vec![false; num_cols.try_into().unwrap()];
-            rows.push(col);
-        }
-        let prev = rows.clone();
-        let mut this = Model { grid: rows, prev };
+        let grid = helper::new_grid(
+            num_rows.try_into().unwrap(),
+            num_cols.try_into().unwrap(),
+            false);
+        let prev = grid.clone();
+        let mut this = Model { grid, prev };
         this.reinit();
         this
     }
@@ -84,12 +85,27 @@ impl Model {
             }
         }
     }
+
+    fn resize(&mut self, ww: f32, wh: f32) {
+        println!("resize: {},{}", ww, wh);
+        let (num_cols, num_rows) = (
+            (ww as u32 / CELL_WIDTH).try_into().unwrap(),
+            (wh as u32 / CELL_WIDTH).try_into().unwrap());
+        helper::resize_grid(&mut self.grid, num_rows, num_cols, false);
+        helper::resize_grid(&mut self.prev, num_rows, num_cols, false);
+    }
 }
 
 fn event(_app: &App, model: &mut Model, event: Event) {
+    fn win_event(model: &mut Model, wevent: WindowEvent) {
+        match wevent {
+            KeyReleased(Key::R) => model.reinit(),
+            Resized(Vector2 { x, y }) => model.resize(x, y),
+            _ => ()
+        }
+    }
     match event {
-        Event::WindowEvent { simple: Some(KeyReleased(Key::R)), .. } =>
-            model.reinit(),
+        Event::WindowEvent { simple: Some(w), .. } => win_event(model, w),
         _ => ()
     }
 }
@@ -97,12 +113,27 @@ fn event(_app: &App, model: &mut Model, event: Event) {
 mod helper {
     use super::*;
 
-    pub fn blit(src: &Grid, dst: &mut Grid) {
+    pub fn blit<T: Copy>(src: &Grid<T>, dst: &mut Grid<T>) {
         for r in 0..src.len() {
             for c in 0..src[0].len() {
                 dst[r][c] = src[r][c];
             }
         }
+    }
+
+    pub fn new_grid<T: Copy>(num_rows: usize, num_cols: usize, x: T) -> Grid<T> {
+        let mut rows = Vec::with_capacity(num_rows);
+        for _r in 0..num_rows {
+            rows.push(vec![x; num_cols]);
+        }
+        rows
+    }
+
+    pub fn resize_grid<T: Copy>(grid: &mut Grid<T>, num_rows: usize, num_cols: usize, x: T) {
+        for col in grid.iter_mut() {
+            col.resize(num_cols, x);
+        }
+        grid.resize_with(num_rows, || { vec![x; num_cols]});
     }
 
     pub fn primary_monitor_points(app: &App) -> (u32, u32) {
@@ -127,7 +158,7 @@ fn neighbor_positions(x: usize, max: usize) -> (usize, usize) {
     else { ( x - 1, x + 1) }
 }
 
-fn live_neighbors(grid: &Grid, r: usize, c: usize) -> usize {
+fn live_neighbors(grid: &Grid<bool>, r: usize, c: usize) -> usize {
     let mut n = 0;
     let (r_1, r1) = neighbor_positions(r, grid.len());
     let (c_1, c1) = neighbor_positions(c, grid[0].len());
