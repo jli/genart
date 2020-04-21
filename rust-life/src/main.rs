@@ -6,9 +6,9 @@
 // X fit to screen
 // X framerate
 
+use nannou::prelude::*;
 use rand;
 use std::convert::TryInto;
-use nannou::prelude::*;
 
 const CELL_WIDTH: u32 = 4;
 
@@ -16,7 +16,7 @@ type Grid<T> = Vec<Vec<T>>;
 
 struct Model {
     grid: Grid<bool>,
-    prev: Grid<bool>,  // stored here for convenience
+    prev: Grid<bool>, // stored here for convenience
 }
 
 fn main() {
@@ -32,14 +32,12 @@ impl Model {
         let (mw, mh) = helper::primary_monitor_points(app);
         let (ww, wh) = (mw / 2, mh / 2);
         let (num_cols, num_rows) = (ww / CELL_WIDTH, wh / CELL_WIDTH);
-        app.new_window()
-            .size(ww, wh)
-            .build()
-            .unwrap();
+        app.new_window().size(ww, wh).build().unwrap();
         let grid = helper::new_grid(
             num_rows.try_into().unwrap(),
             num_cols.try_into().unwrap(),
-            false);
+            false,
+        );
         let prev = grid.clone();
         let mut this = Model { grid, prev };
         this.reinit();
@@ -68,10 +66,13 @@ impl Model {
             for (c, val) in row.iter().enumerate() {
                 if *val {
                     draw.rect()
-                        .x_y((c as u32 * CELL_WIDTH) as f32 - xadj,
-                            yadj - (r as u32* CELL_WIDTH) as f32)
+                        .x_y(
+                            (c as u32 * CELL_WIDTH) as f32 - xadj,
+                            yadj - (r as u32 * CELL_WIDTH) as f32,
+                        )
                         .w_h(CELL_WIDTH as f32, CELL_WIDTH as f32)
-                        .color(WHITE).stroke(BLACK);
+                        .color(WHITE)
+                        .stroke(BLACK);
                 }
             }
         }
@@ -90,7 +91,8 @@ impl Model {
         println!("resize: {},{}", ww, wh);
         let (num_cols, num_rows) = (
             (ww as u32 / CELL_WIDTH).try_into().unwrap(),
-            (wh as u32 / CELL_WIDTH).try_into().unwrap());
+            (wh as u32 / CELL_WIDTH).try_into().unwrap(),
+        );
         helper::resize_grid(&mut self.grid, num_rows, num_cols, false);
         helper::resize_grid(&mut self.prev, num_rows, num_cols, false);
     }
@@ -101,12 +103,14 @@ fn event(_app: &App, model: &mut Model, event: Event) {
         match wevent {
             KeyReleased(Key::R) => model.reinit(),
             Resized(Vector2 { x, y }) => model.resize(x, y),
-            _ => ()
+            _ => (),
         }
     }
     match event {
-        Event::WindowEvent { simple: Some(w), .. } => win_event(model, w),
-        _ => ()
+        Event::WindowEvent {
+            simple: Some(w), ..
+        } => win_event(model, w),
+        _ => (),
     }
 }
 
@@ -133,14 +137,17 @@ mod helper {
         for col in grid.iter_mut() {
             col.resize(num_cols, x);
         }
-        grid.resize_with(num_rows, || { vec![x; num_cols]});
+        grid.resize_with(num_rows, || vec![x; num_cols]);
     }
 
     pub fn primary_monitor_points(app: &App) -> (u32, u32) {
         let mon = app.primary_monitor();
         let size = mon.size();
         let scale = mon.scale_factor();
-        ((size.width as f64 / scale) as u32, (size.height as f64 / scale) as u32)
+        (
+            (size.width as f64 / scale) as u32,
+            (size.height as f64 / scale) as u32,
+        )
     }
 }
 
@@ -148,28 +155,47 @@ fn alive(living: bool, num_neighbors: usize) -> bool {
     match (living, num_neighbors) {
         (true, 2..=3) => true,
         (false, 3) => true,
-        _ => false
+        _ => false,
     }
 }
 
 fn neighbor_positions(x: usize, max: usize) -> (usize, usize) {
-    if x == 0 { (max - 1, 1) }
-    else if x == max - 1 { (max - 2, 0) }
-    else { ( x - 1, x + 1) }
+    if x == 0 {
+        (max - 1, 1)
+    } else if x == max - 1 {
+        (max - 2, 0)
+    } else {
+        (x - 1, x + 1)
+    }
 }
 
 fn live_neighbors(grid: &Grid<bool>, r: usize, c: usize) -> usize {
     let mut n = 0;
     let (r_1, r1) = neighbor_positions(r, grid.len());
     let (c_1, c1) = neighbor_positions(c, grid[0].len());
-    if grid[r_1][c_1] { n += 1 }
-    if grid[r_1][c] { n += 1 }
-    if grid[r_1][c1] { n += 1 }
-    if grid[r][c_1] { n += 1 }
-    if grid[r][c1] { n += 1 }
-    if grid[r1][c_1] { n += 1 }
-    if grid[r1][c] { n += 1 }
-    if grid[r1][c1] { n += 1 }
+    if grid[r_1][c_1] {
+        n += 1
+    }
+    if grid[r_1][c] {
+        n += 1
+    }
+    if grid[r_1][c1] {
+        n += 1
+    }
+    if grid[r][c_1] {
+        n += 1
+    }
+    if grid[r][c1] {
+        n += 1
+    }
+    if grid[r1][c_1] {
+        n += 1
+    }
+    if grid[r1][c] {
+        n += 1
+    }
+    if grid[r1][c1] {
+        n += 1
+    }
     n
 }
-
