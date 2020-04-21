@@ -1,7 +1,7 @@
 // TODO:
-// - bindings to reset
 // - resizable, fit to screen
 // - multithreaded
+// X bindings to reset
 // X framerate
 
 use rand;
@@ -21,6 +21,7 @@ fn main() {
     nannou::app(Model::new)
         .update(Model::update)
         .view(Model::view)
+        .event(event)
         .run();
 }
 
@@ -35,14 +36,13 @@ impl Model {
             .unwrap();
         let mut rows = Vec::with_capacity(num_rows.try_into().unwrap());
         for _r in 0..num_rows {
-            let mut col = Vec::with_capacity(num_cols.try_into().unwrap());
-            for _c in 0..num_cols {
-                col.push(rand::random());
-            }
+            let col = vec![false; num_cols.try_into().unwrap()];
             rows.push(col);
         }
         let prev = rows.clone();
-        Model { grid: rows, prev }
+        let mut this = Model { grid: rows, prev };
+        this.reinit();
+        this
     }
 
     fn update(_app: &App, model: &mut Model, _update: Update) {
@@ -75,6 +75,22 @@ impl Model {
             }
         }
         draw.to_frame(app, &frame).unwrap();
+    }
+
+    fn reinit(&mut self) {
+        for row in self.grid.iter_mut() {
+            for c in 0..row.len() {
+                row[c] = rand::random();
+            }
+        }
+    }
+}
+
+fn event(_app: &App, model: &mut Model, event: Event) {
+    match event {
+        Event::WindowEvent { simple: Some(KeyReleased(Key::R)), .. } =>
+            model.reinit(),
+        _ => ()
     }
 }
 
