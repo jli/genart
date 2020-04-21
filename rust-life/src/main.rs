@@ -4,12 +4,11 @@
 // - multithreaded
 // X framerate
 
-use std::time::Duration;
 use rand;
+use std::convert::TryInto;
 use nannou::prelude::*;
 
-const GRID_SIZE: usize = 100;
-const CELL_WIDTH: usize = 10;
+const CELL_WIDTH: u32 = 4;
 
 type Grid = Vec<Vec<bool>>;
 
@@ -27,18 +26,17 @@ fn main() {
 
 impl Model {
     fn new(app: &App) -> Model {
-        const SIZE: u32 = (GRID_SIZE * CELL_WIDTH) as u32;
-        println!("window size will be: {}x{}", SIZE, SIZE);
+        let (mw, mh) = helper::primary_monitor_points(app);
+        let (ww, wh) = (mw / 2, mh / 2);
+        let (num_cols, num_rows) = (ww / CELL_WIDTH, wh / CELL_WIDTH);
         app.new_window()
-            .size(SIZE, SIZE)
+            .size(ww, wh)
             .build()
             .unwrap();
-        app.set_loop_mode(LoopMode::Rate { update_interval: Duration::new(2, 0) } );
-        let mut rows = Vec::with_capacity(GRID_SIZE);
-        for _r in 0..GRID_SIZE {
-            let mut col = Vec::with_capacity(GRID_SIZE);
-            for _c in 0..GRID_SIZE {
-                // col.push((r + c) % 4 == 0);
+        let mut rows = Vec::with_capacity(num_rows.try_into().unwrap());
+        for _r in 0..num_rows {
+            let mut col = Vec::with_capacity(num_cols.try_into().unwrap());
+            for _c in 0..num_cols {
                 col.push(rand::random());
             }
             rows.push(col);
@@ -69,7 +67,8 @@ impl Model {
             for (c, val) in row.iter().enumerate() {
                 if *val {
                     draw.rect()
-                        .x_y((c * CELL_WIDTH) as f32 - xadj, yadj - (r * CELL_WIDTH) as f32)
+                        .x_y((c as u32 * CELL_WIDTH) as f32 - xadj,
+                            yadj - (r as u32* CELL_WIDTH) as f32)
                         .w_h(CELL_WIDTH as f32, CELL_WIDTH as f32)
                         .color(WHITE).stroke(BLACK);
                 }
@@ -88,6 +87,13 @@ mod helper {
                 dst[r][c] = src[r][c];
             }
         }
+    }
+
+    pub fn primary_monitor_points(app: &App) -> (u32, u32) {
+        let mon = app.primary_monitor();
+        let size = mon.size();
+        let scale = mon.scale_factor();
+        ((size.width as f64 / scale) as u32, (size.height as f64 / scale) as u32)
     }
 }
 
