@@ -1,5 +1,8 @@
 // TODO:
 // - multithreaded
+// - mouse clicks to toggle cells, drop gliders
+// - controls to change cell size
+// X controls to pan in the torus world
 // X colors for lifetime
 // X resizable
 // X bindings to reset
@@ -10,15 +13,21 @@ use nannou::prelude::*;
 use rand;
 use std::convert::TryInto;
 
-const CELL_WIDTH: u32 = 4;
+const CELL_WIDTH: u32 = 6;
+const CELL_WIDTHF: f32 = CELL_WIDTH as f32;
 
 type Grid<T> = Vec<Vec<T>>;
 
 struct Model {
     grid: Grid<u32>,
     prev: Grid<u32>, // stored here for convenience
+    // hue values
     start_h: f32,
     end_h: f32,
+    // pan values
+    pan_x: u32,
+    pan_y: u32,
+    updating: bool,
 }
 
 fn main() {
@@ -46,12 +55,18 @@ impl Model {
             prev,
             start_h: 0.0,
             end_h: 0.0,
+            pan_x: 0,
+            pan_y: 0,
+            updating: true,
         };
         this.reinit();
         this
     }
 
     fn update(_app: &App, model: &mut Model, _update: Update) {
+        if !model.updating {
+            return;
+        }
         helper::blit(&model.grid, &mut model.prev);
         for (r, row) in model.prev.iter().enumerate() {
             for (c, val) in row.iter().enumerate() {
@@ -65,20 +80,23 @@ impl Model {
             println!("v: {:.1} fps, {} frames", app.fps(), app.elapsed_frames());
         }
         let (ww, wh) = app.main_window().inner_size_points();
-        let xadj: f32 = ww as f32 / 2.0 - CELL_WIDTH as f32 / 2.0;
-        let yadj: f32 = wh as f32 / 2.0 - CELL_WIDTH as f32 / 2.0;
+        let xadj: f32 = ww as f32 / 2.0 - CELL_WIDTHF / 2.0;
+        let yadj: f32 = wh as f32 / 2.0 - CELL_WIDTHF / 2.0;
         let draw = app.draw();
         draw.background().color(BLACK);
         for (r, row) in model.grid.iter().enumerate() {
             for (c, val) in row.iter().enumerate() {
                 if *val > 0 {
                     let (h, s, v) = age_hsv(*val, model.start_h, model.end_h);
+                    // TODO: ugh
+                    let x = ((c as u32 + model.pan_x) % model.grid[0].len() as u32 * CELL_WIDTH)
+                        as f32
+                        - xadj;
+                    let y = yadj
+                        - ((r as u32 + model.pan_y) % model.grid.len() as u32 * CELL_WIDTH) as f32;
                     draw.rect()
-                        .x_y(
-                            (c as u32 * CELL_WIDTH) as f32 - xadj,
-                            yadj - (r as u32 * CELL_WIDTH) as f32,
-                        )
-                        .w_h(CELL_WIDTH as f32, CELL_WIDTH as f32)
+                        .x_y(x, y)
+                        .w_h(CELL_WIDTHF, CELL_WIDTHF)
                         .hsv(h, s, v)
                         .stroke(BLACK);
                 }
@@ -106,20 +124,39 @@ impl Model {
         helper::resize_grid(&mut self.grid, num_rows, num_cols, 0);
         helper::resize_grid(&mut self.prev, num_rows, num_cols, 0);
     }
+
+    fn toggle_updates(&mut self) {
+        self.updating = !self.updating;
+    }
+
+    fn pan(&mut self, xd: i32, yd: i32) {
+        // TODO: ugh
+        let xd = (if xd < 0 { xd + self.grid[0].len() as i32 } else { xd }) as u32;
+        let yd = (if yd < 0 { yd + self.grid.len() as i32 } else { yd }) as u32;
+        self.pan_x = (self.pan_x + xd) % self.grid[0].len() as u32;
+        self.pan_y = (self.pan_y + yd) % self.grid.len() as u32;
+        println!("panned: {},{}, now {},{}", xd, yd, self.pan_x, self.pan_y);
+    }
 }
 
-fn event(_app: &App, model: &mut Model, event: Event) {
-    fn win_event(model: &mut Model, wevent: WindowEvent) {
+fn event(app: &App, model: &mut Model, event: Event) {
+    let mut win_event = |wevent| {
+        let mult = if app.keys.mods.shift() { 10 } else { 1 };
         match wevent {
-            KeyReleased(Key::R) => model.reinit(),
+            KeyPressed(Key::R) => model.reinit(),
+            KeyPressed(Key::Space) => model.toggle_updates(),
+            KeyPressed(Key::Left) => model.pan(1 * mult, 0),
+            KeyPressed(Key::Right) => model.pan(-1 * mult, 0),
+            KeyPressed(Key::Up) => model.pan(0, 1 * mult),
+            KeyPressed(Key::Down) => model.pan(0, -1 * mult),
             Resized(Vector2 { x, y }) => model.resize(x, y),
             _ => (),
         }
-    }
+    };
     match event {
         Event::WindowEvent {
             simple: Some(w), ..
-        } => win_event(model, w),
+        } => win_event(w),
         _ => (),
     }
 }
