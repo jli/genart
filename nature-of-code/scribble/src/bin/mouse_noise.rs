@@ -2,11 +2,11 @@ use nannou::noise::{NoiseFn, OpenSimplex};
 use nannou::prelude::*;
 use std::collections::VecDeque;
 
-const WIN_SIZE: f32 = 750.0;
-const NUM_SPRITES: usize = 4;
-const NOISE_MAG: f32 = 3.5;
-const ACC_SCALE: f32 = 0.003;
-const VEL_MAX: f32 = 5.0;
+const WIN_SIZE: f32 = 700.0;
+const NUM_SPRITES: usize = 5;
+const NOISE_MAG: f32 = 6.5;
+const ACC_SCALE: f32 = 0.005;
+const VEL_MAX: f32 = 8.0;
 const TRAIL_LIMIT: usize = 5;
 
 fn main() {
@@ -55,7 +55,11 @@ impl Model {
   fn update(app: &App, model: &mut Model, _update: Update) {
     let mpos = app.mouse.position();
     for sprite in model.sprites.iter_mut() {
-      sprite.update(&mpos, &model.noise, app.time);
+      let t = app.time;  // plain
+      // NOTE: this doesn't work well during screenshot capture because fps varies too much...
+      // workaround could be to store first value and use that? ugh.
+      // let t = app.time * app.fps() / 60.0;  // normalized
+      sprite.update(&mpos, &model.noise, t);
     }
   }
 }
@@ -106,5 +110,18 @@ fn view(app: &App, model: &Model, frame: Frame) {
         .hsva(0.0, sat, 1.0, alpha);
     }
   }
+  draw.ellipse().xy(app.mouse.position()).w_h(13.0, 13.0).hsva(0.4,1.0,1.0,0.6);
   draw.to_frame(app, &frame).unwrap();
+
+  if frame.nth() % 30 == 0 {
+    println!(
+      "frame {}\ttime {}\tfps {}\tt {}\ttnorm {}",
+      frame.nth(),
+      app.time,
+      app.fps(),
+      frame.nth() as f64 / 60.0,
+      app.time * app.fps() / 60.0
+    );
+  }
+  app.main_window().capture_frame(format!("frames/f{:04}.png", frame.nth()));
 }
