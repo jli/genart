@@ -13,7 +13,7 @@ use nannou::prelude::*;
 use rand;
 use std::convert::TryInto;
 
-const CELL_WIDTH: u32 = 6;
+const CELL_WIDTH: u32 = 5;
 const CELL_WIDTHF: f32 = CELL_WIDTH as f32;
 
 type Grid<T> = Vec<Vec<T>>;
@@ -30,7 +30,14 @@ struct Model {
     updating: bool,
 }
 
+static mut SAVE_FRAMES: bool = false;
+
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() == 2 {
+      println!("saving to frames/");
+      unsafe { SAVE_FRAMES = true; }
+    }
     nannou::app(Model::new)
         .update(Model::update)
         .view(Model::view)
@@ -79,6 +86,9 @@ impl Model {
         if app.elapsed_frames() % 30 == 0 {
             println!("v: {:.1} fps, {} frames", app.fps(), app.elapsed_frames());
         }
+        if !model.updating {
+            return;
+        }
         let (ww, wh) = app.main_window().inner_size_points();
         let xadj: f32 = ww as f32 / 2.0 - CELL_WIDTHF / 2.0;
         let yadj: f32 = wh as f32 / 2.0 - CELL_WIDTHF / 2.0;
@@ -103,6 +113,13 @@ impl Model {
             }
         }
         draw.to_frame(app, &frame).unwrap();
+        unsafe {
+            if SAVE_FRAMES {
+              app
+                .main_window()
+                .capture_frame(format!("frames/f{:04}.png", frame.nth()));
+            }
+        }
     }
 
     fn reinit(&mut self) {
