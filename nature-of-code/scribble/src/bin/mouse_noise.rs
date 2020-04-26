@@ -9,7 +9,17 @@ const ACC_SCALE: f32 = 0.005;
 const VEL_MAX: f32 = 8.0;
 const TRAIL_LIMIT: usize = 5;
 
+static mut SAVE_FRAMES: bool = false;
+
 fn main() {
+  let args: Vec<String> = std::env::args().collect();
+  if args.len() == 2 {
+    println!("saving to frames/");
+    unsafe {
+      SAVE_FRAMES = true;
+    }
+  }
+
   nannou::app(Model::new)
     .update(Model::update)
     .simple_window(view)
@@ -55,10 +65,9 @@ impl Model {
   fn update(app: &App, model: &mut Model, _update: Update) {
     let mpos = app.mouse.position();
     for sprite in model.sprites.iter_mut() {
-      let t = app.time;  // plain
-      // NOTE: this doesn't work well during screenshot capture because fps varies too much...
-      // workaround could be to store first value and use that? ugh.
-      // let t = app.time * app.fps() / 60.0;  // normalized
+      // let t = app.time;
+      // normalized
+      let t = app.elapsed_frames() as f32 / 30.0;
       sprite.update(&mpos, &model.noise, t);
     }
   }
@@ -110,7 +119,11 @@ fn view(app: &App, model: &Model, frame: Frame) {
         .hsva(0.0, sat, 1.0, alpha);
     }
   }
-  draw.ellipse().xy(app.mouse.position()).w_h(13.0, 13.0).hsva(0.4,1.0,1.0,0.6);
+  draw
+    .ellipse()
+    .xy(app.mouse.position())
+    .w_h(13.0, 13.0)
+    .hsva(0.4, 1.0, 1.0, 0.6);
   draw.to_frame(app, &frame).unwrap();
 
   if frame.nth() % 30 == 0 {
@@ -123,5 +136,11 @@ fn view(app: &App, model: &Model, frame: Frame) {
       app.time * app.fps() / 60.0
     );
   }
-  app.main_window().capture_frame(format!("frames/f{:04}.png", frame.nth()));
+  unsafe {
+    if SAVE_FRAMES {
+      app
+        .main_window()
+        .capture_frame(format!("frames/f{:04}.png", frame.nth()));
+    }
+  }
 }
