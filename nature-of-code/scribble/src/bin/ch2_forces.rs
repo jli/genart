@@ -9,12 +9,14 @@ fn main() {
     .update(Model::update)
     .simple_window(view)
     .size(WIN_SIZE, WIN_SIZE)
+    .event(event)
     .run();
 }
 
 struct Model {
   balls: Vec<Ball>,
   attractors: Vec<Ball>,
+  trails: bool,
 }
 
 #[derive(Clone)]
@@ -35,7 +37,7 @@ impl Model {
     for _ in 0..NUM_ATTRACTORS {
       attractors.push(Ball::attractor());
     }
-    Model { balls, attractors }
+    Model { balls, attractors, trails: false }
   }
 
   fn update(app: &App, model: &mut Model, _: Update) {
@@ -75,7 +77,7 @@ impl Ball {
     let t = 1.0 / 30.0;
     // let g = vec2(0.0, -10.0);
     // let wind = vec2(5.0, 0.0) / self.mass;
-    let mut attractor = vec2(0., 0.) - self.pos;  // attract towards center
+    let mut attractor = vec2(0., 0.);
     for a in attractors.iter() {
       attractor += (a.pos - self.pos).map(|x| x * a.mass * self.mass / 500.0);
     }
@@ -108,7 +110,9 @@ impl Ball {
 
 fn view(app: &App, model: &Model, frame: Frame) {
   let draw = app.draw();
-  draw.background().color(WHITE);
+  if !model.trails {
+    draw.background().color(WHITE);
+  }
 
   if app.elapsed_frames() % 30 == 0 {
     println!(
@@ -137,4 +141,19 @@ fn view(app: &App, model: &Model, frame: Frame) {
   }
 
   draw.to_frame(app, &frame).unwrap();
+}
+
+fn event(app: &App, model: &mut Model, event: Event) {
+  let mut win_event = |wevent| {
+      match wevent {
+          KeyPressed(Key::T) => model.trails = !model.trails,
+          _ => (),
+      }
+  };
+  match event {
+      Event::WindowEvent {
+          simple: Some(w), ..
+      } => win_event(w),
+      _ => (),
+  }
 }
