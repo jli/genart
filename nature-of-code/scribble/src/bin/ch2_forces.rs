@@ -4,7 +4,16 @@ const NUM_BALLS: usize = 10;
 const NUM_ATTRACTORS: usize = 3;
 const WIN_SIZE: u32 = 1000;
 
+static mut SAVE_FRAMES: bool = false;
+
 fn main() {
+  let args: Vec<String> = std::env::args().collect();
+  if args.len() == 2 {
+    println!("saving to frames/");
+    unsafe {
+      SAVE_FRAMES = true;
+    }
+  }
   nannou::app(Model::new)
     .update(Model::update)
     .simple_window(view)
@@ -141,9 +150,16 @@ fn view(app: &App, model: &Model, frame: Frame) {
   }
 
   draw.to_frame(app, &frame).unwrap();
+  unsafe {
+    if SAVE_FRAMES {
+      app
+        .main_window()
+        .capture_frame(format!("frames/f{:04}.png", frame.nth()));
+    }
+  }
 }
 
-fn event(app: &App, model: &mut Model, event: Event) {
+fn event(_app: &App, model: &mut Model, event: Event) {
   let mut win_event = |wevent| {
       match wevent {
           KeyPressed(Key::T) => model.trails = !model.trails,
