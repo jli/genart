@@ -3,10 +3,12 @@ use nannou::prelude::*;
 
 const WIN_SIZE: u32 = 500;
 const WIN_SIZEF: f32 = WIN_SIZE as f32;
+const MAX_SPIRALS: usize = 4;
+const RESET_FRAMES: u32 = 300;
 
 fn main() {
-  nannou::app(model)
-    .update(update)
+  nannou::app(|_| Model::new())
+    .update(|_, m, _| m.update())
     .simple_window(view)
     .size(WIN_SIZE, WIN_SIZE)
     .run();
@@ -23,47 +25,57 @@ impl Dir {
       Dir::Neg => -1.,
     }
   }
+}
 
-  fn fg_bg(self: &Self) -> (rgb::Srgb<u8>, rgb::Srgb<u8>) {
-    match self {
-      Dir::Pos => (BLACK, WHITE),
-      Dir::Neg => (WHITE, BLACK),
+struct Model {
+  spirals: Vec<Spiral>,
+  frames: u32,
+}
+
+impl Model {
+  fn new() -> Self {
+    Self {
+      spirals: (0..random_range(1, MAX_SPIRALS)).map(|_| Spiral::random()).collect(),
+      frames: 0,
+    }
+  }
+  fn update(&mut self) {
+    self.spirals.iter_mut().for_each(Spiral::update);
+    self.frames += 1;
+    if self.frames > RESET_FRAMES {
+      *self = Self::new();
+      // self.frames = 0;
+      // self.spirals =
+      // self.spirals.iter_mut().for_each(|s| {
+      //   *s = Spiral::random();
+      // });
     }
   }
 }
 
-struct Model {
+struct Spiral {
   num_updates: u32,
   initial_theta: f32,
   num_spirals: f32,
   theta_delta: f32,
   dir: Dir,
-  color: Dir,
-  new: bool,
+  color: Srgba,
 }
 
-impl Model {
+impl Spiral {
   fn random() -> Self {
-    Model {
+    Self {
       num_updates: 0,
       initial_theta: random_range(0., TAU),
       num_spirals: random_range(1., 5.),
-      theta_delta: random_range(0.02, 0.1),
+      theta_delta: random_range(0.005, 0.03),
       dir: if random_f32() > 0.5 { Dir::Pos } else { Dir::Neg },
-      color: if random_f32() > 0.5 { Dir::Pos } else { Dir::Neg },
-      new: true,
+      color: hsva(0., 0., random_f32(), 0.8).into(),
     }
   }
 
   fn update(self: &mut Self) {
     self.num_updates += 1;
-    if self.num_updates > 1 {
-      self.new = false;
-    }
-    let num_updates_to_completion = TAU / self.theta_delta;
-    if self.num_updates as f32 > num_updates_to_completion {
-      *self = Model::random();
-    }
   }
 
   fn points<'a>(self: &'a Self) -> impl Iterator<Item = Point2> + 'a {
@@ -79,29 +91,14 @@ impl Model {
   }
 }
 
-fn model(_app: &App) -> Model {
-  Model::random()
-}
-
-fn update(_: &App, model: &mut Model, _: Update) {
-  model.update()
-}
-
 fn view(app: &App, model: &Model, frame: Frame) {
   let draw = app.draw();
-  // draw.background().color(WHITE);
-  // if frame.nth() == 0 {
-  //   draw.background().color(WHITE);
-  // }
-  let (fg, bg) = model.color.fg_bg();
-  if model.new {
-    draw.background().color(bg);
+  if frame.nth() == 0 {
+    draw.background().color(WHITE);
   }
-
-  let points = model.points();
-  //
-
-  draw.polyline().points(points).color(fg);
-
+  for s in &model.spirals {
+    let points = s.points();
+    draw.polyline().points(points).color(s.color);
+  }
   draw.to_frame(app, &frame).unwrap();
 }
