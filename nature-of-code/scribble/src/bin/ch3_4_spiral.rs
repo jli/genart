@@ -32,11 +32,6 @@ impl Dir {
   }
 }
 
-impl Default for Dir {
-  fn default() -> Dir { Dir::Pos }
-}
-
-#[derive(Default)]
 struct Model {
   num_updates: u32,
   initial_theta: f32,
@@ -47,31 +42,49 @@ struct Model {
   new: bool,
 }
 
+impl Model {
+  fn random() -> Self {
+    Model {
+      num_updates: 0,
+      initial_theta: random_range(0., TAU),
+      num_spirals: random_range(1., 5.),
+      theta_delta: random_range(0.02, 0.1),
+      dir: if random_f32() > 0.5 { Dir::Pos } else { Dir::Neg },
+      color: if random_f32() > 0.5 { Dir::Pos } else { Dir::Neg },
+      new: true,
+    }
+  }
+
+  fn update(self: &mut Self) {
+    self.num_updates += 1;
+    if self.num_updates > 1 {
+      self.new = false;
+    }
+    let num_updates_to_completion = TAU / self.theta_delta;
+    if self.num_updates as f32 > num_updates_to_completion {
+      *self = Model::random();
+    }
+  }
+
+  fn points<'a>(self: &'a Self) -> impl Iterator<Item = Point2> + 'a {
+    let num_points = 1000;
+    let theta = self.num_updates as f32 * self.theta_delta * self.dir.to_float() + self.initial_theta;
+    (0..num_points).map(move |i| {
+      let r = map_range(i, 0, num_points, 0., WIN_SIZEF / 2.);
+      let t = theta + map_range(i as f32, 0., num_points as f32 / self.num_spirals, 0., TAU);
+      let x = r * t.cos();
+      let y = r * t.sin();
+      pt2(x, y)
+    })
+  }
+}
+
 fn model(_app: &App) -> Model {
-  let mut m: Model = Default::default();
-  random_model(&mut m);
-  m
+  Model::random()
 }
 
-fn random_model(model: &mut Model) {
-  model.num_updates = 0;
-  model.initial_theta = random_range(0., TAU);
-  model.num_spirals = random_range(1., 5.);
-  model.theta_delta = random_range(0.02, 0.1);
-  model.dir = if random_f32() > 0.5 { Dir::Pos } else { Dir::Neg };
-  model.color = if random_f32() > 0.5 { Dir::Pos } else { Dir::Neg };
-  model.new = true;
-}
-
-fn update(_: &App, mut model: &mut Model, _: Update) {
-  model.num_updates += 1;
-  if model.num_updates > 1 {
-    model.new = false;
-  }
-  let num_updates_to_completion = TAU / model.theta_delta;
-  if model.num_updates as f32 > num_updates_to_completion {
-    random_model(&mut model)
-  }
+fn update(_: &App, model: &mut Model, _: Update) {
+  model.update()
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
@@ -85,15 +98,8 @@ fn view(app: &App, model: &Model, frame: Frame) {
     draw.background().color(bg);
   }
 
-  let num_points = 1000;
-  let theta = model.num_updates as f32 * model.theta_delta * model.dir.to_float() + model.initial_theta;
-  let points = (0..num_points).map(|i| {
-    let r = map_range(i, 0, num_points, 0., WIN_SIZEF / 2.);
-    let t = theta + map_range(i as f32, 0., num_points as f32 / model.num_spirals, 0., TAU);
-    let x = r * t.cos();
-    let y = r * t.sin();
-    pt2(x, y)
-  });
+  let points = model.points();
+  //
 
   draw.polyline().points(points).color(fg);
 
