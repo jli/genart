@@ -37,15 +37,6 @@ dependencies = [
 
 [[package]]
 name = "arrayvec"
-version = "0.4.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd9fd44efafa8690358b7408d253adf110036b88f55672a933f01d616ad9b1b9"
-dependencies = [
- "nodrop",
-]
-
-[[package]]
-name = "arrayvec"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cff77d8686867eceff3105329d4698d96c2391c176d5d03adc90c7389162b5b8"
@@ -590,7 +581,7 @@ version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071c004009c55a07bad2559b53a399ec3de30e7a08019bc06d53a40f653ffacd"
 dependencies = [
- "arrayvec 0.5.1",
+ "arrayvec",
  "bitflags",
  "block",
  "cocoa",
@@ -617,7 +608,7 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed9a9de46ec24543193d5dabad3a79e5ede990878bace548758846292466d916"
 dependencies = [
- "arrayvec 0.5.1",
+ "arrayvec",
  "ash",
  "byteorder",
  "core-graphics",
@@ -846,9 +837,9 @@ dependencies = [
 
 [[package]]
 name = "lyon"
-version = "0.14.2"
+version = "0.15.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db804539b5ad08f351eb746b8db2bc61c9b422708e8b4e7b27e2bf6afcd7150a"
+checksum = "a23d454ca7a53ad3385d9e45da4c97ea9a8233df5392353bc4a1a798d59dea9f"
 dependencies = [
  "lyon_algorithms",
  "lyon_tessellation",
@@ -856,9 +847,9 @@ dependencies = [
 
 [[package]]
 name = "lyon_algorithms"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34431bb426fbfea39c081e7ad2439267f68b8ea23f1cd3ece8badc9672d7189b"
+checksum = "d2e86e6055dbe55f459f98a65d990bbab535f4306d38e30459a3b7aec0bd027b"
 dependencies = [
  "lyon_path",
  "sid",
@@ -866,30 +857,31 @@ dependencies = [
 
 [[package]]
 name = "lyon_geom"
-version = "0.14.1"
+version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca04310c9807612a311506106000b6eccb2e27bca9bfb594ce80fb8a31231f9d"
+checksum = "575bca30bcbaea23a6f544a9e8b57b12ceb3611ea3fd4f5779a1d6705b4672b7"
 dependencies = [
- "arrayvec 0.4.12",
+ "arrayvec",
  "euclid",
  "num-traits 0.2.11",
 ]
 
 [[package]]
 name = "lyon_path"
-version = "0.14.0"
+version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bcb57ac24a5428539e2c7c0592766d5933c937d703f430990c669c00de96862"
+checksum = "c81a044414965c051b7b4785770820d23146480a2d8573cd825f03a00a5b8dd8"
 dependencies = [
  "lyon_geom",
 ]
 
 [[package]]
 name = "lyon_tessellation"
-version = "0.14.2"
+version = "0.15.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98bee3fd83e677c50711d2a7dbb9d66c9cce997393f6f9ddb4e581219cc9c55b"
+checksum = "a71f29de2e42414f80fd10a1c568a34b2cc911a85506f6bc36366d3b198c6398"
 dependencies = [
+ "arrayvec",
  "lyon_path",
  "sid",
 ]
@@ -1003,9 +995,9 @@ dependencies = [
 
 [[package]]
 name = "nannou"
-version = "0.13.1"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f06a8498f89719c0c31aa2d7abafae411a824cdfcad26ef7f228a70888bc6a8"
+checksum = "f8842385084570bc998503f29e0967a0968f79fcc22d452aaf5b2ed03273c959"
 dependencies = [
  "cgmath",
  "conrod_core",
@@ -1054,12 +1046,6 @@ dependencies = [
  "libc",
  "void",
 ]
-
-[[package]]
-name = "nodrop"
-version = "0.1.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 
 [[package]]
 name = "noise"
@@ -1758,7 +1744,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14a911032fb5791ccbeec9f28fdcb9bf0983b81f227bafdfd227c658d0731c8a"
 dependencies = [
  "approx",
- "arrayvec 0.5.1",
+ "arrayvec",
  "crossbeam-deque",
  "crossbeam-utils",
  "linked-hash-map",
@@ -1853,11 +1839,11 @@ dependencies = [
 
 [[package]]
 name = "sid"
-version = "0.5.2"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29e0a6006cf04d568a49363baca3dabddbbe46538f7c76692d405f5f5d140ecd"
+checksum = "bd5ac56c121948b4879bba9e519852c211bcdd8f014efff766441deff0b91bdb"
 dependencies = [
- "num-traits 0.1.43",
+ "num-traits 0.2.11",
 ]
 
 [[package]]
@@ -2166,7 +2152,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07e9c1ff587eddd68cdf2a78889c7a2128683161c72c67b94457cf498accaf7b"
 dependencies = [
- "arrayvec 0.5.1",
+ "arrayvec",
  "raw-window-handle",
  "wgpu-native",
  "zerocopy",
@@ -2178,7 +2164,7 @@ version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26642308af1cc9a28a24c7fc5e5408d9689c8a0c01d7117aa83d5a1ed6e83438"
 dependencies = [
- "arrayvec 0.5.1",
+ "arrayvec",
  "bitflags",
  "copyless",
  "fxhash",
@@ -2243,9 +2229,9 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "winit"
-version = "0.21.0"
+version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65a5c1a5ef76ac31cc97ad29489acdbed2178f3fc12ca00ee6cb11d60adb5a3a"
+checksum = "fc53342d3d1a3d57f3949e0692d93d5a8adb7814d8683cef4a09c2b550e94246"
 dependencies = [
  "android_glue",
  "bitflags",
