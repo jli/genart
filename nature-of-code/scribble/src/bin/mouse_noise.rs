@@ -3,10 +3,10 @@ use nannou::prelude::*;
 use std::collections::VecDeque;
 
 const WIN_SIZE: f32 = 700.0;
-const NUM_SPRITES: usize = 5;
-const NOISE_MAG: f32 = 6.5;
-const ACC_SCALE: f32 = 0.005;
-const VEL_MAX: f32 = 8.0;
+const NUM_SPRITES: usize = 300;
+const NOISE_MAG: f32 = 9.5;
+const ACC_SCALE: f32 = 0.019;
+const VEL_MAX: f32 = 15.0;
 const TRAIL_LIMIT: usize = 5;
 
 static mut SAVE_FRAMES: bool = false;
@@ -115,7 +115,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
       draw
         .ellipse()
         .xy(*pos)
-        .w_h(10.0, 10.0)
+        .w_h(3., 3.)
         .hsva(0.0, sat, 1.0, alpha);
     }
   }
@@ -123,7 +123,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
     .ellipse()
     .xy(app.mouse.position())
     .w_h(13.0, 13.0)
-    .hsva(0.4, 1.0, 1.0, 0.6);
+    .hsva(0.4, 1.0, 1.0, 0.2);
   draw.to_frame(app, &frame).unwrap();
 
   if frame.nth() % 30 == 0 {
@@ -136,11 +136,11 @@ fn view(app: &App, model: &Model, frame: Frame) {
       app.time * app.fps() / 60.0
     );
   }
-  unsafe {
-    if SAVE_FRAMES {
-      app
-        .main_window()
-        .capture_frame(format!("frames/f{:04}.png", frame.nth()));
-    }
-  }
+  // unsafe {
+  //   if SAVE_FRAMES {
+  //     app
+  //       .main_window()
+  //       .capture_frame(format!("frames/f{:04}.png", frame.nth()));
+  //   }
+  // }
 }
