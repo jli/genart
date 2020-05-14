@@ -30,7 +30,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
                     map_range(ix, 0, WIN_SIZE, -(WIN_SIZE as f32) / 2., WIN_SIZE as f32 / 2.),
                     map_range(iy, 0, WIN_SIZE, -(WIN_SIZE as f32) / 2., WIN_SIZE as f32 / 2.));
                 let noise_acc = noise_acc_at_pos(&model.noise, pos, time);
-                draw.arrow().points(pos, pos + noise_acc * 25.).hsva(0., 0., 0.2, 0.02);
+                draw.arrow().points(pos, pos + noise_acc * 25.).hsva(0., 0., 0.05, 0.01);
             }
         }
     }
@@ -101,6 +101,7 @@ impl ParticleSystem {
     fn update(&mut self, noise: &OpenSimplex, time: f64) {
         // Move it.
         // TODO: keep it on screen..?
+        // moving in opposite direction is interesting
         self.origin += noise_acc_at_pos(noise, self.origin, time) * -2.;
         for p in self.particles.iter_mut() {
             p.update(noise, time);
@@ -167,7 +168,9 @@ impl Particle {
 
         self.acc = noise_acc_at_pos(noise, self.pos, time);
         self.vel += self.acc;
-        self.pos += self.vel;
+        // TODO: limiting makes the trails more continuous/wispy
+        self.pos += self.vel.limit_magnitude(1.5);
+        // self.pos += self.vel;
         self.ttl -= 1;
     }
 
@@ -188,8 +191,10 @@ impl Particle {
 }
 
 fn noise_acc_at_pos(noise: &OpenSimplex, pos: Vector2, time: f64) -> Vector2 {
+    // position divisor controls flow field diversity(?)
+    // time divisor controls flow field speed
     vec2(
-        noise.get([pos.x as f64/ 100., time / 10.]) as f32,
-        noise.get([1000. + pos.y as f64/ 100., time / 10.]) as f32
+        noise.get([pos.x as f64/ 100., time / 5.]) as f32,
+        noise.get([1000. + pos.y as f64/ 100., time / 5.]) as f32
     )
 }
