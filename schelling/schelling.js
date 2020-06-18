@@ -4,14 +4,23 @@ const EMPTY = 0;
 const JET = 1;
 const SHARK = 2;
 const DEBUG = true;
+const CANVAS_PARENT = 'sketch';
 
 //// vars
 
-let GRID_COLS = 35;
-let GRID_ROWS = 35;
-let GRID_PIXELS = 10;
+const INIT_DIM = 50;
+let GRID_COLS;
+let GRID_ROWS;
+let CANVAS_SIZE;
+let GRID_PIXELS;
+function setSize(gridDim) {
+  GRID_COLS = gridDim;
+  GRID_ROWS = gridDim;
+  CANVAS_SIZE = Math.min(windowWidth * 0.8, windowHeight * 0.8);
+  GRID_PIXELS = CANVAS_SIZE / GRID_COLS;
+}
 
-let SIMILARITY_FRAC = 0.30;
+let SIMILARITY_FRAC = 0.50;
 let POP_BALANCE = 0.5;
 let EMPTY_FRAC = 0.1;
 
@@ -25,15 +34,18 @@ let world;
 //// impl
 
 function setup() {
+  setSize(INIT_DIM);
   colorMode(HSB, 100);
-  createCanvas(GRID_COLS * GRID_PIXELS, GRID_ROWS * GRID_PIXELS);
+  createCanvas(CANVAS_SIZE, CANVAS_SIZE).parent(CANVAS_PARENT);
   frameRate(FRAME_RATE);
   initWorld();
+  noStroke();
 }
 
 function draw() {
   world.draw();
   const allHappy = world.step();
+  updateStatus(world.gen, world.satisied);
   if (allHappy) {
     world.draw();  // one last time
     noLoop();
@@ -56,20 +68,23 @@ function togglePaused() {
 // function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
 //// World
+
 function initWorld() {
   world = new World(GRID_COLS, GRID_ROWS, GRID_PIXELS, SIMILARITY_FRAC, POP_BALANCE, EMPTY_FRAC);
+  loop();  // in case we're paused
 }
 
 class World {
   constructor(
     ncols, nrows, gridPixels, similarFrac, popBalance, emptyFrac) {
-    this.gen = 0;
     this.ncols = ncols;
     this.nrows = nrows;
     this.gridPixels = gridPixels;
     this.similarFrac = similarFrac;
-
     this.grid = this.randInit(popBalance, emptyFrac);
+    this.gen = 0;
+    const [unhappys, emptys] = this.computeUnhappyAndEmpty();
+    this.satisfied = this.computeSatisfiedFrac(unhappys, emptys);
   }
 
   randInit(popBalance, emptyFrac) {
@@ -92,6 +107,7 @@ class World {
     const [unhappys, emptys] = this.computeUnhappyAndEmpty();
     this.moveUnhappys(unhappys, emptys);
     ++this.gen;
+    this.satisied = this.computeSatisfiedFrac(unhappys, emptys);
     return unhappys.length === 0;
   }
 
@@ -107,6 +123,11 @@ class World {
     unhappys = shuffle(unhappys);
     emptys = shuffle(emptys);
     return [unhappys, emptys];
+  }
+
+  computeSatisfiedFrac(unhappys, emptys) {
+    const pop = this.ncols * this.nrows - emptys.length;
+    return (pop - unhappys.length) / pop;
   }
 
   moveUnhappys(unhappys, emptys) {
@@ -151,14 +172,33 @@ function randomAgent(popBalance, emptyFrac) {
 function agentColor(e) {
   switch (e) {
     case EMPTY: fill(0, 0, 90); break;
-    case JET: fill(0, 100, 95); break;
-    case SHARK: fill(50, 100, 95); break;
+    case JET: fill(35, 60, 95); break;
+    case SHARK: fill(65, 60, 95); break;
     default: console.error(`unknown agent: ${e}`);
   }
 }
 
 
 //// Utilities
+
+const NEIGHBOR_DIRS = [
+  [-1, -1], [0, -1], [1, -1],
+  [-1,  0], /*    */ [1,  0],
+  [-1,  1], [0,  1], [1,  1],
+];
+
+function neighborIndices(i, ncols, nrows) {
+  const [c, r] = convert1d2d(i, ncols);
+  const nis = [];
+  NEIGHBOR_DIRS.forEach(([cd, rd]) => {
+    const nc = c + cd, nr = r + rd;
+    if (0 <= nc && nc < ncols && 0 <= nr && nr < nrows) {
+      // console.log(`nI: (${i}=${c},${r} + ${cd},${rd})`)
+      nis.push(convert2d1d(nc, nr, ncols));
+    }
+  });
+  return nis;
+}
 
 function convert1d2d(i, ncols) {
    const col = i % ncols;
@@ -186,23 +226,4 @@ function shuffle(array) {
     array[randomIndex] = temporaryValue;
   }
   return array;
-}
-
-const NEIGHBOR_DIRS = [
-  [-1, -1], [0, -1], [1, -1],
-  [-1,  0], /*    */ [1,  0],
-  [-1,  1], [0,  1], [1,  1],
-];
-
-function neighborIndices(i, ncols, nrows) {
-  const [c, r] = convert1d2d(i, ncols);
-  const nis = [];
-  NEIGHBOR_DIRS.forEach(([cd, rd]) => {
-    const nc = c + cd, nr = r + rd;
-    if (0 <= nc && nc < ncols && 0 <= nr && nr < nrows) {
-      // console.log(`nI: (${i}=${c},${r} + ${cd},${rd})`)
-      nis.push(convert2d1d(nc, nr, ncols));
-    }
-  });
-  return nis;
 }

@@ -5,14 +5,59 @@
     <link rel="manifest" href="manifest.json">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Schelling simulation</title>
-    <style>
-      body {padding: 0; margin: 0; overflow: hidden;}
-    </style>
     <script src="../p5.min.js"></script>
     <script src="../p5js-addons/p5.dom.min.js"></script>
     <script src="schelling.js"></script>
+    <script>
+      function updateStatus(round, satisfied) {
+        document.getElementById('round').innerHTML = round;
+        document.getElementById('satisfied').innerHTML = percentStr(satisfied);
+      }
+      function percentStr(num) {
+        return Math.floor(num * 100) + '%';
+      }
+      function reset() { initWorld(); }
+      function step() { noLoop(); draw(); }
+      function start() { loop(); }
+      function pause() { noLoop(); }
+      document.addEventListener('DOMContentLoaded', () => {
+        const sim = document.getElementById('similarity')
+        sim.value = SIMILARITY_FRAC;
+        sim.onchange = (e) => { SIMILARITY_FRAC = e.target.valueAsNumber; }
+        const pop = document.getElementById('pop')
+        pop.value = POP_BALANCE;
+        pop.onchange = (e) => { POP_BALANCE = e.target.valueAsNumber; }
+        const emp = document.getElementById('empty')
+        emp.value = EMPTY_FRAC;
+        emp.onchange = (e) => { EMPTY_FRAC = e.target.valueAsNumber; }
+        const siz = document.getElementById('size')
+        siz.value = INIT_DIM;
+        siz.onchange = (e) => { setSize(e.target.valueAsNumber); }
+      });
+    </script>
   </head>
   <body>
-    <p>hi</p>
+    <h1>Schelling segretation</h1>
+
+    <div id="sketch"></div>
+    <div>
+      Round: <span id="round"></span><br/>
+      Satisfied: <span id="satisfied"></span>
+    </div>
+    <div>
+      <button onclick="reset()">reset</button>
+      <button onclick="start()">start</button>
+      <button onclick="step()">step</button>
+      <button onclick="pause()">pause</button>
+    </div>
+    <div>
+      <input type="range" min="0" max="1" step="0.01" id="similarity"> similarity % threshold<br/>
+      <input type="range" min="0" max="1" step="0.01" id="pop"> population balance<br/>
+      <input type="range" min="0" max="1" step="0.01" id="empty"> empty %<br/>
+      <input type="range" min="4" max="150" step="1" id="size"> size<br/>
+    </div>
+    <div style="margin-top: 2em;">
+      h/t <a href="http://nifty.stanford.edu/2014/mccown-schelling-model-segregation/">Frank McCown</a>
+    </div>
   </body>
 </html>
