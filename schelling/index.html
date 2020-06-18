@@ -21,18 +21,33 @@
       function start() { loop(); }
       function pause() { noLoop(); }
       document.addEventListener('DOMContentLoaded', () => {
-        const sim = document.getElementById('similarity')
-        sim.value = SIMILARITY_FRAC;
-        sim.onchange = (e) => { SIMILARITY_FRAC = e.target.valueAsNumber; }
+        const sm1 = document.getElementById('simjet')
+        sm1.value = JET_SIMILARITY_FRAC;
+        sm1.onchange = (e) => { JET_SIMILARITY_FRAC = e.target.valueAsNumber; }
+        const fl1 = document.getElementById('flipjet')
+        fl1.onchange = (e) => { JET_DIVERSITY = e.target.checked; }
+
+        const sm2 = document.getElementById('simshark')
+        sm2.value = SHARK_SIMILARITY_FRAC;
+        sm2.onchange = (e) => { SHARK_SIMILARITY_FRAC = e.target.valueAsNumber; }
+        const fl2 = document.getElementById('flipshark')
+        fl2.onchange = (e) => { SHARK_DIVERSITY = e.target.checked; }
+
         const pop = document.getElementById('pop')
         pop.value = POP_BALANCE;
         pop.onchange = (e) => { POP_BALANCE = e.target.valueAsNumber; }
+
         const emp = document.getElementById('empty')
         emp.value = EMPTY_FRAC;
         emp.onchange = (e) => { EMPTY_FRAC = e.target.valueAsNumber; }
+
         const siz = document.getElementById('size')
         siz.value = INIT_DIM;
         siz.onchange = (e) => { setSize(e.target.valueAsNumber); }
+
+        const rat = document.getElementById('rate')
+        rat.value = INIT_FRAME_RATE;
+        rat.onchange = (e) => { frameRate(e.target.valueAsNumber); }
       });
     </script>
   </head>
@@ -51,11 +66,17 @@
       <button onclick="pause()">pause</button>
     </div>
     <div>
-      <input type="range" min="0" max="1" step="0.01" id="similarity"> similarity % threshold<br/>
+      <input type="range" min="0" max="1" step="0.04" id="simjet"> similarity % threshold (red)
+      <input type="checkbox" id="flipjet"> prefer diff<br/>
+      <input type="range" min="0" max="1" step="0.04" id="simshark"> similarity % threshold (blue)
+      <input type="checkbox" id="flipshark"> prefer diff<br/>
       <input type="range" min="0" max="1" step="0.01" id="pop"> population balance<br/>
       <input type="range" min="0" max="1" step="0.01" id="empty"> empty %<br/>
       <input type="range" min="4" max="150" step="1" id="size"> size<br/>
+      <input type="range" min="1" max="30" step="1" id="rate"> speed<br/>
     </div>
+
+
     <div style="margin-top: 2em;">
       h/t <a href="http://nifty.stanford.edu/2014/mccown-schelling-model-segregation/">Frank McCown</a>
     </div>

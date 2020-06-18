@@ -20,11 +20,14 @@ function setSize(gridDim) {
   GRID_PIXELS = CANVAS_SIZE / GRID_COLS;
 }
 
-let SIMILARITY_FRAC = 0.50;
+let JET_SIMILARITY_FRAC = 0.50;
+let JET_DIVERSITY = false;
+let SHARK_SIMILARITY_FRAC = 0.50;
+let SHARK_DIVERSITY = false;
 let POP_BALANCE = 0.5;
 let EMPTY_FRAC = 0.1;
 
-let FRAME_RATE = 5;
+let INIT_FRAME_RATE = 5;
 
 //// state
 
@@ -37,7 +40,7 @@ function setup() {
   setSize(INIT_DIM);
   colorMode(HSB, 100);
   createCanvas(CANVAS_SIZE, CANVAS_SIZE).parent(CANVAS_PARENT);
-  frameRate(FRAME_RATE);
+  frameRate(INIT_FRAME_RATE);
   initWorld();
   noStroke();
 }
@@ -70,17 +73,16 @@ function togglePaused() {
 //// World
 
 function initWorld() {
-  world = new World(GRID_COLS, GRID_ROWS, GRID_PIXELS, SIMILARITY_FRAC, POP_BALANCE, EMPTY_FRAC);
+  world = new World(GRID_COLS, GRID_ROWS, GRID_PIXELS, POP_BALANCE, EMPTY_FRAC);
   loop();  // in case we're paused
 }
 
 class World {
   constructor(
-    ncols, nrows, gridPixels, similarFrac, popBalance, emptyFrac) {
+    ncols, nrows, gridPixels, popBalance, emptyFrac) {
     this.ncols = ncols;
     this.nrows = nrows;
     this.gridPixels = gridPixels;
-    this.similarFrac = similarFrac;
     this.grid = this.randInit(popBalance, emptyFrac);
     this.gen = 0;
     const [unhappys, emptys] = this.computeUnhappyAndEmpty();
@@ -144,7 +146,20 @@ class World {
     if (ns.length === 0) { return true; }
     let numSame = 0;
     ns.forEach(y => { if (x === y) { ++numSame; } });
-    return numSame / ns.length >= this.similarFrac;
+    const sameFrac = numSame / ns.length;
+    let threshold, diversity;
+    switch (x) {
+      case JET:
+        threshold = JET_SIMILARITY_FRAC;
+        diversity = JET_DIVERSITY;
+        break;
+      case SHARK:
+        threshold = SHARK_SIMILARITY_FRAC;
+        diversity = SHARK_DIVERSITY;
+        break;
+      default: throw new Error(`what is ${x}`);
+    }
+    return (diversity) ? (1 - sameFrac) >= threshold : sameFrac >= threshold;
   }
 
   // Gets non-empty neighbors.
@@ -172,8 +187,8 @@ function randomAgent(popBalance, emptyFrac) {
 function agentColor(e) {
   switch (e) {
     case EMPTY: fill(0, 0, 90); break;
-    case JET: fill(35, 60, 95); break;
-    case SHARK: fill(65, 60, 95); break;
+    case JET: fill(00, 90, 95); break;
+    case SHARK: fill(59, 90, 95); break;
     default: console.error(`unknown agent: ${e}`);
   }
 }
