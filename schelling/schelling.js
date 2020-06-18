@@ -33,7 +33,11 @@ function setup() {
 
 function draw() {
   world.draw();
-  world.step();
+  const allHappy = world.step();
+  if (allHappy) {
+    world.draw();  // one last time
+    noLoop();
+  }
 }
 
 function keyPressed() {
@@ -88,6 +92,7 @@ class World {
     const [unhappys, emptys] = this.computeUnhappyAndEmpty();
     this.moveUnhappys(unhappys, emptys);
     ++this.gen;
+    return unhappys.length === 0;
   }
 
   computeUnhappyAndEmpty() {
