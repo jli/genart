@@ -7,18 +7,19 @@ const DEBUG = true;
 
 //// vars
 
-let GRID_COLS = 4;
-let GRID_ROWS = 3;
+let GRID_COLS = 35;
+let GRID_ROWS = 35;
 let GRID_PIXELS = 10;
 
-let EMPTY_FRAC = 0.2;
-let SIMILARITY_FRAC = 0.25;
+let SIMILARITY_FRAC = 0.30;
+let POP_BALANCE = 0.5;
+let EMPTY_FRAC = 0.1;
 
-let FRAME_RATE = 10;
+let FRAME_RATE = 5;
 
 //// state
 
-let world = null;
+let world;
 
 
 //// impl
@@ -27,36 +28,50 @@ function setup() {
   colorMode(HSB, 100);
   createCanvas(GRID_COLS * GRID_PIXELS, GRID_ROWS * GRID_PIXELS);
   frameRate(FRAME_RATE);
-  world = new World(GRID_COLS, GRID_ROWS, GRID_PIXELS, EMPTY_FRAC, SIMILARITY_FRAC);
+  initWorld();
+}
+
+function draw() {
+  world.draw();
+  world.step();
+}
+
+function keyPressed() {
+  switch (key) {
+    case 'p': togglePaused(); break;
+    case 'r': initWorld(); break;
+  }
+}
+
+let PAUSED = false;
+function togglePaused() {
+  PAUSED = !PAUSED;
+  if (PAUSED) { noLoop(); } else { loop(); }
 }
 
 // function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
-function draw() {
-  world.draw();
-  if (world.gen === 0) {
-    world.step();
-  }
-}
-
 //// World
+function initWorld() {
+  world = new World(GRID_COLS, GRID_ROWS, GRID_PIXELS, SIMILARITY_FRAC, POP_BALANCE, EMPTY_FRAC);
+}
 
 class World {
   constructor(
-    ncols, nrows, gridPixels, emptyFrac, similarFrac) {
+    ncols, nrows, gridPixels, similarFrac, popBalance, emptyFrac) {
     this.gen = 0;
     this.ncols = ncols;
     this.nrows = nrows;
     this.gridPixels = gridPixels;
     this.similarFrac = similarFrac;
 
-    this.grid = this.randInit(emptyFrac);
+    this.grid = this.randInit(popBalance, emptyFrac);
   }
 
-  randInit(emptyFrac) {
+  randInit(popBalance, emptyFrac) {
     const w = new Array(this.ncols * this.nrows);
     for (let i = 0; i < w.length; ++i) {
-      w[i] = randomAgent(emptyFrac);
+      w[i] = randomAgent(popBalance, emptyFrac);
     };
     return w;
   }
@@ -70,16 +85,32 @@ class World {
   }
 
   step() {
-    const old = [...this.grid];
-    const emptys = [];
-    const unhappys = [];
-    old.forEach((x, i) => {
+    const [unhappys, emptys] = this.computeUnhappyAndEmpty();
+    this.moveUnhappys(unhappys, emptys);
+    ++this.gen;
+  }
+
+  computeUnhappyAndEmpty() {
+    let unhappys = [];
+    let emptys = [];
+    this.grid.forEach((x, i) => {
       if (x === EMPTY) { emptys.push(i); }
       else if (!this.isAgentHappy(x, i)) { unhappys.push(i); }
     });
-    ++this.gen;
-    // console.log(`${this.gen}: emptys:`, emptys, emptys.map(x => convert1d2d(x, this.ncols)),
-    //  '\nunhappys:', unhappys.map(i => convert1d2d(i, this.ncols)));
+    // TODO: could have most unhappy agents move first instead.
+    // TODO: wtf?? how does this not shuffle in-place?
+    unhappys = shuffle(unhappys);
+    emptys = shuffle(emptys);
+    return [unhappys, emptys];
+  }
+
+  moveUnhappys(unhappys, emptys) {
+    unhappys.forEach(i => {
+      if (emptys.length) {
+        this.grid[emptys.pop()] = this.grid[i];
+        this.grid[i] = EMPTY;
+      }
+    });
   }
 
   isAgentHappy(x, i) {
@@ -87,19 +118,12 @@ class World {
     if (ns.length === 0) { return true; }
     let numSame = 0;
     ns.forEach(y => { if (x === y) { ++numSame; } });
-    // const ret =  numSame / ns.length >= this.similarFrac;
-    // if (!ret) {
-    //   console.log(`agent ${i}(${x}) unhappy:`);
-    //   console.log('  neighbors:', ns);
-    //   console.log('  numSame:', numSame);
-    // }
     return numSame / ns.length >= this.similarFrac;
   }
 
   // Gets non-empty neighbors.
   getNeighbors(i) {
     const is = neighborIndices(i, this.ncols, this.nrows);
-    // console.log(`gN(${i}): indices:`, is);
     const ns = [];
     is.forEach(i => {
       const n = this.grid[i];
@@ -111,12 +135,12 @@ class World {
 
 //// Agent functions
 
-function randomAgent(emptyFrac) {
+function randomAgent(popBalance, emptyFrac) {
   const f = Math.random();
   if (f < emptyFrac) {
     return EMPTY;
   }
-  return Math.random() < 0.5 ? JET : SHARK;
+  return Math.random() < popBalance ? JET : SHARK;
 }
 
 function agentColor(e) {
@@ -128,6 +152,7 @@ function agentColor(e) {
   }
 }
 
+
 //// Utilities
 
 function convert1d2d(i, ncols) {
@@ -138,6 +163,24 @@ function convert1d2d(i, ncols) {
 
 function convert2d1d(ic, ir, ncols) {
   return ic + ir * ncols;
+}
+
+function coordStr(i, ncols) {
+  const [c, r] = convert1d2d(i, ncols);
+  return `${c},${r}`;
+}
+
+// sigh.
+function shuffle(array) {
+  let currentIndex = array.length, temporaryValue, randomIndex;
+  while (0 !== currentIndex) {
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+  return array;
 }
 
 const NEIGHBOR_DIRS = [
