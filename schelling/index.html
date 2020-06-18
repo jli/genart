@@ -18,32 +18,31 @@
       }
       function reset() { initWorld(); }
       function step() { noLoop(); draw(); }
-      function start() { loop(); }
-      function pause() { noLoop(); }
+      function startPause() { togglePaused(); }
       document.addEventListener('DOMContentLoaded', () => {
         const sm1 = document.getElementById('simjet')
         sm1.value = JET_SIMILARITY_FRAC;
-        sm1.onchange = (e) => { JET_SIMILARITY_FRAC = e.target.valueAsNumber; }
+        sm1.onchange = (e) => { JET_SIMILARITY_FRAC = e.target.valueAsNumber; loop(); }
         const fl1 = document.getElementById('flipjet')
-        fl1.onchange = (e) => { JET_DIVERSITY = e.target.checked; }
+        fl1.onchange = (e) => { JET_DIVERSITY = e.target.checked; loop(); }
 
         const sm2 = document.getElementById('simshark')
         sm2.value = SHARK_SIMILARITY_FRAC;
-        sm2.onchange = (e) => { SHARK_SIMILARITY_FRAC = e.target.valueAsNumber; }
+        sm2.onchange = (e) => { SHARK_SIMILARITY_FRAC = e.target.valueAsNumber; loop(); }
         const fl2 = document.getElementById('flipshark')
-        fl2.onchange = (e) => { SHARK_DIVERSITY = e.target.checked; }
+        fl2.onchange = (e) => { SHARK_DIVERSITY = e.target.checked; loop(); }
 
         const pop = document.getElementById('pop')
         pop.value = POP_BALANCE;
-        pop.onchange = (e) => { POP_BALANCE = e.target.valueAsNumber; }
+        pop.onchange = (e) => { POP_BALANCE = e.target.valueAsNumber; loop(); }
 
         const emp = document.getElementById('empty')
         emp.value = EMPTY_FRAC;
-        emp.onchange = (e) => { EMPTY_FRAC = e.target.valueAsNumber; }
+        emp.onchange = (e) => { EMPTY_FRAC = e.target.valueAsNumber; loop(); }
 
         const siz = document.getElementById('size')
         siz.value = INIT_DIM;
-        siz.onchange = (e) => { setSize(e.target.valueAsNumber); }
+        siz.onchange = (e) => { setSize(e.target.valueAsNumber); loop(); }
 
         const rat = document.getElementById('rate')
         rat.value = INIT_FRAME_RATE;
@@ -61,9 +60,8 @@
     </div>
     <div>
       <button onclick="reset()">reset</button>
-      <button onclick="start()">start</button>
+      <button onclick="startPause()">start/pause</button>
       <button onclick="step()">step</button>
-      <button onclick="pause()">pause</button>
     </div>
     <div>
       <input type="range" min="0" max="1" step="0.04" id="simjet"> similarity % threshold (red)

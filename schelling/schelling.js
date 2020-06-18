@@ -1,3 +1,19 @@
+/*
+TODO:
+- disable step when all happy
+- add value labels
+- handle changes to pop balance, empty frac, size?
+- add random movement for happy people?
+
+Bigger:
+- graph of blue/red satisfaction
+- graph of amount of blue/red migration
+
+Much bigger:
+- use sensible frontend library...?
+- more intelligent migration? prefer to move closer?
+*/
+
 //// consts
 
 const EMPTY = 0;
@@ -20,12 +36,12 @@ function setSize(gridDim) {
   GRID_PIXELS = CANVAS_SIZE / GRID_COLS;
 }
 
-let JET_SIMILARITY_FRAC = 0.50;
+let JET_SIMILARITY_FRAC = 0.40;
 let JET_DIVERSITY = false;
-let SHARK_SIMILARITY_FRAC = 0.50;
+let SHARK_SIMILARITY_FRAC = 0.40;
 let SHARK_DIVERSITY = false;
 let POP_BALANCE = 0.5;
-let EMPTY_FRAC = 0.1;
+let EMPTY_FRAC = 0.2;
 
 let INIT_FRAME_RATE = 5;
 
