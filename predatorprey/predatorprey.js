@@ -33,7 +33,7 @@ const CELL_PREDATOR = 2;
 const CELL_TOMB = 3;
 const NEIGHBOR_DIRS = [
   [-1, -1], [0, -1], [1, -1],
-  [-1, 0], [0, 1],
+  [-1, 0], [0, 1], ///  BUGGGGGGG
   [-1, 1], [0, 1], [1, 1],
 ];
 
