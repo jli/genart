@@ -5,6 +5,9 @@
     <link rel="manifest" href="manifest.json">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Schelling simulation</title>
+    <style>
+      .vspace { margin: 2em 0; }
+    </style>
     <script src="../p5.min.js"></script>
     <script src="../p5js-addons/p5.dom.min.js"></script>
     <script src="schelling.js"></script>
@@ -74,8 +77,17 @@
       <input type="range" min="1" max="30" step="1" id="rate"> speed<br/>
     </div>
 
+    <div class="vspace">
+     Some interesting dynamics:
+     <ul>
+       <li>If both groups prefer diversity, things converge quickly.</li>
+       <li>If only one group (say, red) prefers diversity, both groups tend to be less satisfied. Reds will move to where there is a mix of red and blue. This can crowd out blues, who don't want to live near reds.</li>
+       <li>Lowering one group's threshold (thus making it easier to satify those agents preferences) can actually make convergence more difficult. If (say) reds don't have a strict requirement to live near other reds, they tend to move less, which can make it harder for blues to find suitable spaces.</li>
+      </ul>
 
-    <div style="margin-top: 2em;">
+    </div>
+
+    <div class="vspace">
       h/t <a href="http://nifty.stanford.edu/2014/mccown-schelling-model-segregation/">Frank McCown</a>
     </div>
   </body>
