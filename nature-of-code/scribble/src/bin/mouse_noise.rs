@@ -79,10 +79,10 @@ impl Sprite {
       noise_offset: vec2(random_f32() * 10.0, random_f32() * 10.0),
       pos: VecDeque::new(),
       // pos: vec2(random_f32() * WIN_SIZE, random_f32() * WIN_SIZE),
-      vel: Vector2::zero(),
-      acc: Vector2::zero(),
+      vel: Vector2::ZERO,
+      acc: Vector2::ZERO,
     };
-    s.pos.push_back(Vector2::zero());
+    s.pos.push_back(Vector2::ZERO);
     s
   }
 
@@ -90,7 +90,7 @@ impl Sprite {
     let pos0 = self.pos.back().unwrap();
     let mouse_dist = *mpos - *pos0;
     self.acc = mouse_dist * ACC_SCALE;
-    self.vel = (self.vel + self.acc).limit_magnitude(VEL_MAX);
+    self.vel = (self.vel + self.acc).clamp_length_max(VEL_MAX);
     let noisepos = vec2(
       noise_map(noise.get([(self.noise_offset.x + time) as f64, 0.0])),
       noise_map(noise.get([(self.noise_offset.y + time) as f64, 0.0])),

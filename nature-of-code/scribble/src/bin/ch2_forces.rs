@@ -1,4 +1,5 @@
 use nannou::prelude::*;
+use scribble::utils::{vector_from_angle, vector_map, vector_with_magnitude};
 
 const NUM_BALLS: usize = 10;
 const NUM_ATTRACTORS: usize = 3;
@@ -66,7 +67,7 @@ impl Model {
 impl Ball {
   fn new() -> Self {
     Self {
-      pos: Vector2::from_angle(random_range(0., TAU)).with_magnitude((WIN_SIZE as f32) / 2.),
+      pos: vector_with_magnitude(vector_from_angle(random_range(0., TAU)), WIN_SIZE as f32 / 2.),
       vel: vec2(0., 0.),
       acc: vec2(0., 0.),
       mass: random_range(10.0, 20.0),
@@ -75,7 +76,7 @@ impl Ball {
 
   fn attractor() -> Self {
     Self {
-      pos: Vector2::from_angle(random_range(0., TAU)).with_magnitude(random_range(0., (WIN_SIZE as f32) / 2.)),
+      pos: vector_with_magnitude(vector_from_angle(random_range(0., TAU)), random_range(0., (WIN_SIZE as f32) / 2.)),
       vel: vec2(0., 0.),
       acc: vec2(0., 0.),
       mass: random_range(20., 50.),
@@ -88,11 +89,11 @@ impl Ball {
     // let wind = vec2(5.0, 0.0) / self.mass;
     let mut attractor = vec2(0., 0.);
     for a in attractors.iter() {
-      attractor += (a.pos - self.pos).map(|x| x * a.mass * self.mass / 500.0);
+      attractor += vector_map(a.pos - self.pos, |x| x * a.mass * self.mass / 500.0);
     }
     self.acc = attractor;
-    self.vel += self.acc.map(|v| v * t);
-    self.pos += self.vel.map(|v| v * t);
+    self.vel += vector_map(self.acc, |v| v * t);
+    self.pos += vector_map(self.vel, |v| v * t);
     self.bounds_check(bounds);
   }
 

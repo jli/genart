@@ -2,6 +2,8 @@ use nannou::noise::{NoiseFn, OpenSimplex};
 use nannou::prelude::*;
 use std::collections::VecDeque;
 
+use scribble::utils::vector_from_angle;
+
 const WIN_SIZE: u32 = 800;
 const PARTICLE_LIMIT: usize = 30;
 const NOISE_DEBUG: bool = false;
@@ -152,7 +154,7 @@ impl Particle {
         let ttl = TTL;
         let p = Particle {
             pos,
-            vel: Vector2::from_angle(random_range(0., TAU)),
+            vel: vector_from_angle(random_range(0., TAU)),
             acc: vec2(0., 0.),
             mass: PARTICLE_MASS,
             ttl,
@@ -169,7 +171,7 @@ impl Particle {
         self.acc = noise_acc_at_pos(noise, self.pos, time);
         self.vel += self.acc;
         // TODO: limiting makes the trails more continuous/wispy
-        self.pos += self.vel.limit_magnitude(1.5);
+        self.pos += self.vel.clamp_length_max(1.5);
         // self.pos += self.vel;
         self.ttl -= 1;
     }
