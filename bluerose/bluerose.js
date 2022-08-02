@@ -12,7 +12,7 @@ class Pedal {
   }
 
   draw() {
-    fill(100, this.lightness);
+    fill(200, 80, 100 * this.lightness);
     let center_x = windowWidth / 2;
     let center_y = windowHeight / 2;
     triangle(
@@ -69,21 +69,29 @@ function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 
 function init_world() {
   PEDALS = [];
-  let last_theta_end = 0;
-  let last_radius = 100;
-  let last_lightness = 0.7;
-  for (let i = 0; i < NUM_PEDALS_PER_LEVEL; ++i) {
-    last_radius *= (1 + (Math.random() - 0.5) / 2);
-    last_lightness *= (1 + (Math.random() - 0.5) / 2);
-    let theta_start = last_theta_end;
-    let theta_end;
-    if (i == NUM_PEDALS_PER_LEVEL - 1) {
-      theta_end = 0;
-    } else {
-      theta_end = last_theta_end + 2*Math.PI / NUM_PEDALS_PER_LEVEL * (1 + (Math.random() - 0.5) / 2);
+  // outer pedals first, inner pedals last
+  let theta_zero = Math.random() * 2*Math.PI;
+  let last_radius = 200;
+  let lightness = 0.9;
+  for (let level = 0; level < NUM_PEDAL_LEVELS; ++level) {
+    theta_zero += Math.random() / 10 * 2*Math.PI;
+    let last_theta_end = theta_zero;
+    for (let i = 0; i < NUM_PEDALS_PER_LEVEL; ++i) {
+      last_radius *= (1 + (Math.random() - 0.5) / 10);
+      lightness *= (1 + (Math.random() - 0.5) / 2);
+      let theta_start = theta_zero;
+      let theta_end;
+      if (i == NUM_PEDALS_PER_LEVEL - 1) {
+        theta_end = 0;
+      } else {
+        theta_end = last_theta_end + 2*Math.PI / NUM_PEDALS_PER_LEVEL * (1 + (Math.random() - 0.5) / 2);
+      }
+      PEDALS.push(new Pedal(theta_start, theta_end, last_radius, lightness));
+      last_theta_end = theta_end;
     }
-    PEDALS.push(new Pedal(theta_start, theta_end, last_radius, last_lightness));
-    last_theta_end = theta_end;
+
+    lightness *= 0.7;
+    last_radius *= 0.7;
   }
 }
 
