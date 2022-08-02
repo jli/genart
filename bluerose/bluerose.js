@@ -1,5 +1,5 @@
 let NUM_PEDAL_LEVELS = 3;
-let NUM_PEDALS_PER_LEVEL = 10;
+let NUM_PEDALS_PER_LEVEL = 7;
 let PEDALS = [];
 let gui;
 
@@ -74,20 +74,19 @@ function init_world() {
   let last_radius = 200;
   let lightness = 0.9;
   for (let level = 0; level < NUM_PEDAL_LEVELS; ++level) {
+    // offset from last theta zero
     theta_zero += Math.random() / 10 * 2*Math.PI;
     let last_theta_end = theta_zero;
     for (let i = 0; i < NUM_PEDALS_PER_LEVEL; ++i) {
-      last_radius *= (1 + (Math.random() - 0.5) / 10);
+      last_radius *= (1 + (Math.random() - 0.5) / 2);
       lightness *= (1 + (Math.random() - 0.5) / 2);
-      let theta_start = theta_zero;
-      let theta_end;
+      let theta_start = last_theta_end;
       if (i == NUM_PEDALS_PER_LEVEL - 1) {
-        theta_end = 0;
+        last_theta_end = theta_zero;
       } else {
-        theta_end = last_theta_end + 2*Math.PI / NUM_PEDALS_PER_LEVEL * (1 + (Math.random() - 0.5) / 2);
+        last_theta_end = last_theta_end + 2*Math.PI / NUM_PEDALS_PER_LEVEL * (1 + (Math.random() - 0.5) / 2);
       }
-      PEDALS.push(new Pedal(theta_start, theta_end, last_radius, lightness));
-      last_theta_end = theta_end;
+      PEDALS.push(new Pedal(theta_start, last_theta_end, last_radius, lightness));
     }
 
     lightness *= 0.7;
