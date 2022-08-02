@@ -1,0 +1,52 @@
+d1 $ n "[0 ~ 0] 2 [0 9]*2 2" # sound "cpu"
+
+
+
+
+-- exercises from https://club.tidalcycles.org/t/week-1-lesson-4-mini-notation-part-2/416
+
+d1 $ sound "kick snare snare"
+d1 $ sound "kick snare!2"
+
+d1 $ sound "kick [snare snare]"
+d2 $ sound "kick snare*2"
+
+d1 $ sound "kick snare kick snare kick snare"
+d1 $ silence
+d2 $ silence
+d1 $ sound "[bd hh]!3"
+
+d1 $ n "0 [1 2 3]/3" # sound "cpu2"
+d1 $ n "0 <1 2 3>" # sound "cpu2"
+d1 $ silence
+
+d1 $ n "[0 0 2] [4 5 6 7] [4 1] [0 3 0 3]" # sound "cpu2"
+d1 $ n "0 0 2 . 4 5 6 7 . 4 1 . 0 3 0 3" # sound "cpu2"
+-- d1 $ n "0 ! 2 . 4 5 6 7 . 4 1 . [0 3] *2" # sound "cpu2"
+d1 $ silence
+
+-- dunno :(
+d1 $ sound "kick snare kick snare kick snare clap"
+drawLine $ "a b a b a b x"
+drawLine $ "[a b]!3 x@0.5"
+d1 $ sound "[kick snare]!3 clap@0.5"
+d1 $ silence
+
+tidal_version
+
+d1 $ sound "[kick snare kick snare kick snare] clap"
+drawLine $ "[k s k s k s] c"
+d1 $ sound "[kick snare]!3 clap@3"
+drawLine $ "[k s]!3 c@3"
+
+
+d1 $ sound "bd sd sd sd bd [sd sd sd]"
+d1 $ silence
+-- 6 elements
+drawLine "b s s s b [s s s]"
+drawLine "b s!3 b [s s s]"
+d1 $ sound "bd sd!3 bd [sd sd sd]"
+drawLine "b s!3 b s*3"
+d1 $ sound "bd sd!3 bd sd*3"
+d1 $ sound "bd sd!3 bd sd*3"
+

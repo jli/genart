@@ -1,0 +1,11 @@
+-- https://club.tidalcycles.org/t/week-1-lesson-5-mini-notation-part-3/449
+
+
+d1 $ sound "clap:4(<3 5>,8)"
+
+-- interesting to switch step between 0 and 1
+d2 $ sound "gabba(<3 7>, 8, <0 1>)"
+
+
+drawLine $ "x(<3 5>, 8)"
+drawLine $ "x(<3 7>, 8, <0 1>)"

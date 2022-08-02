@@ -1,0 +1,84 @@
+-- https://club.tidalcycles.org/t/week-2-lesson-2-manipulating-time-with-setcps-cps-patterns-and-fast-slow-functions/466
+
+setcps 0.50
+
+-- it's a jam
+d1 $ n "0 2 [3 5] [4 8]" # sound "cpu"
+d2 $ n "0(3, 8) 8*8" # s "cpu2" # squiz 5 -- # cps "0.5 <0.6 0.65 0.7>"
+
+drawLine $ "0 2 [3 5] [4 7]"
+drawLine $ "0(3,8) 8*8"
+
+-- weird tempo changes
+d2 $ n "0(3, 8) 8*8" # s "cpu2" # squiz 5 # cps "0.5 <0.6 0.65 0.7>"
+
+d2 $ n "0(3, 8) 8*8" # s "cpu2" # squiz 5 # cps "0.4"
+
+d2 $ fast "1 1.05" $ n "0(3, 8) 8*8" # s "cpu2" # squiz 5
+
+d2 $ n "0(3, 8) 8*8" # s "cpu2" # squiz 5 # cps "0.8"
+
+-- weird, 2 cycles are different...
+d1 $ fast "0.5 2" $ n "0 2  [3 5] [4 7]" # sound "cpu"
+drawLine $ fast "0.5 2" "0 2 [3 5] [4 7]"
+drawLine $ "0 2 [3 5] [4 7]"
+-- 1st half is slowed:
+drawLine $ "[0 2 [3 5] [4 7]]/2"
+-- split across 2 cycles now, but we just play first half of each cycle, which is just:
+drawLine $ "<0 [3 5]>"
+-- 2nd half is sped up, so we get 2 copies of full pattern, and then we just play latter half
+drawLine $ "[0 2 [3 5] [4 7]]*2"
+
+-- ok more weird patterns
+d1 $ fast "2 1" $ n "0 2 [3 5] [4 7]" # sound "cpu"
+drawLine $ fast "2 1" $ "0 2 [3 5] [4 7]"
+-- alternating: 2nd half is either normal or half speed. when normal, just 3547.
+-- when half, just 4 7
+drawLine $ fast "2 <1 0.5>" $ "0 2 [3 5] [4 7]"
+d1 $ fast "2 <1 0.5>" $ n "0 2 [3 5] [4 7]" # sound "cpu"
+
+
+
+---- what's the deal with using pattern in fast/slow?
+
+-- these are equiv:
+drawLine $ fast "0.5" "0 2 3 4"
+drawLine $ "[0 2 3 4]/2"
+
+d1 $ n "[0 2 3 4]/2" # sound "cpu"
+d1 $ fast "0.5" $ n "[0 2 3 4]" # sound "cpu"
+
+-- and these are too:
+drawLine $ fast "2" "0 2 3 4"
+drawLine $ "[0 2 3 4]*2"
+
+d1 $ n "[0 2 3 4]*2" # sound "cpu"
+d1 $ fast "2" $ n "[0 2 3 4]" # sound "cpu"
+
+-- with a pattern now
+-- first half alternatives between 0 and 3, because those 2 are the first half
+-- of the 2-cycle pattern created by fast 0.5
+drawLine $ fast "0.5 2" "0 2 3 4"
+
+
+
+---
+setcps 1
+
+-- wild
+d1 $ slow "0.5 <1 2>" $
+  n "{0 2 [3 5] [4 <7 6>], 0*2 3*3 0}" # sound "cpu"
+  # squiz "<8 1 2>"
+--   # speed 2
+
+-- gnozo's question in comments
+d1 $ fast "0.5 2" $ n "0 1" # sound "cpu"
+d1 $ n "<0 2> [0 2]" # sound "cpu"
+drawLine "<0 1> [0 1]"
+drawLine "[0 1] <0 1>"
+
+-- first half should alternate between 0 and 1
+drawLine $ fast "0.5" $ "0 1"
+-- second half should always be 01
+drawLine $ fast "2" $ "0 1"
+

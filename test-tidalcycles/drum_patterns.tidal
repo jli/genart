@@ -1,0 +1,42 @@
+-- source: https://www.youtube.com/watch?v=c7ffMObdxro
+-- todo:
+-- - surely there's a way to make repeated patterns with same measure??
+
+---- 4 on the floor
+do
+    d1 $ n "0 ~ ~ ~" # s "kick"
+    d2 $ n "~ 0 ~ 0" # s "hh"
+    d3 $ n "~ ~ 0 ~" # s "snare"
+
+d1 $ s "kick hh snare hh"
+
+---- trap beat
+
+setcps (140/60/6)
+-- 48
+d1 $ "kick ~!8 kick ~!8 kick ~!11 kick ~!11 kick ~!5"
+d2 $ "             ~!12 snare     ~!23 snare ~!11"
+-- weird, doesn't seem like this works? lose the triplet?
+d3 $ "hh ~ ~ hh ~ ~ hh ~ ~ hh ~ ~ hh!3 ~!3 hh ~ ~ hh ~ ~ hh ~ ~ hh ~ ~ hh ~ ~ hh ~ ~ hh ~ ~ hh ~ ~ hh ~ ~ hh ~ ~" # amp 2
+--d3 $ "[hh ~ ~]!4 hh*3 ~!3 [hh ~ ~]!6 ~!6"
+drawLine $ "k ~!8 k ~!8 k ~!11 k ~!11 k ~!5"
+drawLine $ "             ~!12 s     ~!23 s ~!11"
+
+
+---- bo diddley...
+
+
+---- two beat
+
+d1 $ "kick ~!7 kick ~!7 kick ~!7 kick ~!7"
+d2 $ "~!4 snare ~!7 snare ~!7 snare ~!7 snare ~!3"
+d3 $ "hh ~!3 hh ~!3 hh ~!3 hh ~!3 hh ~!3 hh ~!3 hh ~!3 hh ~!3" # amp 2
+d3 $ silence
+
+
+----
+
+d1 $ n "[0 ~ 0] 2 [0 9]*2 2" # s "cpu"
+d1 $ n "[0 ~ 0] 2 [0 ~ 9 ~] 2" # s "cpu"
+d1 $ n "[0 ~ 0] 2 <[0 9]*2 [0 ~ 9 ~]> 2" # s "cpu"
+drawLine "[0 ~ 0] 2 [0 ~ 9] 2"

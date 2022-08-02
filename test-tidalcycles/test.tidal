@@ -1,0 +1,191 @@
+hush
+
+---
+
+d1 $ s "clap(3,5,2)"
+
+-- beat
+
+d1 $ fast 6 $ s "<bd bd bd ~ ~ bd ~ bd ~>"
+drawLine $ "b*2 b b"
+
+
+d1 $ fast 6 $ s "<bd bd bd ~ ~ bd ~ ~>"
+d1 $ fast 6 $ s "<snare snare snare@3 snare@3>"
+d1 $ fast 6 $ s "<kick!2 kick@3 kick@3>"
+d1 $ fast 6 $ s "{<kick!2 kick@3 kick@3>, snare}"
+-- is this polyrhythym?
+d1 $ fast 6 $ s "{<kick!2 kick@3 kick@3>, snare@2 snare@3}"
+
+---
+
+drawLine $ "[x [a c] x, hh]"
+
+drawLine $ "[x [a c] x, x x x]"
+
+
+drawLine $ "[x [a c b]/2 x x, a x [c d]]"
+
+
+---
+
+setcps 1
+
+d2 $ silence
+
+-- kinda fun
+d1 $ s "clap:4 [lo ~ hi bd]/2"
+
+d1 $ s "[kick ~ kick bd]/2 snare"
+
+-- kinda fun
+
+d1 $ s "gabba clap:4"
+d1 $ s "gabba*2 clap:4"
+
+d1 $ s "[gabba ~ gabba gabba]/2 clap:4"
+d1 $ s "[gabba ~ gabba gabba] clap:4"
+d1 $ s "[gabba ~ gabba gabba] clap:4*2"
+
+d1 $ s "[gabba ~ gabba!2]*1.5 clap:4*2"
+d1 $ s "[gabba ~ gabba gabba]*1.5 clap:4*2"
+d1 $ s "[gabba ~ gabba gabba]*2.5 clap:4*2"
+d1 $ s "[gabba ~ gabba gabba]*2.5 [[kick clap:4] kick*3]/2"
+d1 $ s "[gabba ~ gabba gabba]*2.5 [[kick clap:1] clap:6*4]/2"
+d1 $ s "[gabba ~ gabba gabba]*2.5 [kick clap:1]"
+d1 $ s "[gabba ~ gabba gabba]*1 [kick clap:1]"
+d1 $ s "[gabba ~ gabba gabba]*1 [kick clap:1]*2"
+
+d1 $ s "[gabba ~ gabba gabba]*1 [kick clap:1, snare]"
+d1 $ s "[gabba ~ gabba gabba]*1 [kick clap:1, ~ snare]"
+d1 $ s "[gabba ~ gabba gabba]*1 [kick clap:1, ~ snare]*2"
+d1 $ s "[gabba ~ gabba gabba]*1 [kick clap:1, ~ snare]*2.5"
+
+d1 $ s "[gabba ~ gabba gabba]*1 [kick clap:1]*2"
+d1 $ s "[gabba ~ gabba gabba] clap:4"
+d1 $ s "[gabba ~ gabba gabba]/2 clap:4"
+
+d1 $ s "gabba*4 clap:4*6"
+d1 $ s "gabba*2 clap:4*4"
+d1 $ s "gabba clap:4"
+
+d1 $ s "clap:4"
+
+hush
+
+---
+
+d1 $ s "[bd sd] [arpy arpy:2 arpy:5]"
+d1 $ s "bd sd . arpy arpy:2 arpy:5"
+d1 $ s "[bd sd] [[arpy arpy:2] arpy:5]"
+
+-----
+
+d1 $ s "[snare snare, clap*1.5]"
+
+d1 $ n "[2 2] [5 5 8]" # sound "supermandolin"
+
+d1 $ n "[1 8] 8 " # sound "break"
+
+d1 $ sound "hi lo [hi hi] lo"
+
+
+setcps 1
+-- gap
+d1 $ n "0 0 ~ 3" # s "kick"
+
+d1 $ n " [4 4] 3" # s "kick"
+
+d2 $ n "[4 4] 0" # s "gabba"
+d2 $ silence
+
+d1 $ n "1 1 3 3" # s "kick"
+
+d1 $ sound "kick snare:5 snare:3 snare:8 snare:10 "
+
+d1 $ fast 1 $ n "~ ~ ~ ~ ~ 7 1 8" # s "kick"
+
+d2 $ fast 0.5 $ n "6 9 5 4 ~ 9 11 11" # s "snare" # crush 3
+
+d3 $ fast 0.55 $ n "5 4 5 11" # s "bd"  # crush 1
+d3 $ silence
+
+setcps 1.2
+
+d1 $ sound "bd 808bd 808cy 808ht"
+
+d2 $ sound "arpy" # crush 3
+
+d1 $ n (off 0.125 (|+ 7) "<c*2 a(3,8) f(3,8,2) e*2 >") # sound "hh"
+
+d1 $ fast 1 $ rev "hh hh drum "
+
+d1
+  $ fast 4
+  $ s "hh*4"
+
+d1 (every 2 (# speed 2) (fast 2 (s "bd hh bd hh") ) )
+
+d1
+  $ every 2 (# speed 2) . fast 2
+  $ s "bd hh bd hh"
+
+d1
+  $ every 2 (# speed 2)
+  $ fast 1
+  $ s "bd hh bd hh"
+
+d1
+  $ every 3 (fast 2 $)
+  $ fast 1
+  $ s "bd hh bd hh"
+
+d1
+  $ superimpose ((# speed "2*12") . (# squiz (slow 2 $ range 1 16 $ sine)) . (striate "[4|2|3]") . (ply "[[1 1 2 4]|[1 1 2 2]]") . (# room "0 0.5") . (# sz "0.2 0.4"))
+  $ fast 0.5
+  $ s "bd hh bd drumtraks"
+  # amp 0.1
+
+
+:t fast
+
+("1 2 3" :: Pattern String)
+
+
+------------------------
+
+d1 $ sound "drum:1 [bd <bd/10> [drum drum [bd bd]]] [bd drum] [bd drum] drum" # vowel "a o e  p p u" # sound "drum"
+
+setcps  (120/60/4)
+
+d1 $ "drum hh drum hh"
+
+"1 2 3" :: Pattern String
+
+
+d1 $ sound "drumtraks gabba " # vowel "a e" # speed "2 0.8"
+
+
+
+d1 $ sound "bd bd gabba" # speed "1" # amp 0.2
+
+d1 $ sound "bd bd industrial gabba bd hh bd"
+
+d2 $ sound "sn:2 sn bd"
+
+
+d3 $ fast 1 $ sound "gabba gabba gabba gabba gabba gabba "
+
+d3 $ sound "popkick" # amp 0.2
+
+d1 $ silence
+d3 $ silence
+
+hush
+
+setcps 0.3
+
+d1 $ silence
+
+d3 $ silence
+
