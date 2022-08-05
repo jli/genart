@@ -1,0 +1,50 @@
+-- i don't understand the types...
+
+-- q: how come speed can only come after # and not before $? how come fast can do that, but can't come at the end?
+-- a: because speed returns pattern, but fast is function that modifies pattern.
+-- fast changes the pattern structure (eg changes how many times pattern fits in cycle)
+-- but speed changes internal sound, pitch
+d1 $ n "1 2 3" # s "dsynth" # speed 2
+d1 $ speed 2 $ n "1 2 3" # s "dsynth"
+d1 $ fast 2 $ n "1 2 3" # s "dsynth"
+d1 $ n "1 2 3" # s "dsynth" # fast 2
+
+-- these all combine 2 patterns: Pattern a -> Pattern a -> Pattern a, for Unionable a
+:t (#)
+:t (|>)
+:t (|<)
+:t (<|)
+:t (|+|)
+
+-- d[123..] is Pattern ValueMap -> IO (); plays the pattern
+:t d1
+-- n takes note pattern and returns ControlPattern
+:t n
+:t n "1 2"
+
+-- speed takes double and returns ControlPattern, so similar to n.
+-- so, # (|>) combines the patterns
+:t speed "1 2"
+:t n "1 2"
+pat_n_s = n "1 2 3 4" # speed "0.2 0.3"
+pat_s_n = speed "1 4" # n "1 2 3 4"
+:t pat_n_s
+:t pat_s_n
+-- but makes no sound by itself. needs `sound`
+d1 $ pat_n_s
+d1 $ pat_n_s # s "dsynth"
+d1 $ pat_s_n # s "dsynth"
+
+-- sound :: Pattern String -> ControlPattern
+:t sound
+
+-- so, all 3 expressions here return ControlPattern, and combined with #
+d1 $ n "1 2 3" >| speed "1 3 3 1" # s "dsynth kick"
+
+-- fast is a function to modify patterns, dosesn't return a pattern itself
+-- fast :: Pattern Time -> Pattern a -> Pattern a
+:t fast
+
+d1 $ fast "3" (n "1 3") # s "dsynth"
+drawLine $ fast 2 $ "a*2 b"
+

@@ -1,5 +1,11 @@
-d1 $ n "[0 ~ 0] 2 [0 9]*2 2" # sound "cpu"
 
+d1 $ n "[0 2]*3 [0 2 4]/2" # sound "cpu"
+
+d1 $ n "[0 ~ 0] 2 [0 9]*2 2" # sound "cpu"
+d1 $ n "[0 [1 0]] [[0 1] 9] 2" # sound "cpu"
+d1 $ n "{[0 [1 0]] [[0 1] 9] 2, [4 2] [1 4] 4}" # sound "cpu"
+d1 $ n "[1 [2 [3 [4 5]]]]" # sound "cpu" # crush 4
+d1 $ n "[1 [2 [3 [4 5]]]]" # sound "cpu"
 
 
 
@@ -25,7 +31,7 @@ d1 $ n "0 0 2 . 4 5 6 7 . 4 1 . 0 3 0 3" # sound "cpu2"
 -- d1 $ n "0 ! 2 . 4 5 6 7 . 4 1 . [0 3] *2" # sound "cpu2"
 d1 $ silence
 
--- dunno :(
+-- dunno :( oh wait, got it :)
 d1 $ sound "kick snare kick snare kick snare clap"
 drawLine $ "a b a b a b x"
 drawLine $ "[a b]!3 x@0.5"

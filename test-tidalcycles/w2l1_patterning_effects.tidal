@@ -1,15 +1,20 @@
 setcps 0.8
 
 d1 $ n "0 4 [3 4] 3" # sound "cpu" # vowel "a"
+d1 $ n "0 4 [3 4] 3" # sound "cpu" # vowel "o"
+d1 $ n "0 4 [3 4] 3" # sound "cpu" # vowel "e"
+d1 $ n "0 4 [3 4] 3" # sound "cpu" # vowel "u"
 d1 $ n "0 4 [3 4] 3" # sound "clap" # vowel "a"
 d1 $ n "0 4 [3 4] 3" # sound "clap" # vowel "u"
 d1 $ n "0 4 [3 4] 3" # sound "kick" # vowel "u"
 d1 $ n "0 4 [3 4] 3" # sound "kick" # vowel "o"
 d2 $ n "4 [3 4] 3 0" # sound "kick" # vowel "u"
+d2 $ n "4 [3 4] 3 0" # sound "kick" # vowel "e"
+d2 $ n "4 [3 4] 3 0" # sound "kick" # vowel "i"
 
-d1 $ sound "cpu" # room 1
+d1 $ sound "cpu*4" # room 5
 
-d1 $ sound "cpu" # squiz 1
+d1 $ sound "cpu*4" # amp 2 # squiz 8
 
 d1 $ sound "industrial" -- # crush 4 # room 1
 d1 $ loopAt 4 $ chop 19 $ sound "break"
@@ -21,14 +26,14 @@ d1 $ n "0 0 [4 3] 4" # sound "cpu" -- # crush "4 3"
 d2 $ n "4 [3 4] 3 0" # sound "kick" # vowel "u" # crush 4
 
 -- very light at 8, weird at 6,  at 5
-d1 $ sound "numbers:1 numbers:2*2 [numbers:3  numbers:4]" # crush 8 -- # gain "[1 1.2]*8"
-d1 $ sound "numbers:1 numbers:2 numbers:3*3 numbers:4" # pan "0 0.5 1" # crush 6
+d1 $ sound "numbers:1 numbers:2*2 [numbers:3  numbers:4]" # crush 2 -- # gain "[1 1.2]*8"
+d1 $ sound "[numbers:1 numbers:2]*2 numbers:3*3 numbers:4*2" # pan "0 0.5 1" # crush 6
 
 d1 $ s "kurt:4(3,8)" -- # shape "0 0.98" # gain "0.7"
 d1 $ s "kurt:4(3,8)" # room 0.5 # size 0.1
 
 -- whoa creepy
-d1 $ n "0 1 2 3 4" # sound "bsvocals" # crush 12
+d1 $ n "0 1 2 3 4" # sound "bsvocals" # crush 10
 
 d1 $ sound "bsvocals:4" # crush 8
 

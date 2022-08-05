@@ -1,0 +1,45 @@
+-- handling long samples more precisely
+
+setcps 7
+d1 $ sound "break:4" # legato 1
+
+-- splice does some pitch shifting, or something?
+setcps 0.5
+d1 $ splice 8 "0 1 2 3 4 5 6 7" $ s "break:4"
+d1 $ s "break:4"
+d1 $ splice 8 "0" $ s "break:4"
+d1 $ n "0" # s "break:4"
+
+d1 $ slice 8 "0 1 2 3 4 5 6 7" $ s "break:4"
+d1 $ slice 2 "0 1" $ s "break:4"
+d1 $ splice 2 "0 3" $ s "break:4"
+d1 $ slice 2 "0 3" $ s "break:4"
+
+-- cut and legato don't do anything with shortes samples
+d1 $ s "kick gabba"
+d1 $ s "kick gabba" # cut 1
+d1 $ s "kick gabba" # legato 1
+d1 $ slice 2 "0 1 2 3" $ s "kick gabba"
+d1 $ splice 2 "0 1 2 3" $ s "kick gabba"
+d1 $ slice 2 "0 3" $ s "kick gabba"
+d1 $ slice 2 "0 3" $ s "hh hh"
+
+:t slice
+
+--
+
+d1 $ slice 8 "0" $ sound "break:4"
+d1 $ slice 8 "0*2 1*2" $ sound "break:4"
+d1 $ slice 8 "0 1 2*2 3 4*3 5 6*4 7" $ sound "break:4"
+d1 $ splice 8 "0 1 2*2 3 4*3 5 6*4 7" $ sound "break:4"
+d1 $ slice 20 "0*3 1 2*2 3 6 4 5 7*3 8*5 9 10*2 11 12*2 13*4 14 15*2 16*8 17*2 18*8 19" $ sound "break:4"
+d1 $ slice 16 "0*2" $ sound "break:4"
+
+
+d1 $ splice 8 "0 1 2 3 4 5 6 7" $ sound "break:4"
+d1 $ splice 8 "6 1 [2 3] ~ 4 1 6*2 7" $ sound "break:4"
+
+d1 $ splice 8 (fast "1 [0.5 0.75]" "6 1 [2 3] ~ 4 1 6*2 7")
+   $ sound "break:4"
+
+

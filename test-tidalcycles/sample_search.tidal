@@ -1,0 +1,518 @@
+-- samples loop around. 808 has 6, so 0-5 are unique, and 6=0, 7=1, ...
+d1 $ n "0*3 1*3 6*4" # s "808"
+d1 $ n "0..6" # s "808"
+
+d1 $ n (parseBP_E $ unwords $ map show [0..5]) # s "808"
+
+--------------
+
+-- 808 drums
+d1 $ n "0..6" # s "808"
+d1 $ slow 4 $ n "0..25" # s "808bd"  -- bass
+d1 $ slow 4 $ n "0..25" # s "808cy"  -- cymbal
+d1 $ n "0..5" # s "808hc"  -- weird xylo ish?
+d1 $ n "0..5" # s "808ht"  -- low version of hc
+d1 $ n "0..5" # s "808lc"  -- higher
+d1 $ n "0..5" # s "808lt"
+d1 $ n "0..5" # s "808mc"
+d1 $ n "0..5" # s "808mt"
+d1 $ n "0..5" # s "808oh"  -- high hat
+d1 $ slow 4 $ n "0..25" # s "808sd"
+d1 $ n "0..1" # s "909"
+
+-- weird
+d1 $ n "0..12" # s "ab"
+d1 $ n "0..10" # s "ade"
+d1 $ n "0..9" # s "ades2"
+d1 $ n "0..7" # s "ades3"
+d1 $ n "0..6" # s "ades4"
+d1 $ n "0..2" # s "alex"
+d1 $ slow 4 $ n "0..32" # s "amencutup"
+d1 $ n "0..7" # s "armora"
+d1 $ n "0..2" # s "arp"
+-- funny synthy sound
+d1 $ n "0..11" # s "arpy"
+-- cool
+d1 $ n "0..11" # s "auto"
+
+-- these are all pretty neat
+d1 $ n "0..4" # s "bass"
+d1 $ n "0..3" # s "bass0"
+d1 $ slow 4 $ n "0..30" # s "bass1"
+d1 $ n "0..5" # s "bass2"
+d1 $ n "0..11" # s "bass3"
+d1 $ n "0..24" # s "bassdm"
+d1 $ n "0..3" # s "bassfoo"
+
+d1 $ n "0..24" # s "bd"
+d1 $ n "0..4" # s "bend"
+d1 $ n "0..2" # s "bin"
+d1 $ n "0..10" # s "birds"
+d1 $ n "0..19" # s "birds3"
+d1 $ n "0..13" # s "bleep"
+d1 $ n "0..2" # s "blip"
+d1 $ n "0..2" # s "blue"
+d1 $ n "0..13" # s "bottle"
+---- breakbeats
+d1 $ n "0..2" # s "breaks125"
+d1 $ n "0..1" # s "breaks152"
+d1 $ n "0..1" # s "breaks157"
+d1 $ n "0..1" # s "breaks165"
+d1 $ n "0..1" # s "breath"
+d1 $ n "0..8" # s "bubble"
+d1 $ n "0..14" # s "can"
+d1 $ n "0..3" # s "casio"
+d1 $ n "0..1" # s "cb"
+d1 $ n "0..6" # s "cc"
+d1 $ n "0..4" # s "chin"
+d1 $ n "0..3" # s "circus"
+d1 $ n "0..2" # s "clak"
+d1 $ n "0..4" # s "click"
+d1 $ n "0..5" # s "clubkick"
+d1 $ n "0..4" # s "co"
+d1 $ n "0..1" # s "coins"
+d1 $ n "0..2" # s "control"
+d1 $ n "0..15" # s "cosmicg"
+d1 $ n "0..2" # s "cp"
+d1 $ n "0..6" # s "cr"
+
+d1 $ n "0..4" # s "d"
+d1 $ n "0..13" # s "db"
+-- voices
+d1 $ n "0..38" # s "diphone"
+d1 $ n "0..12" # s "diphone2"
+d1 $ n "0..16" # s "dist"
+d1 $ n "0..4" # s "dork2"
+d1 $ n "0..2" # s "dorkbot"
+d1 $ n "0..42" # s "dr"
+d1 $ n "0..6" # s "dr2"
+d1 $ n "0..4" # s "dr55"
+d1 $ n "0..8" # s "dr_few"
+d1 $ n "0..6" # s "drum"
+d1 $ n "0..13" # s "drumtraks"
+d1 $ n "0..8" # s "e"
+d1 $ n "0..9" # s "east"
+d1 $ n "0..13" # s "electro1"
+-- long, asian flute
+d1 $ n "0..6" # s "em2"
+-- long sample, vocal count
+d1 $ n "0..1" # s "erk"
+d1 $ n "0..1" # s "f"
+d1 $ n "0..7" # s "feel"
+-- glitch
+d1 $ n "0..8" # s "feelfx"
+d1 $ n "0..1" # s "fest"
+-- glitch
+d1 $ n "0..17" # s "flick"
+-- long sample
+d1 $ n "0..17" # s "fm"
+-- breakbeat
+d1 $ n "0..27" # s "foo"
+d1 $ n "0..17" # s "future"
+d1 $ n "0..10" # s "gab"
+d1 $ n "0..4" # s "gabba"
+d1 $ n "0..4" # s "gabbaloud"
+d1 $ n "0..4" # s "gabbalouder"
+d1 $ n "0..3" # s "glasstap"
+d1 $ n "0..8" # s "glitch"
+d1 $ n "0..8" # s "glitch2"
+d1 $ n "0..24" # s "gretsch"
+d1 $ n "0..3" # s "gtr"
+-- hand twitch sounds?
+d1 $ n "0..17" # s "hand"
+d1 $ n "0..12" # s "hardcore"
+d1 $ n "0..6" # s "hardkick"
+d1 $ n "0..6" # s "haw"
+d1 $ n "0..6" # s "hc"
+d1 $ n "0..13" # s "hh"
+d1 $ n "0..13" # s "hh27"
+-- long, glitchy
+d1 $ n "0..6" # s "hit"
+-- vocal
+d1 $ n "0..1" # s "hmm"
+d1 $ n "0..6" # s "ho"
+-- digital hardcore ish
+d1 $ n "0..6" # s "hoover"
+d1 $ n "0..8" # s "house"
+d1 $ n "0..16" # s "ht"
+-- glitchy
+d1 $ n "0..5" # s "if"
+d1 $ n "0..3" # s "ifdrums"
+d1 $ n "0..8" # s "incoming"
+d1 $ n "0..32" # s "industrial"
+d1 $ n "0..3" # s "insect"
+d1 $ n "0..18" # s "invaders"
+d1 $ n "0..8" # s "jazz"
+d1 $ n "0..20" # s "jungbass"
+d1 $ n "0..13" # s "jungle"
+d1 $ n "0..12" # s "juno"
+d1 $ n "0..13" # s "jvbass"
+d1 $ n "0..1" # s "kicklinn"
+d1 $ n "0..2" # s "koy"
+d1 $ n "0..7" # s "kurt"
+d1 $ n "0..8" # s "latibro"
+d1 $ n "0..1" # s "led"
+d1 $ n "0..4" # s "less"
+d1 $ n "0..33" # s "lighter"
+d1 $ n "0..6" # s "linnhats"
+d1 $ n "0..16" # s "lt"
+d1 $ n "0..7" # s "made"
+d1 $ n "0..1" # s "made2"
+d1 $ n "0..2" # s "mash"
+d1 $ n "0..4" # s "mash2"
+d1 $ n "0..10" # s "metal"
+d1 $ n "0..4" # s "miniyeah"
+d1 $ n "0..6" # s "monsterb"
+d1 $ n "0..7" # s "moog"
+d1 $ n "0..15" # s "mouth"
+d1 $ n "0..4" # s "mp3"
+d1 $ n "0..9" # s "msg"
+d1 $ n "0..16" # s "mt"
+d1 $ n "0..28" # s "mute"
+d1 $ n "0..15" # s "newnotes"
+d1 $ n "0..1" # s "noise"
+d1 $ n "0..8" # s "noise2"
+d1 $ n "0..15" # s "notes"
+d1 $ n "0..9" # s "numbers"
+d1 $ n "0..4" # s "oc"
+d1 $ n "0..15" # s "odx"
+d1 $ n "0..1" # s "off"
+d1 $ n "0..6" # s "outdoor"
+d1 $ n "0..3" # s "pad"
+d1 $ n "0..1" # s "padlong"
+d1 $ n "0..1" # s "pebbles"
+d1 $ n "0..6" # s "perc"
+d1 $ n "0..15" # s "peri"
+d1 $ n "0..17" # s "pluck"
+d1 $ n "0..10" # s "popkick"
+d1 $ n "0..11" # s "print"
+d1 $ n "0..2" # s "proc"
+d1 $ n "0..8" # s "procshort"
+d1 $ n "0..30" # s "psr"
+d1 $ n "0..8" # s "rave"
+d1 $ n "0..4" # s "rave2"
+d1 $ n "0..2" # s "ravemono"
+d1 $ n "0..4" # s "realclaps"
+d1 $ n "0..1" # s "reverbkick"
+d1 $ n "0..2" # s "rm"
+d1 $ n "0..1" # s "rs"
+d1 $ n "0..22" # s "sax"
+d1 $ n "0..2" # s "sd"
+d1 $ n "0..3" # s "seawolf"
+d1 $ n "0..8" # s "sequential"
+d1 $ n "0..18" # s "sf"
+d1 $ n "0..1" # s "sheffield"
+d1 $ n "0..5" # s "short"
+d1 $ n "0..12" # s "sid"
+d1 $ n "0..6" # s "sine"
+d1 $ n "0..8" # s "sitar"
+d1 $ n "0..52" # s "sn"
+d1 $ n "0..18" # s "space"
+d1 $ n "0..12" # s "speakspell"
+d1 $ n "0..7" # s "speech"
+d1 $ n "0..10" # s "speechless"
+d1 $ n "0..9" # s "speedupdown"
+d1 $ n "0..23" # s "stab"
+d1 $ n "0..10" # s "stomp"
+d1 $ n "0..11" # s "subroc3d"
+d1 $ n "0..2" # s "sugar"
+d1 $ n "0..6" # s "sundance"
+d1 $ n "0..26" # s "tabla"
+d1 $ n "0..46" # s "tabla2"
+d1 $ n "0..3" # s "tablex"
+d1 $ n "0..22" # s "tacscan"
+d1 $ n "0..13" # s "tech"
+d1 $ n "0..7" # s "techno"
+d1 $ n "0..5" # s "tink"
+d1 $ n "0..4" # s "tok"
+
+
+---- glitchy, interesting
+-- breakbeat ish
+d1 $ slow 2 $ n "0..10" # s "ul"
+-- aggro gabba
+d1 $ n "4*5" # s "ul"
+-- glitchy
+d1 $ n "5*5" # s "ul"
+
+-- wonky
+d1 $ n "0..5" # s "ulgab"
+
+d1 $ n "0..3" # s "uxay"
+
+-- ethereal
+d1 $ n "0..10" # s "wind"
+
+-- weird glitchiness, neat
+d1 $ slow 1.5 $ n "0..31" # s "yeah"
+
+-- chiptunes esque
+d1 $ n "0..6" # s "v"
+d1 $ n "0 1 4 5" # s "v"
+-- weird crescendo buzz
+d1 $ n "2*4" # s "v"
+-- glitchy
+d1 $ n "4*4" # s "v"
+
+
+---- noise
+-- low bassy hum
+d1 $ n "0..1" # s "wobble"
+
+
+---- novelty / silly
+d1 $ n "0..26" # s "alphabet"
+d1 $ n "0..7" # s "baa"
+d1 $ n "0..7" # s "baa2"
+-- marching?
+d1 $ n "0..2" # s "battles"
+d1 $ n "0..2" # s "bev"
+
+d1 $ n "0..4" # s "crow"
+-- crackling
+d1 $ n "0..1" # s "fire"
+-- vocal
+d1 $ n "0..7" # s "h"
+
+-- fun
+d1 $ n "0..13" # s "toys"
+d1 $ n "0" # s "toys"  -- 1 + 2
+d1 $ n "2" # s "toys"  -- "classical music"
+d1 $ n "3" # s "toys"  -- 4 + 5
+d1 $ n "5" # s "toys"  -- "colors"
+d1 $ n "6" # s "toys"  -- 7 + 8
+d1 $ n "8" # s "toys"  -- "musical medley"
+d1 $ n "9" # s "toys"  -- 10 + 11
+d1 $ n "11" # s "toys"  -- "numbers"
+d1 $ n "12" # s "toys"  -- longer sample
+
+d1 $ n "0..1" # s "xmas"
+
+d1 $ n (run 12) # s "toys"
+---- meatspace instruments
+d1 $ n "0..11" # s "trump"
+
+---- meh?
+-- normal drums?
+d1 $ n "0..5" # s "voodoo"
+-- kind of like gabba?
+d1 $ n "0..2" # s "world"
+
+
+808 (6)
+808bd (25)
+808cy (25)
+808hc (5)
+808ht (5)
+808lc (5)
+808lt (5)
+808mc (5)
+808mt (5)
+808oh (5)
+808sd (25)
+909 (1)
+ab (12)
+ade (10)
+ades2 (9)
+ades3 (7)
+ades4 (6)
+alex (2)
+alphabet (26)
+amencutup (32)
+armora (7)
+arp (2)
+arpy (11)
+auto (11)
+baa (7)
+baa2 (7)
+bass (4)
+bass0 (3)
+bass1 (30)
+bass2 (5)
+bass3 (11)
+bassdm (24)
+bassfoo (3)
+battles (2)
+bd (24)
+bend (4)
+bev (2)
+bin (2)
+birds (10)
+birds3 (19)
+bleep (13)
+blip (2)
+blue (2)
+bottle (13)
+breaks125 (2)
+breaks152 (1)
+breaks157 (1)
+breaks165 (1)
+breath (1)
+bubble (8)
+can (14)
+casio (3)
+cb (1)
+cc (6)
+chin (4)
+circus (3)
+clak (2)
+click (4)
+clubkick (5)
+co (4)
+coins (1)
+control (2)
+cosmicg (15)
+cp (2)
+cr (6)
+crow (4)
+d (4)
+db (13)
+diphone (38)
+diphone2 (12)
+dist (16)
+dork2 (4)
+dorkbot (2)
+dr (42)
+dr2 (6)
+dr55 (4)
+dr_few (8)
+drum (6)
+drumtraks (13)
+e (8)
+east (9)
+electro1 (13)
+em2 (6)
+erk (1)
+f (1)
+feel (7)
+feelfx (8)
+fest (1)
+fire (1)
+flick (17)
+fm (17)
+foo (27)
+future (17)
+gab (10)
+gabba (4)
+gabbaloud (4)
+gabbalouder (4)
+glasstap (3)
+glitch (8)
+glitch2 (8)
+gretsch (24)
+gtr (3)
+h (7)
+hand (17)
+hardcore (12)
+hardkick (6)
+haw (6)
+hc (6)
+hh (13)
+hh27 (13)
+hit (6)
+hmm (1)
+ho (6)
+hoover (6)
+house (8)
+ht (16)
+if (5)
+ifdrums (3)
+incoming (8)
+industrial (32)
+insect (3)
+invaders (18)
+jazz (8)
+jungbass (20)
+jungle (13)
+juno (12)
+jvbass (13)
+kicklinn (1)
+koy (2)
+kurt (7)
+latibro (8)
+led (1)
+less (4)
+lighter (33)
+linnhats (6)
+lt (16)
+made (7)
+made2 (1)
+mash (2)
+mash2 (4)
+metal (10)
+miniyeah (4)
+monsterb (6)
+moog (7)
+mouth (15)
+mp3 (4)
+msg (9)
+mt (16)
+mute (28)
+newnotes (15)
+noise (1)
+noise2 (8)
+notes (15)
+numbers (9)
+oc (4)
+odx (15)
+off (1)
+outdoor (6)
+pad (3)
+padlong (1)
+pebbles (1)
+perc (6)
+peri (15)
+pluck (17)
+popkick (10)
+print (11)
+proc (2)
+procshort (8)
+psr (30)
+rave (8)
+rave2 (4)
+ravemono (2)
+realclaps (4)
+reverbkick (1)
+rm (2)
+rs (1)
+sax (22)
+sd (2)
+seawolf (3)
+sequential (8)
+sf (18)
+sheffield (1)
+short (5)
+sid (12)
+sine (6)
+sitar (8)
+sn (52)
+space (18)
+speakspell (12)
+speech (7)
+speechless (10)
+speedupdown (9)
+stab (23)
+stomp (10)
+subroc3d (11)
+sugar (2)
+sundance (6)
+tabla (26)
+tabla2 (46)
+tablex (3)
+tacscan (22)
+tech (13)
+techno (7)
+tink (5)
+tok (4)
+toys (13)
+trump (11)
+ul (10)
+ulgab (5)
+uxay (3)
+v (6)
+voodoo (5)
+wind (10)
+wobble (1)
+world (3)
+xmas (1)
+yeah (31)

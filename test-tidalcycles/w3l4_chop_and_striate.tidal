@@ -1,0 +1,137 @@
+-- chop, striate are older than slice/splice
+-- can do some special things
+-- http://tidalcycles.org/docs/reference/sampling/#chop
+
+-- can use begin/end to take part of sample
+d1 $ sound "break:8*4" # begin 0.3 # end 0.85
+d1 $ sound "break:8*4" # unit "c" # begin 0.3 # end 0.85
+d1 $ sound "break:8*4" # unit "c" # begin 0.5 # end 0.85
+
+-- using begin/end/unit is fiddly. more convenient:
+-- - splice/slice
+-- - chop + loopAt
+
+-- this is too long
+d1 $ sound "break:9"
+-- cut and legato prevent overlaps by stopping previous sample when next starts
+d1 $ sound "break:9" # cut 1
+d1 $ sound "break:9" # legato 1
+-- chop splits *each* sample into N different events, playing each chopped bit at their proportional place in the cycle
+-- still has overlaps, now throughout the cycle instead of just end and beginning
+d1 $ chop 4 $ sound "break:9"
+putStrLn $ "\n-> 4 samples:\n" ++ (show $ chop 4 $ sound "break:9")
+d1 $ chop 4 $ sound "break:9" # cut 1
+-- loopAt changes speed/unit so fits within N cycles
+-- now, no overlap, plays seamlessly because each sample is sped up
+d1 $ loopAt 1 $ chop 4 $ sound "break:8"
+-- doesn't matter how many pieces, still seamlesss
+d1 $ loopAt 1 $ chop 100 $ sound "break:8"
+-- handles cps changes by speeding/pitching up/down
+setcps 0.8
+setcps 0.4
+d1 $ loopAt 1 $ chop 4 $ sound "break:8"
+-- OTOH, cut just plays more/less of the sample
+d1 $ sound "break:8" # cut 1
+setcps 0.55
+
+-- can hear the pieces when reversing
+d1 $ loopAt 2 $ chop 10 $ sound "break:8"
+d1 $ rev $ loopAt 2 $ chop 10 $ sound "break:8"
+d1 $ rev $ loopAt 2 $ chop 10 $ sound "break:8"
+
+-- and can hear gaps when add slow
+d1 $ slow 2 $ loopAt 2 $ chop 4 $ sound "break:8"
+d1 $ slow 2 $ loopAt 2 $ chop 8 $ sound "break:8"
+
+---- what about with multiple sounds?
+setcps 0.8
+once $ s "break:8"
+once $ s "break:10"  -- longer
+d1 $ sound "break:8 break:10" # cut 1
+d1 $ slow 2 $ loopAt 2 $ chop 4 $ sound "break:8"
+d1 $ slow 2 $ loopAt 2 $ chop 4 $ sound "break:10"  -- gets pitched up a bunch
+d1 $ slow 2 $ loopAt 2 $ chop 4 $ sound "break:8 break:10"
+d1 $ slow 2 $ loopAt 2 $ sound "break:8 break:10" -- chop not actually needed tho..
+
+-- loopAt by itself will pitch up, but still has overlap
+d1 $ loopAt 1 $ sound "break:8 break:10"
+d1 $ loopAt 2 $ chop 4 $ sound "break:8 break:10"
+d1 $ loopAt 2 $ chop 4 $ sound "break:8 break:10"
+d1 $ slow 2 $ loopAt 2 $ sound "break:8 break:10"
+-- what is the right multiple? the number of samples? yes i guess
+d1 $ slow 3 $ loopAt 2 $ sound "break:8 break:6 break:10"
+d1 $ loopAt 2 $ sound "break:8 break:6 break:10"
+-- shows that b8 plays for 2/3c, b6 for 2/3c (up to 4/3) and b10 for 2/3c (6/3c = 2c)
+-- without slow, they start overlapping
+loopAt 2 $ sound "break:8 break:6 break:10"
+-- with slow, each sample plays in 2 cycles, and full pattern finishes in 3
+d1 $ slow 3 $ loopAt 2 $ sound "break:8 break:6 break:10"
+slow 3 $ loopAt 2 $ sound "break:8 break:6 break:10"
+d2 $ "snare"
+
+---- striate
+-- chops pieces and then interlaces them
+d1 $ slow 2 $ loopAt 2 $ chop 2 $ sound "break:8 toys:9"
+d1 $ slow 2 $ loopAt 2 $ striate 2 $ sound "break:8 toys:9"
+striate 2 $ sound "break:8 toys:9"
+d1 $ slow 2 $ loopAt 2 $ striate 8 $ sound "break:8 toys:9"
+d1 $ slow 2 $ loopAt 2 $ striate 32 $ sound "break:8 toys:9"
+d1 $ slow 2 $ loopAt 2 $ striate 9270 $ sound "break:8 toys:9"  -- lol
+-- doesn't do anything different from chop with just 1 sample
+d1 $ loopAt 1 $ chop 4 $ sound "break:8"
+d1 $ loopAt 1 $ striate 4 $ sound "break:8"
+
+d1 $ slow 2 $ loopAt 2 $ striate 4 $ sound "break:8*2"
+d1 $ slow 2 $ loopAt 2 $ striate "<2 4> <8 16> <8 16 32>" $ sound "break:8*4"
+
+d1 $ slow 2 $ loopAt 2 $ striate "<2 4> <8 4 16> <8 16 4 32>" $ sound "break:8*4"
+
+d1 $ loopAt 13 $ striate "10 20 8 30" $ sound "bev*4"
+
+
+
+---
+
+d1 $ slow 2 $ rev $ chop 1 $ sound "break:8"
+d1 $ slow 2 $ rev $ chop 2 $ sound "break:8"
+d1 $ slow 2 $ rev $ chop 4 $ sound "break:8"
+d1 $ slow 2 $ rev $ chop 8 $ sound "break:8"
+d1 $ slow 2 $ rev $ chop 16 $ sound "break:8"
+d1 $ slow 2 $ rev $ chop 32 $ sound "break:8"
+d1 $ slow 2 $ rev $ chop 32 $ sound "break:8*2"
+sound "break:8"
+sound "break:8*2"
+
+d1 $ slow 2 $ juxBy "<0.1 0.2 0.4 0.8>" rev $ chop "<8 16 32 64>" $ sound "break:8"
+
+d1 $ rev $ chop "<8 16 32 64>" $ sound (samples "arpy*8" (run 16))
+
+d1 $ chop 16 $ sound (samples "arpy*8" (run 16))
+d1 $ chop 32 $ sound (samples "arpy*8" (run 16))
+d1 $ chop 128 $ sound (samples "arpy*8" (run 16))
+d1 $ chop 256 $ sound "bd*4 [sn cp] [hh future]*2 [cp feel]"
+d1 $ loopAt 8 $ rev $ chop 64 $ sound "bev"
+
+
+d1 $ slice 8 "0 1 2 3 4 5 6 7" $ sound "break:8"
+d1 $ striate 17 (1/8) # sound "toys:9 toys:1"
+
+
+------ tinker / questions
+
+-- chop doesn't do much when the sample is short
+d1 $ sound "hh"
+-- but at high enough value, starts to cut into the sample (1/N cycles)
+d1 $ chop 30 $ sound "hh"
+-- not sure why, but when including more events in each cycle, doesn't get as chopped for same value?
+d1 $ sound "hh hh hh"
+d1 $ chop 30 $ sound "hh hh hh"
+d1 $ sound "hh hh hh*5"
+-- but then including more makes it more choppy again?
+d1 $ chop 30 $ sound "hh hh hh*5"
+
+
+-- all 3 of these do the same thing, hum
+d1 $ slow 2 $ loopAt 1 $ chop 4 $ sound "break:8"
+d1 $ loopAt 1 $ slow 2 $ chop 4 $ sound "break:8"
+d1 $ loopAt 1 $ chop 4 $ slow 2 $ sound "break:8"

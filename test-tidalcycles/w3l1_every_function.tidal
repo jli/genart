@@ -1,0 +1,11 @@
+d1 $ sound "bd sd ~ cp"
+d1 $ fast 2 $ sound "bd sd ~ cp"
+d1 $ every 3 (fast 2) $ sound "bd sd ~ cp"
+-- fast changes to play twice in a single cycle
+drawLine $ every 3 (fast 2) $ "x x ~ y"
+
+
+d1 $ every 3 (fast 2) $ sound "bd sd [~ bd] [cp bd*2]" # squiz 5
+-- interesting: can use `# squiz 5` as function. `squiz 5` is just a control
+-- pattern, but including # changes it into a function that can be applied
+d1 $ every 3 (# squiz 5) $ sound "bd sd [~ bd] [cp bd*2]"

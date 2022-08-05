@@ -154,7 +154,12 @@ d1
 
 ------------------------
 
-d1 $ sound "drum:1 [bd <bd/10> [drum drum [bd bd]]] [bd drum] [bd drum] drum" # vowel "a o e  p p u" # sound "drum"
+d1 $ sound "{[bd bd], [sd sd sd]}" # amp 2
+d1 $ sound "bd bd" # amp 2
+d2 $ sound "sd sd sd" # amp 2
+d3 $ sound "kick kick kick kick" # amp 1.5
+
+d1 $ sound "drum:1 [bd <bd/10> [bd bd [bd bd]]]/2 {[bd drum], [bd drum] drum}" -- # vowel "a o e  p p u" # sound "drum"
 
 setcps  (120/60/4)
 
@@ -189,3 +194,13 @@ d1 $ silence
 
 d3 $ silence
 
+
+
+----
+
+setcps 0.1
+
+-- take me out to the ball game
+do
+  resetCycles
+  d1 $ n "c4~ c5 a5 g4 e4 g4~~ d3~~ c4*10 ~ c5 a5 g4 e4 g4~~~~" # s "notes"

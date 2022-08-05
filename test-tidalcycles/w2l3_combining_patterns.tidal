@@ -1,0 +1,79 @@
+do
+    resetCycles
+    d1 $ n "0 1 0 [2 4] 2 4 1*2 3" # s "cpu"
+        # speed "1 2"
+        # speed "1 2 3"
+
+-- structure from the left, values from the right
+-- # is equal to |>
+d1 $ speed "1 2 0.5" # s "dsynth" # speed "2 3 "
+d1 $ speed "1 2 0.5" # s "dsynth" |> speed "2 3"
+-- |< gets values from the right, so no change here since values and structure
+-- both from the left
+d1 $ speed "1 2 0.5" # s "dsynth" |< speed "2 3"
+d1 $ speed "1 2 0.5" # s "dsynth"
+
+-- bar shows which side the structure is from, so >| gets both values and
+-- structure from right
+d1 $ speed "1 2 0.5" # s "dsynth" >| speed "4 5"
+d1 $ speed "2 3" # s "dsynth"
+
+-- should be 2 notes but using diff values
+d1 $ speed "1 2 0.5" # s "dsynth" <| speed "4 5"
+d1 $ speed "1 2 0.5" # s "dsynth" <| speed "1 2"
+-- 2 because its active in middle of the pattern
+d1 $ speed "1 2" # s "dsynth"
+
+
+-- +| gets structure from right, but adds values
+d1 $ speed "1 2 0.5" # s "dsynth" +| speed "3 4"
+d1 $ speed "4 6" # s "dsynth"
+d1 $ speed "1 2 0.5" # s "dsynth" |+ speed "3 4"
+d1 $ speed "4 5 4.5" # s "dsynth"
+
+d1 $ speed "1 2 0.5" # s "dsynth" |* speed "1 0.5"
+d1 $ speed "1 2 0.25" # s "dsynth"
+
+d1 $ speed "1 2 0.5" # s "dsynth" *| speed "1 0.5"
+d1 $ speed "1 1" # s "dsynth"
+
+-- can get structure from both
+d1 $ speed "1 2 0.5" # s "dsynth" |*| speed "1 0.5"
+d1 $ speed "1 2 0.5" # s "dsynth" * speed "1 0.5"
+-- | 1 | 2 | ½ |
+-- |  1  |  ½  |
+-- |1 | 2|1 | ¼|
+d1 $ speed "1 [2 1] 0.25" # s "dsynth"
+
+---- hm how do uneven divisions work? ah, structure edges
+d1 $ speed "0.25 0.5 1 2" # s "dsynth"
+-- structure determines where edges are, and where edges fall on the other
+-- pattern determines what value of the other pattern is used. so here, the 2nd
+-- and 3rd values (0.5, 1) overlap with all 3 values of the right pattern, but
+-- get multiplied with the right values at their start, so 0.5 multiplies 0.5
+-- and 1 multiplies 1
+d1 $ speed "0.25 0.5 1 2" # s "dsynth" |* speed "0.5 1 2"
+-- | ¼ | ½ | 1 | 2 |
+-- |  ½  | 1 |  2  |
+-- | ⅛ | ¼ | 1 | 4 |
+d1 $ speed "0.125 0.25 1 4" # s "dsynth"
+
+d1 $ speed "0.25 0.5 1 2" # s "dsynth" *| speed "0.5 1 2"
+-- | ¼ | ½ | 1 | 2 |
+-- |  ½  | 1 |  2  |
+-- |  ⅛  | ½ |  2  |
+d1 $ speed "0.125 0.5 2" # s "dsynth"
+
+
+
+---- hurry, increases both pitch and playback speed
+
+d1 $ n "1 2 3" # s "dsynth"
+
+-- speed just increases pitch but not playback speed..
+d1 $ n "1 2 3" # s "dsynth" # speed 2
+-- fast increases playback speed but not pitch
+d1 $ fast 2 $ n "1 2 3" # s "dsynth"
+-- equivalent
+d1 $ fast 2 $ n "1 2 3" # s "dsynth" # speed 2
+d1 $ hurry 2 $ n "1 2 3" # s "dsynth"

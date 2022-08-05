@@ -1,0 +1,30 @@
+-- longer samples
+-- cut vs legato. not totally clear, but legato is more aggressive
+
+ d1 $ s "bev"
+ d1 $ s "bev ~" # cut 1
+ d2 $ slow 4 $ sound "pebbles ~" # cut 1
+
+ -- high hat open overlaps with next sound
+ -- cut helps with that
+ d1 $ fast 2 $ sound "ho:4 hc ho:4 hc"
+ d1 $ fast 2 $ sound "ho:4 hc ho:4 hc" # cut 1
+ d1 $ fast 2 $ sound "ho:4 hc ho:4 hc" # legato 1
+--  d1 $ fast 2 $ loopAt 8 $ sound "ho:4 hc ho:4 hc"
+d1 $ loopAt 4 $ sound "bev"
+d1 $ loopAt "<8 4 16>" $ chop 64 $ sound "bev*4" # cut 1
+d2 $ s "snare"
+
+
+sound "ho:4 hc ho:4 hc" -- # cut 1
+
+
+-- sax lasts long. after hushing, cut doesn't have effect?
+ d1 $ sound "sax hh hh" # cut 1
+ d1 $ sound "sax hh hh" # legato 1
+ d2 $ sound "hh*3"
+ -- legato prevents sound from persisting after its arc
+ d2 $ sound "sax*3" # legato 1
+
+ d1 $ n "0 1 2 3 4" # s "break" # legato 1
+ d1 $ n "0 1 2 3 4" # s "break" # cut 1

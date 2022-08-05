@@ -1,0 +1,22 @@
+-- 2022-08-05
+
+setcps 0.5
+resetCycles
+d1 $ n "0 2 [3 5] [4 8]" # sound "cpu" # amp 1.2
+d2 $ n "0(3, 8) 8*8" # s "cpu2" # squiz 5 # amp "0.6 1" -- # cps "0.5 <0.6 0.65 0.7>"
+d3 $ splice 2 "0 1 0 1" $ s "gabba kick" # amp "0.4 0.9"
+
+d1 $ slow 2 $ juxBy "<0.1>" rev $ chop "<16 32 64>" $ sound "break:8" # amp 1.7
+d1 $ slow 2 $ juxBy "<0.1 0.2 0.4 0.8>" rev $ chop "<16 32 64>" $ sound "break:8" # amp 1.7
+
+d2 $ silence
+
+d1 $ slow 1 $ loopAt 1 $ striate "<2 4> <8 4 16> <8 16 4 32>" $ sound "break:8*4" # amp 1.2
+d3 $ silence
+
+d1 $ slow 1 $ loopAt 1 $ striate "<2 4> <8 4 16> <8 16 4 32>" $ sound "break:8*4" # amp 0.9
+d2 $ slow 1 $ n "2" # s "toys" # amp 1.0
+d3 $ slow 1 $ jux rev $ splice 2 "0 1" $ n "2" # s "toys" # crush "6 5 6" # amp 1.2
+d1 $ slow 1 $ n "2" # s "toys" # amp 1.0
+d3 $ slow 1 $ jux rev $ splice 2 "0 1" $ n "2" # s "toys" # crush "3 4 3" # amp 1.2
+d3 $ silence
