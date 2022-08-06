@@ -1,0 +1,51 @@
+:t sine -- sine :: Fractional a => Pattern a
+
+-- can add numbers and wave
+d1 $ s "bd*8 sd*8" # speed (sine + 0.5)
+-- equiv:
+d1 $ s "bd*8 sd*8" # speed (range 0.5 1.5 sine)
+
+-- by default, 1 cycle per cycle. can speed it up with fast
+d1 $ s "bd*8 sd*8" # (fast 2 $ speed (range 0.1 2.5 sine))
+d1 $ s "bd*8 sd*8" # speed (fast 2 $ range 0.1 2.5 sine)
+s "a*10" # sine
+s "a*10" # (fast 2 sine)
+-- different than speeding up the whole pattern
+d1 $ fast 2 $ s "bd*8 sd*8" # speed (range 0.1 2.5 sine)
+d1 $ fast 2 $ s "bd*8 sd*8" # (fast 2 $ speed (range 0.1 2.5 sine))
+
+-- continuous things have no events, so this doesn't send any events:
+d1 $ speed (sine + 1) # s "bd*32"
+d1 $ s "bd*32" # speed (sine + 1)
+-- how to get structure out of continuous thing? can use `segment`
+d1 $ speed (segment 32 $ sine + 1) # s "bd"
+d1 $ speed (segment (range 16 40 sine) $ sine + 1) # s "bd"
+-- can use `struct`; takes bool pattern rather than time pattern like segment
+d1 $ speed (struct "t(3,8)" $ sine + 1) # s "bd"
+d1 $ speed (struct (every 2 inv "t f f [t t t]") $ sine + 1) # s "bd"
+
+
+--
+d1 $ jux (# speed 4) $ s "bd*8 sd*8" # speed (fast 2 $ range 0.1 2.5 sine)
+
+d1 $ jux (# speed (fast 2 $ range 0.5 2 saw)) $ s "bd*16 sd*8" # speed (fast 2 $ range 0.1 2.5 saw)
+
+
+d1 $ s "bd*10"
+    # room 1.6
+    # sz (slow 2 saw)
+
+--
+-- adding waves, can hear it
+d1 $ s "sn*40" # amp ((fast 4 $ square + 0.2) * (saw + 0.2))
+
+
+-- perlin!
+
+d1 $ slow 2 $ juxBy (fast "<0.5 2>" $ range 0.1 0.9 perlin) rev $ striate 6 $ sound "break:8*6"
+
+-- reminiscent of popcorn
+d1 $ fast (range 1.5 3 perlin) $ sound "[drum kick]*4" # speed (range 0.5 2 perlin)
+d1 $ fast 2 $ sound "[drum kick]*4" # speed (range 0.5 2 perlin)
+-- chooses a diff random value each cycle to drift towards, or something like that
+d1 $ slice 8 "0 1 2*4 3 4*5 5 6*6 7" $ sound "break:4" # speed (fast 2 $ range 0.5 2 perlin)

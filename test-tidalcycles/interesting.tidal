@@ -61,3 +61,12 @@ d1 $ chop 12 $ sound "toys:12"
 -- drum and bassy, patterned glitchiness
 d1 $ slow 2 $ loopAt 2 $ striate "<2 4> <8 16> <8 16 32>" $ sound "break:8*4"
 d1 $ slow 2 $ loopAt 2 $ striate "<2 4> <8 4 16> <8 16 4 32>" $ sound "break:8*4"
+
+
+-- interesting panning
+-- https://club.tidalcycles.org/t/week-4-lesson-1-continuous-patterns-sine-square-tri-saw-and-random-functions/608/12
+d1 $ speed (segment "128 64 256 16" $ range 0.5 "<64 128 16 32>" sine) # "breaks125" # legato 1 # pan (fast 4 (sine))
+
+
+xfadeIn 1 8 $ jux (iter 2) $ loopAt 6 $ chop 1 $ striate 64 $ speed (struct "t(2,7)" $ range 0.7 1 sine) # sound "bev" # gain 0.7 # delay 1 # delaytime 0.675 # delayfb 0.8 # room 0.2
+xfadeIn 1 2 $ silence

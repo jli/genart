@@ -1,0 +1,30 @@
+
+---- speed vs. fast/slow
+-- speed changes the sound, but pattern is intact
+-- fast/slow changes the pattern
+s "bd sd"
+s "bd sd" # speed 2
+fast 2 $ s "bd sd"
+
+d1 $ s "bd sd"
+d1 $ s "bd sd" # speed 2
+d1 $ fast 2 $ s "bd sd"
+
+-- equivalent:
+d1 $ fast 2 $ s "bd sd" # speed 2
+d1 $ hurry 2 $ s "bd sd"
+
+
+
+---- mininotation
+-- @ extends length
+d1 $ s "bd@2 bd" # gain 2
+-- ! duplicates N times (1 if no num)
+d1 $ s "bd!2 bd" # gain 2
+-- * takes same amount of time overall, so plays faster
+d1 $ s "bd*2 bd" # gain 2
+d1 $ s "[bd bd] bd" # gain 2  -- equiv
+-- [|] takes a random choice each cycle
+d1 $ n "0 1 2 [0..2|1*2|3*3]*[1|2|3]" # s "cpu"
+-- ?<omit-prob>
+d1 $ n "0? 1 2?" # s "cpu"

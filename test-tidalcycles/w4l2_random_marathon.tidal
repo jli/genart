@@ -1,0 +1,47 @@
+-- rant on randomness. numbers aren't random, the generation is random. brian eno is bad
+
+---- rand is continuous pattern. still a function of time, resetCycles to repeat
+d1 $ n "0*32" # s "cpu" # speed (rand + 1)*2
+resetCycles
+d1 $ repeatCycles 4 $ n "0*10" # s "cpu" # speed (rand + 1)*4
+d1 $ n (struct "t(5,8)" "0") # sound "rash"
+d1 $ n (struct "t(5,8)" $ (irand 8) + 10) # sound "rash"
+
+(struct "t(5,8)" $ (irand 10))
+
+---- randomness in mininotation: [|], ?
+d1 $ n "0 1 2 3" # s "cpu"
+d1 $ n "0 1 2 [0..2|1*2|3*3]*[1|2|3]" # s "cpu"
+-- <pat>?<prob-of-omitting>. applies to each thing within pattern
+d1 $ n "0 1 [2 2 3 4]?0.5" # s "cpu"
+
+
+---- scramble
+d1 $ n (run 4) # s "alphabet"
+-- chunks up pattern into N-length sequences, and randomly chooses with replacement
+d1 $ scramble 4 $ n (run 4) # s "alphabet"
+-- always says "a b" and "c d"
+d1 $ scramble 2 $ n (run 4) # s "alphabet"
+-- not sure what's going on here. i guess taking subsamples of the 4 note pattern?
+d1 $ scramble 100 $ n (run 4) # s "alphabet"
+
+
+--- shuffle
+-- like scramble, but chooses without replacement, just shuffling
+-- each cycle, will play all sequences just in diff order
+d1 $ shuffle 2 $ slow 2 $ n (run 8) # s "alphabet"
+
+
+---- choose a value from a list
+d1 $ s $ segment 8 $ choose ["arpy", "bd", "kick"]
+d1 $ s $ struct "t(5,8)" $ choose ["arpy", "bd", "kick"]
+-- wchoose: weighted
+d1 $ s $ segment 8 $ wchoose [("arpy", 1), ("bd", 0.5), ("kick", 0.2)]
+
+
+---- random streams are synced
+-- here, fast speed and right pan are synced
+d1 $ sound "bd*14" # pan rand # speed (range 0.5 3 rand)
+-- can dissociate by speeding up, or offsetting
+d1 $ sound "bd*14" # pan rand # speed (fast 1.01 $ range 0.5 3 rand)
+d1 $ sound "bd*14" # pan rand # speed (10 <~ range 0.5 3 rand)
