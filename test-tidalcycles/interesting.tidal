@@ -70,3 +70,49 @@ d1 $ speed (segment "128 64 256 16" $ range 0.5 "<64 128 16 32>" sine) # "breaks
 
 xfadeIn 1 8 $ jux (iter 2) $ loopAt 6 $ chop 1 $ striate 64 $ speed (struct "t(2,7)" $ range 0.7 1 sine) # sound "bev" # gain 0.7 # delay 1 # delaytime 0.675 # delayfb 0.8 # room 0.2
 xfadeIn 1 2 $ silence
+
+
+-- chop up sounds: legato with n<1 takes just first bit
+d1 $ n "0..7" # s "kurt"
+d1 $ n "0..7" # s "kurt" # legato 1
+d1 $ n "0..7" # s "kurt" # legato 0.3
+
+
+-- fun continuously varying squiz with bit of randomness
+-- crush with saw interesting effect
+d1 $ juxBy 0.5 (# offset 0.05) $ n "[0*9 1*4 [11 3]*5 [3*7?0.9|~]] 9*8"
+    # sound "cpu"
+    # squiz (fast "[1|2|3]" $ sine * 5)
+    # crush (range 14 5 saw)
+
+
+-- sometimes with slower speed makes events bleed over
+d1 $ sometimesBy 0.3 (# (speed 0.5 # squiz 1)) $ s "kick" >| n "0 5 3 1 ~ 3 2 4"
+d1 $ sometimesBy 0.3 (# (speed 0.3 # crush 4)) $ s "kick" >| n "0 5 3 1 ~ 3 2 4"
+
+-- applying stronger glitch over several cycles with increasing frequency
+-- using different cycles for speed and crush also interesting
+saw2 = slow 3 $ rev $ range 0.00001 1 saw
+
+d1
+  $ someCyclesBy (rev saw2 + 0.4)
+      (# (speed saw2 # crush (slow 2 $ rev $ range 1 10 saw)))
+  $ s "kick" >| n "0*2?0.3 5 3*2?0.6 1 ~ 3 2 4"
+
+-- glitchy harsh slight warble
+d1 $ s "kick:1" # speed 0.5 # squiz 2
+
+
+-- super wonky sample
+-- 0 high pitch resonating
+-- 1 metallic shake
+-- 2 low scifi warble
+-- 3 ridiculous boing
+-- 4 high scifi zap
+-- 5 normalish high hat
+-- 6 low static
+-- 7 high static
+d1 $ n "0 [6?0.7 2] 0 5*2" # s "feelfx"
+d1 $ n "0 [1 2] 0 5*2" # s "feelfx"
+d1 $ n "0 [[1|6] 7*2?] 0 5*2" # s "feelfx"
+

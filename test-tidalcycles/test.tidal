@@ -200,7 +200,26 @@ d3 $ silence
 
 setcps 0.1
 
--- take me out to the ball game
+-- take me out to the ball game...?
 do
   resetCycles
   d1 $ n "c4~ c5 a5 g4 e4 g4~~ d3~~ c4*10 ~ c5 a5 g4 e4 g4~~~~" # s "notes"
+
+---
+
+setcps 0.55
+
+d1 $ s "hh hh"
+
+d1 $ s "[bd sn]*2"
+d1 $ s "[bd sn]*2 kick"
+d1 $ s "kick(3,8) ~"
+d2 $ s "~ kick(3,8)"
+d1 $ s "[kick ~ ~ kick ~ ~ kick ~] ~"
+d2 $ s "~ [kick ~ ~ kick ~ ~ kick ~]"
+
+d1 $ n "1 ~ ~ ~ 1 1 ~ ~" # s "kick"
+d2 $ n "~ ~ 4 4 ~ ~ ~ 4" # s "clap"
+
+d1 $ s "bd:18*2 sd:1 bd:10 sd"
+d1 $ n "18*2 1 10 [0 0]" # s "bd sd bd sd" -- note the slightly different ending

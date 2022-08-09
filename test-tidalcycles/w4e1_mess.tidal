@@ -1,0 +1,38 @@
+-- recording pieces at different tempos
+
+-- alanza! math hat!
+-- https://club.tidalcycles.org/t/challenge-recording-pieces-at-different-tempos/492/4
+
+-- first
+
+setcps 0.4
+
+d1 $ n "0 [1 2] 0 5*2" # s "feelfx"
+
+d1 $ every 5 (# squiz 2) $ n "0 [1 2] 0 5*2" # s "feelfx"
+
+d1 $ rarely (# squiz 3) $ n "0 [1 2] 0 5*2" # s "feelfx"
+
+d1 $ rarely (# squiz 3) $ n "0 [[1|8] 2*3?] 0 [5|6|7]" # s "feelfx"
+
+d1 $ juxBy "<0.9 0.3 0.5>" rev $ n "0 [[1|8] 2*3?] 0 [5|6|7]" # s "feelfx"
+
+d1 $ degradeBy (slow 5 $ saw) $ juxBy "<0.8>" rev $ n "0 [[1|8] 2*3?] 0 [5|6|7]" # s "feelfx"
+
+
+
+-- second
+
+setcps 1
+
+d1 $ n "0 [0 2] 0 5*2" # s "feelfx" # vowel "i"
+
+d1 $ every 5 (# squiz 2) $ n "0 [0 2] 0 5*2" # s "feelfx"
+
+d1 $ rarely (# squiz 3) $ n "0 [0 2] 0 5*2" # s "feelfx" # vowel "<i u e>"
+
+d1 $ rarely (# squiz 3) $ n "0 [[0|2] 2*3?] 0 [5|6|7]" # s "feelfx" # vowel "<a u i>"
+
+d1 $ juxBy "<0.9 0.3 0.5>" rev $ n "0 [[0|2] 2*3?] 0 [5|6|7]" # s "feelfx" # vowel "<u i a>"
+
+d1 $ degradeBy (slow 5 $ saw) $ juxBy "<0.9 0.3 0.5>" rev $ n "0 [[0|2] 2*3?] 0 [5|6|7]" # s "feelfx" # vowel "<u i a>" # size 0.2 # room 1.1

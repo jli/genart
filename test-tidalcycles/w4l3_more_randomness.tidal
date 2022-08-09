@@ -1,0 +1,46 @@
+
+---- randcat
+-- cat combines patterns, this turns into 2 cycles
+d1 $ sound (cat ["bd sn", "arpy clap"])
+-- 3 cycles
+d1 $ sound (cat ["bd", "sn", "arpy clap"])
+
+-- randcat chooses random item
+d1 $ fast 2 $ sound (randcat ["bd sn", "arpy sn", "arpy clap"])
+-- wrandcat, weighted
+
+---- stripe
+-- like fast, speeds things up to fit. chooses random speeds for each repetition
+d1 $ n "1*2 ~ 4*2 ~" # s "cpu"
+d1 $ stripe 4 $ n "1 2" # s "cpu"
+d2 $ s "clap" # gain 0.8
+
+
+--- degrade
+-- dropping out notes, like `?`
+d1 $ degradeBy (slow 4 $ range 0 0.8 saw) $ n "9*8 [0*9 1 [2 6] ~ ~]" # sound "cpu"
+
+---- sometimes
+-- apply function to some random events
+-- alias for sometimesBy, like:
+-- often, rarely, almostNever, almostAlways
+d1 $ almostNever (# (speed 0.2 # crush 5)) $ s "cpu" >| n "0 5 3 1 ~ 3 2 4"
+
+---- someCycles
+-- apply function to all events in random cycle
+d1 $ someCyclesBy 0.2 (# (speed 0.2 # crush 5)) $ s "cpu" >| n "0 5 3 1 ~ 3 2 4"
+
+
+---- randslice
+d1 $ slice 4 "0 ~ 2 ~" $ sound "break:3"
+d1 $ randslice 8 $ sound "break:3"
+
+-- but can also just use slice (or splice!) with pattern
+d1 $ splice 4 (segment 4 $ irand 4) $ sound "break:8"
+
+
+
+d1 $ splice 8 (segment 8 $ irand 8)$ s "break:4"
+
+d2 $ s "<cpu cpu*2 cpu(3,8) cpu*4>"
+
