@@ -1,0 +1,87 @@
+once $ s "pirate"
+
+---- reviewing chop and friends..
+-- finishes in 1 cycle, by overlapping samples
+d1 $ chop 8 $ "pirate"
+-- finishes in 1 cycle, by speeding+pitching up each sample to fit
+d1 $ loopAt 1 $ chop 8 $ "pirate"
+d1 $ loopAt 2 $ chop 8 $ "pirate"
+d1 $ loopAt 3 $ chop 8 $ "pirate"
+
+
+---- sequence
+-- lol https://soundcloud.com/circularly/w4e2-220811-012623
+d1 $ splice 8 "0 1 2 3 4" $ chop 16 $ "pirate"
+xfadeIn 2 4 $ s "sn [bd kick:2] kick:5 [bd sn*2]" # gain 0.8
+d2 $ s "sn [bd kick:2] kick:5 [bd sn*2]" # squiz "<[1 2 3] [5 3 4] [3 4 3] [2 3 9]>" # gain 1.0
+
+d1 $ loopAt 5 $ rev $ chop "[16|64|256]*4" $ "pirate"
+
+d2 $ loopAt 5.3 $ chop 16 $ "pirate"
+
+d1 $ jux rev $ loopAt 5 $ chop "[16|64|256]*3" $ "pirate"
+
+d1 $ striate 4 $ loopAt 5 $ chop 128 $ "pirate"
+
+d1 $ striate 4 $ loopAt 5 $ chop 256 $ "pirate"
+d1 $ juxBy (slow 2 $ range 0.1 0.9 sine) rev $ striate 4 $ loopAt 5 $ chop "[16|64|256]*3" $ "pirate"
+
+d2 $ s "sn sn*2 kick:2 [sn bd] kick:3 [bd kick:2] kick:5 [bd sn*2]" # squiz "<[1 2 3] [5 3 4] [3 4 3] [2 3 9]>" # gain 1.1 -- # gain (bloop)
+xfade 2 $ degradeBy 0.7 $ s "sn sn*2 kick:2 [sn bd] kick:3 [bd kick:2] kick:5 [bd sn*2]" # squiz "<[1 2 3] [5 3 4] [3 4 3] [2 3 9]>" -- # gain 0.9 -- # gain (bloop)
+
+d1 $ juxBy (slow 2 $ range 0.1 0.9 sine) rev $ striate 4 $ loopAt 5 $ chop "[4|8|16]*5" $ "pirate"
+d1 $ juxBy (slow 2 $ range 0.1 0.9 sine) rev $ striate 4 $ loopAt 5 $ chop "[2|4]*5" $ "pirate"
+xfade 2 $ almostNever $ s "sn sn*2 kick:2 [sn bd] kick:3 [bd kick:2] kick:5 [bd sn*2]" # squiz "<[1 2 3] [5 3 4] [3 4 3] [2 3 9]>" -- # gain 0.9 -- # gain (bloop)
+
+d1 $ chop 8 $ "pirate" # cut 1
+d2 $ s "sn sn*2 kick:2 [sn bd] kick:3 [bd kick:2] kick:5 [bd sn*2]" # squiz "<[1 2 3] [5 3 4] [3 4 3] [2 3 9]>" # crush (slow 2 $ range 2 10 sine)
+d2 $ s "sn sn*2 kick:2 [sn bd] kick:3 [bd kick:2] kick:5 [bd sn*2]" # squiz "<[1 2 3] [5 3 4] [3 4 3] [2 3 9]>" # crush (slow 2 $ range 2 7 sine)
+d2 $ s "sn sn*2 kick:2 [sn bd] kick:3 [bd kick:2] kick:5 [bd sn*2]" # squiz "<[1 2 3] [5 3 4] [3 4 3] [2 3 9]>" # crush (slow 1 $ range 2 4 sine)
+d2 $ s "sn sn*2 kick:2 [sn bd] kick:3 [bd kick:2] kick:5 [bd sn*2]" # squiz "<[1 2 3] [5 3 4] [3 4 3] [2 3 9]>" # crush (slow 1 $ range 1 2 sine)
+d1 $ chop 8 $ "pirate" # crush 2 # legato 1
+d1 $ chop 8 $ "pirate" # crush 1 # legato 1
+
+
+
+
+
+--- messing about
+
+-- weird
+d1 $ splice 8 "0 1 2 3 4" $ chop 16 $ "pirate"
+
+-- weird bell-like echo behind "pirate skulls and bones"
+d1 $ hurry (0.4) $ splice 8 "0 1 2 3 4 5 6 7" $ chop 8 $ "pirate"
+-- this also has the weird echo, and odd overlapping in general..
+d1 $ fast 1.5 $ loopAt 5 $ chop 16 $ "pirate"
+
+-- huh, oh so splice numbers are indexing into the chopped pieces?
+d1 $ hurry (0.4) $ splice 8 "0 1 2 3 4 5 6 7" $ chop 16 $ "pirate"
+
+-- this is fun
+d1 $ loopAt 5 $ rev $ chop 32 $ "pirate"
+-- kinda funny, sometimes evil
+d1 $ loopAt 5 $ rev $ chop 64 $ "pirate"
+-- speaking in tongues behind a fan
+d1 $ loopAt 5 $ rev $ chop 256 $ "pirate"
+d1 $ loopAt 9 $ rev $ chop 256 $ "bev"
+
+d2 $ loopAt 5 $ rev $ chop 16 $ "pirate"
+d1 $ loopAt 5 $ chop 16 $ "pirate"
+
+d1 $ jux rev $ loopAt 5 $ chop 16 $ "pirate"
+
+-- kinda interesting. a few slices mashed together at normal speed
+d1 $ chop 8 $ "pirate" # cut 1
+
+-- stuttery
+-- TODO how do i take just events N through M from this?
+d1 $ striate 4 $ loopAt 5 $ chop 128 $ "pirate"
+
+-- TODO this is weird, what is happening?
+d1 $ striate 2 $ striate 2 $ striate 2 $ loopAt 5 $ chop 8 $ "pirate"
+
+bloop = slow 1.2 $ range 0.65 0.9 sine
+d2 $ s "sn sn*2 kick:2 [sn bd] kick:3 [bd kick:2] kick:5 [bd sn*2]" # squiz "<[1 2 3] [5 3 4] [3 4 3] [2 3 9]>" # gain (bloop)
+d3 $ silence -- s "sn sn*2 kick:2 [sn bd] kick:3 [bd kick:2] kick:5 [bd sn*2]" # lfo 100 # pan (bloop)
+

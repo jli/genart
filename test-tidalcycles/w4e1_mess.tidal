@@ -4,6 +4,17 @@
 -- https://club.tidalcycles.org/t/challenge-recording-pieces-at-different-tempos/492/4
 
 -- first
+-- +2d reaction:
+-- - kinda like the sounds, but the boingy thing sounds kind of lame
+-- - vibe: kind of feels dubsteppy? ketamine-y? kind of ok
+-- - should have started more basic and layered on wonky sound
+-- - ~0:25 don't like sudden unexpected pauses/rests
+-- - 0:45 sudden heavy distortion too harsh
+-- - big gap of no interesting changes
+-- - 1:40 still harsh, but more interesting variation
+-- - 2:40 base level sounds haven't really changed
+-- - ~3:45 a lot more high pitched ethereal bell kind of annoying
+-- - going away and coming back works better if there's more expectation that it should continue
 
 setcps 0.4
 
@@ -22,6 +33,12 @@ d1 $ degradeBy (slow 5 $ saw) $ juxBy "<0.8>" rev $ n "0 [[1|8] 2*3?] 0 [5|6|7]"
 
 
 -- second
+-- reaction:
+-- - starts with too much stuff
+-- - felt too busy, but dropping some things out felt better. like the higher energy
+-- - 0:30 rhythm too irregular
+-- - 1:17 weird glitchy distorted noise kind of nice. not too overwhelming, but interesting
+-- - decent ending, but maybe would have been nice with more cheesy kind of fading final notes
 
 setcps 1
 
