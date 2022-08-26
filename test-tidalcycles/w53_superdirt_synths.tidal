@@ -1,0 +1,32 @@
+-- https://club.tidalcycles.org/t/week-5-lesson-3-adding-and-using-superdirt-synths/1115
+
+d1 $ note "3*30 2*2" # s "donk"
+
+d1 $ n "0*3 3*2" # s "cs80lead" # crush 3 # room "<0.1 [0.5 0.9]>" # sz "<0.55 [0.95 0.7]>" # vowel "a o e u"
+
+d1 $ n "0*3 3*2" # s "cs80lead"
+    # sustain "<0.1 0.5 0 0.9 1.5>"
+
+d1 $ n "0*3 3*2" # s "cs80lead"
+    # attack "<2.5 0.5>"
+    # sustain "<2 0.5>"
+    # release "<0.1 20>"
+
+d1 $ n "0*3 3*2" # s "cs80lead"
+    -- # crush 3
+    # vowel "<a o e u>"
+    # pF "dtune" "[1 2 3 4]"
+
+
+-- same
+d1 $ n "0*3 3*2" # s "rhodes"
+    # sustain "0.1"
+
+d1 $ n "0*3 3*2" # s "rhodes"
+    # pF "sustain" "0.1"
+
+d1 $ note (run 39) # s "acid309"
+
+d1 $ note (run 39) # s "acid309 bass8 pbass"
+
+d1 $ s "donk wub sawpluck wob fmp ab2 futuresaw acid"

@@ -7,6 +7,12 @@ d1 $ n (parseBP_E $ unwords $ map show [0..5]) # s "808"
 
 --------------
 
+-- someone already did:
+-- http://tidalcycles.org/docs/configuration/Audio%20Samples/default_library/
+
+-- a bunch of drum machines:
+-- https://club.tidalcycles.org/t/a-huge-drum-machine-library-for-tidal-71-drum-machines/3408
+
 -- 808 drums
 d1 $ n "0..6" # s "808"
 d1 $ slow 4 $ n "0..25" # s "808bd"  -- bass

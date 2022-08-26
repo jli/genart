@@ -1,0 +1,111 @@
+n "'maj"
+n "c'maj"
+n "a'maj"
+
+d1 $ n "'maj c'maj a'maj g'min" # s "superpiano"
+d1 $ n "a'maj g'maj e'maj" # s "superpiano"
+d1 $ n "c'maj*5" # s "superpiano"
+d1 $ n "a'maj*5" # s "superpiano"
+d1 $ n ("c'maj*5" |+ "9 11") # s "superpiano"
+
+d1 $ n "c'maj9 e'min9 e'min9" # s "supermandolin" # legato 3 # gain 1.4
+
+---- algoraoke
+
+-- creep
+setcps 0.3
+d1 $ qtrigger 1 $ n "<g'maj b'maj c'maj c'min>" # s "superpiano" # room 0.6 # sz 0.9
+
+d1 $ trigger 1
+    $ struct "t(5,8,4)"
+    $ n "<g'maj b'maj c'maj c'min>"
+    # s "supermandolin"
+    # crush 5
+    # room 0.9
+    # sz 0.9
+
+--------------- blue monday
+
+setcps 0.27
+-- 1cyc/3.7s
+
+-- intro kick
+d1 $ qtrigger 1 $ n "0 0 0*4 0*4 0 0 0 0" # s "odx"
+
+setcps 0.27
+
+-- coming up
+-- mid, low, hi, hi;
+d2 $ qtrigger 1
+    $ note "[f ~ g a] [b4 ~ g a] [c ~ g a]!2" # s "dsynth" # legato 0.5
+
+    note "[f ~ g a] [b4 ~ g a] [c ~ g a]!2"
+
+-- transition
+do
+    d1 $ n "[2!4 ~]!2" # s "ho"
+    d2 $ n "[2!4 ~]!2" # s "kick" # gain 0.9
+
+
+d2 $ n "[~ ~ 0 ~]!4" # s "kick" # gain 0.9
+
+-- ugh this is bad
+d1 $ trigger 1
+    $ note ("a4 e a4 e  g3 e g3 e  c e c e  c e c e"  |- "3")
+    # s "arpy" # gain 1.2
+
+d1 $ note "c d c d a4 d a4 d f3 d f3 d f3 d f3 d" # s "arpy" # gain 1.2
+d1 $ note "f d f d  a4 d a4 d a4  d a4 d a4 d a4 d" # s "arpy"
+
+
+
+
+d2 -- $ arpeggiate
+ $ note "[c'maj ~ c'maj ~ c'maj] [e'maj ~ e'maj ~ e'maj] [g'maj ~ g'maj ~ g'maj] [g'maj ~ g'maj ~ g'maj]" # s "cpu2" # squiz 9
+
+d2 $ note "c'maj ~ c'maj e'maj a5'maj ~ a5'maj e'maj] [g'maj ~ g'maj ~ g'maj] [g'maj ~ g'maj ~ g'maj]" # s "cpu2" # squiz 9
+
+
+------- rockwell - please please please
+-- https://youtu.be/oRrV0KzgyE0?t=39 <- the track
+-- https://youtu.be/oDsXT68J9Kw?t=892 <- alex talking about it
+
+setcps (1/2.7436)
+
+-- equiv
+d1 $ note "c c c cs [cs d] [~ d] [d ~] ~" # sound "supersaw"
+d2 $ note "c c c cs cs@0.5 d d@0.5 d ~" |+ note "<0 7>" # sound "supersaw"
+
+d2 $ note "c c c cs@0.9 cs@0.6 d@0.9 d@0.6 d ~" # sound "supersaw"
+
+-- obsessive
+-- first 3: 0.343s
+-- next 4: 0.257s = 0.75x 1st
+-- final: 0.684s = 2x 1st
+d2 $ note "c c c cs@0.75 cs@0.75 d@0.75 d@0.75 d@1 ~" |+ note ("<0 6>" |+ "'min") # sound "supersaw"
+
+
+-- from forum
+d1 $ n "[~ t!! . t(5,16)]" |> note "[c . cs d d]" |+ note "<0 7>" |> sound "superpiano"
+d1 $ gain "[0 1 1 1]<[1 1 1 1 1 0]<[1 1 1 1 1 0][1 1 1 1 0 0]>>" # n ("<[[f4 f4][fs4 g4 g4]][bf4 bf4 b4 c c]>" |+ "'min") # s "superpiano"
+d1 $ gain "[0 1 1 1] [1 1 1 1 1 0]" # n ("<[f4 f4 fs4 g4 g4] [bf4 bf4 b4 c c]>" |+ "'min") # s "superpiano"
+d1 $    n "[~ 0 0 0] [1 1 2 2 2 ~]" |+ n "<f4'min bf4'min>" # s "superpiano"
+
+
+---- chordList
+
+import Sound.Tidal.Chords
+chordList
+
+
+---- arpeggio
+
+d1 $ arp "updown thumbup" $ n "c'maj'4*2 e'min9 d'7f5" # s "superpiano"
+
+d1 $ jux (rev . (+| n 3)) $ arp "<updown thumbup pinkyupdown converge diverge>"
+    $ n "<c4'maj'6 e4'min7'8 a5'maj'4>" # s "superpiano"
+    # room 0.3 # sz 0.9
+
+
+
+---------

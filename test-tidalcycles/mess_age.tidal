@@ -1,0 +1,13 @@
+
+
+d1 $ note "a g e ~" # n "a g e ~" # s "dbass"
+d1 $ n "a g e d" # s "superpiano"
+d1 $ n "a g e d*3" # s "superpiano"
+d1 $ n "a g*2 e d*3" # s "superpiano"
+d1 $ n "a g*3 [e e*2] d*3" # s "superpiano"
+d1 $ n "[a a*3] [g g*3] [e e*2] d*3" # s "superpiano"
+d1 $ n "[a a*3] [g g*3] [e e*2] d*3" # s "superpiano" # squiz 4
+d2 $ note "a g e ~" # s "dsynth"
+d2 $ note "a g e d" # s "dsynth"
+d2 $ note "[a*3 g*3] [g e d] [e d d] [e d]" # s "dsynth" # crush 5
+d3 $ note "[a*3 g*3] [g e d] [e d d] [e d]" # s "dbass" # gain 0.7

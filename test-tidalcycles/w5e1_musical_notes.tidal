@@ -1,0 +1,89 @@
+-- chords, arpeggios, etc
+
+-- todo:
+-- - synth vs sample, is that the right distinction?
+-- - note vs n
+
+note "3"
+d1 $ note "3" # s "superpiano"
+d1 $ note (run 12) # s "superpiano"
+d1 $ note "0 1 2 3 4" # s "superpiano"
+-- only some synths support fractional/non-whole notes
+d1 $ note "0 1 1.25 1.5 2 2.75 3 3.5 4" # s "superpiano"
+d1 $ note "0 1 1.25 1.5 2 2.75 3 3.5 4" # s "supermandolin"
+
+range 1 5
+
+
+---- note names instead of numubers
+-- 0 is middle c, or c5
+d1 $ note "0 c c5" # s "superpiano"
+d1 $ note "0 c c5" # s "superpiano"
+
+d1 $ note "a4 b4 c d e f g" # s "superpiano"
+d2 $ note "-3 -1 0 2 4 5 7" # s "superpiano"
+note "a4 b4 c d e f g"
+
+d1 $ note "a5 as5 b5" # s "superpiano"
+d1 $ note "a5 as5 b5 c cs css" # s "superpiano"
+d1 $ note "c*2 [cs*3 css*2]/2" # s "superpiano"
+
+-- doubling speed same as going up an octave, both are doubling frequency
+d1 $ s "dbass" >| speed "1 2 4"
+
+-- speed doesn't work with synthesizers, speed only works to speed up playback of samples
+d1 $ s "superpiano" >| speed "1 2 4"
+d1 $ n "c" # s "superpiano"
+d1 $ s "superpiano:9 superpiano:21 superpiano:33"
+d1 $ n "c5 c6 c7" # s "superpiano"
+-- ...not totally sure how defaults match
+
+
+--- n vs. note
+
+-- synths: n and note interpreted the same way (tho can't mix)
+d1 $ note "a g e ~" # s "superpiano"
+d1 $ n "a g e ~" # s "superpiano"
+d1 $ n "a g e ~" # s "superpiano" |+ n "a g e"
+d1 $ n "a g e ~" # s "superpiano" |+ note "a a a"  -- doesn't mix for reasons
+
+-- samples: `note` pitches up, same as speed
+d1 $ note "a g e ~" # s "dbass"
+d1 $ note "9 7 4 ~" # s "dbass"
+d1 $ speed "5 4 2 ~" # s "dbass"
+note "a g e" -- 9 a5, 7 g5, 4 e5
+-- but `n` chooses nth sample
+d1 $ n "a g e ~" # s "dbass"
+-- for dbass, diff samples have different timbres, but all pitched at C
+-- these are all the same
+d1 $ note "c*4" # s "dbass"
+d1 $ note "0*4" # s "dbass"
+d1 $ n "0*4" # s "dbass"
+
+-- with rash, has 73 samples corresponding to notes
+-- all these are the same
+d1 $ n "c a f e" # s "rash"
+d1 $ n "0 9 5 4" # s "rash"
+d1 $ note "c a f e" # s "rash"
+d1 $ note "0 9 5 4" # s "rash"
+
+-- with note-per-sample, no shortening effect of higher notes, same length
+d1 $ n "70 50 20 4 ~" # s "rash"
+d1 $ note "70 50 20 4 ~" # s "dbass"
+
+d1 $ note "a*4 g e d" # s "rash" |+ n "<[a g e] [g e d] [e d] d>"
+
+d1 $ note "c a f e" # s "rash"
+d1 $ n "0 20 30 40 50*4 70" # s "rash"
+
+
+
+
+
+--- trigger / qtrigger...? wut TODO
+
+d1 $ qtrigger 1 $ note "c g a e" # s "superpiano"
+d1 $ qtrigger 1 $ note "c e" # s "superpiano"
+-- trigger seems to always play start of pattern immediately?
+d1 $ trigger 1 $ note "c g a e" # s "superpiano"
+d2 $ note "f f" # s "superpiano" # squiz 2
