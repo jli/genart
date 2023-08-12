@@ -1,0 +1,111 @@
+-- https://club.tidalcycles.org/t/week-6-lesson-1-canons-with-off/1123
+-- - off / superimpose
+-- - shorthand for time fractions, q e s t ...
+-- - legato / sustain to extend synth notes
+
+-- w = 1 (whole)
+-- h = 0.5 (half)
+-- q = 0.25 (quarter)
+-- e = 0.125 (eighth)
+-- s = 0.0624 (sixteenth)
+-- t = 1/3 (third)
+-- f = 0.2 (fifth)
+-- x = 1/6 (sixth)
+
+
+
+:t off
+
+d1 $ superimpose (|+ (n "<[2.5 5.2] [1.1 2.2 4.2] [7.1 7.2 7.3 7.4 7.5]>")) $ n "0 4 1 2" # s "arpy!3" # amp "0.9 0.5 0.5"
+
+d1 $ superimpose (# s "drum") $ n "0 4 1 2" # s "arpy!3" # amp "0.9 0.5 0.5"
+
+d1 $ superimpose (# (s "drum" # squiz "<0 9 15>")) $ n "0 4 1 2" # s "arpy!3" # amp "0.9 0.5 0.5"
+
+d1
+    -- $ superimpose (# (s "drum" # squiz "<0 9 15>"))
+    -- $ superimpose (# (s "drum"))
+    $ off "<q e>" (# (splice 8 "0 1 2 3" $ chop 12 $ s "break"))
+    -- $ off 0.1 (# (interlace 2 $ s "break" # legato 0.9))
+    -- $ off 0.1 (# (s "drum"))
+    -- $ off 0.1 (# (s "kick" # gain "0.8"))
+    -- $ off 0.1 (# (s "kick" # gain "0.8"))
+    $ n "0 4 1 2"
+    # s "arpy!3"
+    # amp "0.9 0.5 0.5"
+
+
+d1 $ off "<[e s e] [e e s] [s e e] e>" (|+ (n "<6 9 4.20>" # crush 4)) $ slow 2 $ n "c a g e e g a c" # s "superpiano" # sustain 0.9
+
+d1 $ off "e" (|+ (n "3(5,8)" # crush 4)) $ slow 2 $ n "c(3,8) a(3,8) g(5,8) e(5,8) e g a c" # s "superpiano" # sustain 0.9
+
+d1
+    $ off "e" (|+ (n "3" # crush 4))
+    $ off "e" (|+ (n "12" # crush 4))
+    $ slow 2 $ n "c(3,8) [a(3,8)]*3 [g(5,8)]*2 [e(5,8)]*9 e g a c"
+    # s "superpiano" # legato "<1 2.5 5>"
+
+
+-- neat
+d1
+    -- $ off "e" (|+ (n "9" # crush 4))
+    -- $ off "e" (|+ (n "3" # crush 4))
+    -- $ jux (off "e" rev)
+    $ slow 1.5
+    $ n "e g a c . c(3,8) [a(3,8)]*3 [g(5,8)]*2 [e(5,8)]*4"
+    # s "<kick bass clap>"
+
+d2 silence
+    $ off "t" (|+ (n "5" # crush 4))
+    $ off "t" (|+ (n "2" # crush 4))
+    -- $ jux (off "e" rev)
+    $ n "c(3,8) [a(3,8)]*3 [g(5,8)]*2 [e(5,8)]*1"
+    # s "<arpy hardkick>"
+    # room 0.1
+    # sz 0.99
+
+d1
+    $ off "e" (|+ (n "3" # crush 4))
+    $ off "e" (|+ (n "12" # crush 4))
+    $ slow 2 $ n "c(3,8) [a(3,8)]*2 [g(5,8)]*2 [e(5,8)]*5 e g a c"
+    # s "superpiano" # sustain "<1 5>"
+
+d1
+    -- $ off "s" (|+ (n "3" # crush 4))
+    $ off "s" (|+ (n "<-24 -36 24 36>" # crush 4))
+    -- $ off "s" (|+ (n "1"))
+    -- $ off "s" (|+ (n "1"))
+    -- $ off "s" (|+ (n "1"))
+    -- $ off "t" (|+ (n "6"))
+    -- $ off "t" (|+ (n "5"))
+    -- $ off "t" (|+ (n "4"))
+    $ off "s" (|+ (n "4"))
+    $ off "s" (|+ (n "4"))
+    $ off "s" (|+ (n "4"))
+    $ slow 1
+    $ n "as g e e3"
+    # s "superpiano" # sustain "<0.2 0.05 0.02>"
+
+-- euclidean*9 on its own sounds like noise
+d1
+    $ n "c(3,8) [a(3,8)]*3 [g(3,8)]*2 [e(3,8)]*9"
+    # s "superpiano" # legato "2"
+
+d1
+    $ jux (off "e" (|+ (n "4" # crush 2)) )
+    $ off "e" (|+ (n "12" # crush 4))
+    -- $ off 0.5 rev
+    $ slow 2 $ n "c(3,8) [a(3,8)]*3 [g(5,8)]*2 [e(5,8)]*9 e g a c"
+    # s "superpiano"
+
+
+-- alex's
+d1
+    $ off "<w h>" (# crush 4)
+    $ off "<s q e>" (# squiz 3)
+    $ n "{0 1 [~ 2] 3*2, 5 ~ 3 6 4}"
+    # sound "cpu2"
+    # sustain 0.75
+    # begin "[0 0.1 0.2]"
+    # room 0.6
+    # sz 0.97

@@ -1,0 +1,13 @@
+d1 $  s "gabba kick"
+
+
+d1
+    $ off "1.25" (# squiz 1.8)
+    $ n "{t(3,8)}*2" # s "{kick,gabba}"
+
+d1
+    -- $ off "q" (# squiz 4)
+    -- $ off "e" (# crush 4)
+    -- $ off "w" (# squiz 4)
+    -- $ degradeBy (trigger 1 $ slow 2 $ range 0 1 saw)
+    $ n "[d(3,8)]*2" # s "{gabba}"
