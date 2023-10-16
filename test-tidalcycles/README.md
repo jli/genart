@@ -1,0 +1,3 @@
+# tidalcycles
+
+run `sclang`

@@ -16,3 +16,16 @@ d1 $ slow 1 $ note "g4 a5 b5 c5 d5 e5 f*2 g*2" # s "notes:7" # amp 3
 d1 $ slow 1 $ note "a*2 a5*4 a4*4 a3*4" # s "notes:7" # amp 3
 
 d2 $ slow 1 $ note "a4 a6 a5 g c" # s "notes:7"
+
+
+
+---------------------
+
+-- sounds right?
+-- 3 pairs of octaves
+-- (bf bf+8) x 2
+-- (a a+8) x 2
+-- (d-8 d-16) x 2
+
+d1 $ slow 1.5 $ note "bf4 bf5 bf4 bf5 a4 a5 a4 a5 d3 d4 d3 d4 d3 d4 d3 d4" # s "notes:7" # amp 2 # squiz 2.1  # crush 6
+    -- d1 $ slow 1 $ note "bf4 bf5 d3 d4 " # s "notes:1" # amp 2
