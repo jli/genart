@@ -1,0 +1,15 @@
+DevOps is a meaningful term. You understand DevOps because you use it every day.
+That joke you told in your meeting was funny. If your coworkers were not on mute, you would have heard them laughing.
+That postmortem you did was worth it.
+There will never be another outage again.
+You are happy.
+You contribute meaningfully to incident management discussions and casual conversations.
+You were born to deploy Kubernetes.
+Your friends and family appreciate your humorous work stories.
+Your friends and family understand what you do.
+Your peers are grateful for your feedback. Your feedback is actionable and important.
+Your pipeline is green.
+Your tests are reliable and have appropriate coverage.
+Your deployments are flawless, like a perfectly executed dance.
+Your bug fixes are acts of kindness towards future generations.
+Your documentation is a sacred text, guiding the lost.
