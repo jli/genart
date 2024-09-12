@@ -53,6 +53,10 @@ let I_NUM_NEIGHBORS;
 let I_NF_NUM_NEIGHBORS;
 let I_RAND_MOVE_FREQ;
 let I_RAND_MOVE_MULT;
+let I_DISINFO_SUBVERT;
+let I_DISINFO_CORRUPT;
+let I_DISINFO_DEGRADE;
+let I_DISINFO_DENY;
 
 
 // Note: has high saturation and brightness minimums.
@@ -141,6 +145,14 @@ class Node {
   get zspace_need() { return this.space_need * I_ZOOM.value; }
   get debugf() { return DEBUG_MODE || (I_DEBUG_FORCE.value && this.id === 0); }
 
+  corrupted() {
+    return this.id % 100 < I_DISINFO_CORRUPT.value;
+  }
+
+  subverted() {
+    return this.id % 100 < I_DISINFO_SUBVERT.value;
+  }
+
   draw_shape(pos, vel) {
     const siz = this.size * I_ZOOM.value;
     // Multiple size by 1.5 for triangles to make visual weight more similar.
@@ -182,14 +194,14 @@ class Node {
     const nodes_and_dists_sf = [];
     const nodes_and_dists_nf = [];
     const max_dist = I_SPACE_AWARE_MULT.value * this.zspace_need;
-    const near = qt.queryCenter(this.pos, max_dist * 2, max_dist * 2);
+    const near = qt.queryCenter(this.pos, max_dist * 2, max_dist * 2);
     for (const [other, _] of near) {
       const same_flock = this.flock_id === other.flock_id;
       if (same_flock && this.id === other.id) continue;
       const dist = this.pos.dist(other.pos);
       if (dist < max_dist) {
-        if (same_flock) { nodes_and_dists_sf.push([other, dist]); }
-        else { nodes_and_dists_nf.push([other, dist]); }
+        if (same_flock) { nodes_and_dists_sf.push([other, dist]); }
+        else { nodes_and_dists_nf.push([other, dist]); }
       }
     }
     nodes_and_dists_sf.sort((a, b) => a[1] - b[1]).splice(I_NUM_NEIGHBORS.value);
@@ -244,6 +256,11 @@ class Node {
     const sep_force = createVector(); let sep_n = 0;
     const ali_force = createVector(); let ali_n = 0;
     for (const [other, dist] of nearby_nodes) {
+      // Can't see some nodes.
+      if (other.id % 100 < I_DISINFO_DENY.value) {
+        continue;
+      }
+      let cdist = dist + random(1) * I_DISINFO_DEGRADE.value;
       // numerator for separation force computation. with divisor of dist^2,
       // this works out to 1 when other node is zspace_need away.
       const sep_force_num = this.zspace_need * other.zspace_need;
@@ -251,25 +268,25 @@ class Node {
       const away = p5.Vector.sub(this.pos, other.pos).normalize();
       if (same_flock) {
         sep_force.add(away.copy().mult(
-          I_SEPARATION_FORCE.value * curspeed * sep_force_num / sq(dist)
-          - I_COHESION_FORCE.value * curspeed * dist / this.zspace_need
+          I_SEPARATION_FORCE.value * curspeed * sep_force_num / sq(cdist)
+          - I_COHESION_FORCE.value * curspeed * cdist / this.zspace_need
         )); ++sep_n;
         ali_force.add(other.vel); ++ali_n;
       } else {
         sep_force.add(away.copy().mult(
-          I_NF_SEPARATION_FORCE.value * curspeed * sep_force_num / pow(dist, 2)
+          I_NF_SEPARATION_FORCE.value * curspeed * sep_force_num / pow(cdist, 2)
         )); ++sep_n;
       }
       if (I_DEBUG_NEIGHBORS.value && (!I_DEBUG_FORCE.value || this.debugf)) {
-        if (same_flock && dist < this.zspace_need) {
+        if (same_flock && cdist < this.zspace_need) {
           strokeWeight(2);
-          stroke(330, 90, map(dist, 3, this.zspace_need, 100, 40));
+          stroke(330, 90, map(cdist, 3, this.zspace_need, 100, 40));
         } else if (same_flock) {
           strokeWeight(0.5);
-          stroke(120, 85, map(dist, this.zspace_need, max_space_awareness, 35, 100));
+          stroke(120, 85, map(cdist, this.zspace_need, max_space_awareness, 35, 100));
         } else {
           strokeWeight(1);
-          stroke(210, 95, map(dist, 3, max_space_awareness, 100, 20));
+          stroke(210, 95, map(cdist, 3, max_space_awareness, 100, 20));
         }
         line(this.pos.x, this.pos.y, other.pos.x, other.pos.y);
       }
@@ -295,6 +312,17 @@ class Node {
       }
     }
 
+    if (this.subverted()) {
+      // Create a no go zonein the center, but only subverted nodes can see
+      // it.
+      const away = this.pos.copy().sub(createVector(width / 2, height / 2));
+      const dist_sq = away.magSq();
+      if (dist_sq < sq(TOUCH_RAD * 2)) {
+        sep_force.add(away.setMag(
+            20 * I_SEPARATION_FORCE.value * curspeed * TOUCH_RAD * this.zspace_need / dist_sq))
+      }
+    }
+
     const tot_force = createVector();
     if (sep_n) { tot_force.add(sep_force.div(sep_n)); }
     if (ali_n) { tot_force.add(ali_force.div(ali_n).sub(this.vel).mult(I_ALIGNMENT_FORCE.value)); }
@@ -308,7 +336,9 @@ class Node {
       fill(0, 0, 90, .5); draw_triangle(tp, tot_force, min(50, tot_force.mag() * 10));
     }
 
-    this.vel.add(tot_force.limit(I_MAX_FORCE.value));
+    if (!this.corrupted()) {
+      this.vel.add(tot_force.limit(I_MAX_FORCE.value));
+    }
     if (random(1) < I_RAND_MOVE_FREQ.value) {
       this.vel.add(p5.Vector.random2D().mult(curspeed * I_RAND_MOVE_MULT.value));
     }
@@ -571,6 +601,10 @@ function create_control_panel() {
   I_NF_NUM_NEIGHBORS = new Slider('#/seg (#nf nbrs)',   0, 10, 1, 1, sliders);
   I_RAND_MOVE_FREQ = new Slider('rand move freq', 0, 1,  0, .02, sliders);
   I_RAND_MOVE_MULT = new Slider('rand move mult', 0, 1, .1, .02, sliders);
+  I_DISINFO_SUBVERT = new Slider('subvert', 0, 100, 0, 5, sliders);
+  I_DISINFO_CORRUPT = new Slider('corrupt', 0, 100, 0, 5, sliders);
+  I_DISINFO_DEGRADE = new Slider('noise', 0, 50, 0, 1, sliders);
+  I_DISINFO_DENY = new Slider('blind', 0, 100, 0, 5, sliders);
   createA('https://github.com/jli/processing-sketches/tree/master/flock', 'src').parent(sliders);
 }
 
@@ -588,6 +622,10 @@ function sliders_reset() {
   I_NF_NUM_NEIGHBORS.reset();
   I_RAND_MOVE_FREQ.reset();
   I_RAND_MOVE_MULT.reset();
+  I_DISINFO_SUBVERT.reset();
+  I_DISINFO_CORRUPT.reset()
+  I_DISINFO_DEGRADE.reset()
+  I_DISINFO_DENY.reset()
 }
 
 function sliders_randomize() {
