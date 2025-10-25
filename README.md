@@ -7,7 +7,7 @@ Dabbling.
 
 birds of a feather
 
-live: http://circularly.org/flock
+live: <http://circularly.org/flock>
 
 [more info](./flock/README.md)
 
@@ -18,7 +18,7 @@ live: http://circularly.org/flock
 
 the long now
 
-live: http://circularly.org/clock
+live: <http://circularly.org/clock>
 
 ![clock screenshot](./screenshots/clock_20150705.png)
 
@@ -28,7 +28,7 @@ live: http://circularly.org/clock
 
 patterns in vector fields
 
-live: http://circularly.org/wind and http://circularly.org/wind/big
+live: <http://circularly.org/wind> and <http://circularly.org/wind/big>
 
 ![wind map screenshot](./screenshots/wind_map_20130203.png)
 
