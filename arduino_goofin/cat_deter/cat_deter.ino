@@ -5,10 +5,12 @@
 #define ACCEL_PIN 3
 
 // accel movements over this threshold will trigger the deterrence routine
-const float ACCEL_THRESH = 5.5;
+const float ACCEL_THRESH = 10;
 // delay at the end of loop()
 const int LOOP_DELAY_MS = 100;
 const int CYCLES_TO_DISABLE_AFTER_ACTIVATION = 50;
+// from 0 to 255
+const int MAX_FAN_SPEED = 120;
 
 //// loop values:
 // zmove_ewma tracks moving average of accelerometer Z reading changes.
@@ -20,23 +22,25 @@ int disabled_for_cycles = 0;
 
 void setup() {
   Serial.begin(9600);
-  pinMode(MANUAL_BUTTON_TRIGGER_PIN, INPUT_PULLUP);
+  // 2025-11-10: disabled in final build
+  // pinMode(MANUAL_BUTTON_TRIGGER_PIN, INPUT_PULLUP);
   pinMode(ACCEL_PIN, INPUT);
   pinMode(BOARD_LED_PIN, OUTPUT);
   pinMode(BEEPER_LED_PIN, OUTPUT);
   pinMode(FAN_MOSFET_PIN, OUTPUT);
   prev_z = analogRead(ACCEL_PIN);
   // start sound
-  beep_n_flash(2, 50);
+  beep_n_flash(3, 30);
 }
 
 void loop() {
-  // manual trigger
-  int button_val = digitalRead(MANUAL_BUTTON_TRIGGER_PIN);
-  if (button_val == LOW) {
-    Serial.println("PRESSED");
-    deter();
-  }
+  // 2025-11-10: disabled in final build
+  // // manual trigger
+  // int button_val = digitalRead(MANUAL_BUTTON_TRIGGER_PIN);
+  // if (button_val == LOW) {
+  //   Serial.println("PRESSED");
+  //   deter();
+  // }
 
   // manage disabled time
   if (disabled_for_cycles > 0) {
@@ -77,25 +81,25 @@ void deter() {
   // beep and flash a bunch of times
   beep_n_flash(5, 50);
   // ramp up fan speed
-  for (int ramp = 0; ramp <= 100; ramp+=20) {
+  for (int ramp = 0; ramp <= MAX_FAN_SPEED; ramp+=10) {
     Serial.println("Ramping up: " + String(ramp));
     digitalWrite(BOARD_LED_PIN, HIGH);
     digitalWrite(BEEPER_LED_PIN, HIGH);
     analogWrite(FAN_MOSFET_PIN, ramp);
-    delay(200);
+    delay(75);
     digitalWrite(BOARD_LED_PIN, LOW);
     digitalWrite(BEEPER_LED_PIN, LOW); 
-    delay(50);
+    delay(75);
   }
-  for (int ramp = 100; ramp >= 0; ramp-=10) {
+  for (int ramp = MAX_FAN_SPEED; ramp >= 0; ramp-=10) {
     Serial.println("Ramping down: " + String(ramp));
     digitalWrite(BOARD_LED_PIN, HIGH);
     digitalWrite(BEEPER_LED_PIN, HIGH);
     analogWrite(FAN_MOSFET_PIN, ramp);
-    delay(100);
+    delay(50);
     digitalWrite(BOARD_LED_PIN, LOW);
     digitalWrite(BEEPER_LED_PIN, LOW);
-    delay(20);
+    delay(50);
   }
   analogWrite(FAN_MOSFET_PIN, 0);
 } 
