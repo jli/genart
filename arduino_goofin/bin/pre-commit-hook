@@ -10,7 +10,8 @@ GIT_ROOT=$(git rev-parse --show-toplevel)
 echo "Checking that all files under arduino_goofin/*/lib/* are symlinks..."
 
 # Find all files under arduino_goofin/*/lib/* that are being committed
-non_symlinks=$(git diff --cached --name-only --diff-filter=ACM | grep '^arduino_goofin/.*/lib/' | while read file; do
+# Exclude circuitpython_firmware/ which contains the actual bundle files
+non_symlinks=$(git diff --cached --name-only --diff-filter=ACM | grep '^arduino_goofin/.*/lib/' | grep -v '^arduino_goofin/circuitpython_firmware/' | while read file; do
     filepath="$GIT_ROOT/$file"
     if [ -f "$filepath" ] && [ ! -L "$filepath" ]; then
         echo "$file"
