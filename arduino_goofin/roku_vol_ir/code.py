@@ -158,7 +158,7 @@ def send_loop():
     print("[debug] DotStar steady purple (awake)")
     dotstar[0] = (128, 0, 128)
 
-    pwm = pulseio.PulseOut(TRANSMIT_PIN, frequency=38000, duty_cycle=21845)
+    pwm = pulseio.PulseOut(TRANSMIT_PIN, frequency=38000, duty_cycle=32768)
     encoder = adafruit_irremote.GenericTransmit(
         header=[9000, 4500], one=[560, 1690], zero=[560, 560], trail=560
     )
