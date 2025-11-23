@@ -23,7 +23,7 @@ if [ $# -lt 1 ]; then
     usage
 fi
 
-SOURCE_DIR="$1"
+SOURCE_DIR="${1%/}/"  # Ensure trailing slash for rsync
 DEST="${2:-/Volumes/CIRCUITPY}"
 
 if [ ! -d "$SOURCE_DIR" ]; then
