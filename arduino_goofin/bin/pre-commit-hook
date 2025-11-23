@@ -4,23 +4,27 @@
 
 set -e
 
-echo "Checking that all files under */lib/* are symlinks..."
+# Find git root
+GIT_ROOT=$(git rev-parse --show-toplevel)
 
-# Find all files under */lib/* that are being committed
-non_symlinks=$(git diff --cached --name-only --diff-filter=ACM | grep '/lib/' | while read file; do
-    if [ -f "$file" ] && [ ! -L "$file" ]; then
+echo "Checking that all files under arduino_goofin/*/lib/* are symlinks..."
+
+# Find all files under arduino_goofin/*/lib/* that are being committed
+non_symlinks=$(git diff --cached --name-only --diff-filter=ACM | grep '^arduino_goofin/.*/lib/' | while read file; do
+    filepath="$GIT_ROOT/$file"
+    if [ -f "$filepath" ] && [ ! -L "$filepath" ]; then
         echo "$file"
     fi
 done)
 
 if [ -n "$non_symlinks" ]; then
-    echo "ERROR: Found non-symlink files under */lib/* directories:"
+    echo "ERROR: Found non-symlink files under arduino_goofin/*/lib/* directories:"
     echo "$non_symlinks"
     echo ""
-    echo "All files under */lib/* must be symlinks to the central bundle."
+    echo "All files under arduino_goofin/*/lib/* must be symlinks to the central bundle."
     echo "Please replace these files with symlinks to adafruit-circuitpython-bundle-*/lib/"
     exit 1
 fi
 
-echo "✓ All */lib/* files are symlinks"
+echo "✓ All arduino_goofin/*/lib/* files are symlinks"
 exit 0
