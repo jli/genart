@@ -112,8 +112,8 @@ def blink_led(led, times: int = 3, interval: float = 0.1) -> None:
 
 
 def send_loop():
-    button_pins = [board.D13, board.D12, board.D11, board.D10, board.D9]
-    commands = ["power", "source", "up", "down", "ok"]
+    button_pins = [board.D13, board.D12, board.D11, board.D10]
+    commands = ["power", "source", "vol_up", "vol_down"]
     buttons = []
     for pin in button_pins:
         button = digitalio.DigitalInOut(pin)
@@ -125,13 +125,14 @@ def send_loop():
     led = digitalio.DigitalInOut(LED_PIN)
     led.direction = digitalio.Direction.OUTPUT
 
-    pwm = pulseio.PulseOut(TRANSMIT_PIN, frequency=38000, duty_cycle=2**15)
+    pwm = pulseio.PulseOut(TRANSMIT_PIN, frequency=38000, duty_cycle=21845)
     encoder = adafruit_irremote.GenericTransmit(
         header=[9000, 4500], one=[560, 1690], zero=[560, 560], trail=560
     )
-    button_states = [True] * 5
+    button_states = [True] * 4
 
     print("TV Remote Ready!")
+    time.sleep(0.5)  # Let pins stabilize before reading
     while True:
         for i, button in enumerate(buttons):
             current_state = button.value
