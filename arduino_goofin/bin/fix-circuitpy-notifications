@@ -1,0 +1,17 @@
+#!/bin/bash
+# Fix CIRCUITPY "Disk Not Ejected Properly" notifications
+# Converts alerts back to banners that auto-dismiss
+# Solution from: https://blog.adafruit.com/2021/05/11/how-to-tone-down-macos-big-surs-circuitpy-eject-notifications/
+# Original script: https://gist.githubusercontent.com/PaintYourDragon/a229f7c5f1992943a34ce1a5c7cb527c/raw/c12745c4cde36ac667b8ede16a8a707554f1072c/ejectfix.py
+
+echo "Backing up notification preferences..."
+cp ~/Library/Preferences/com.apple.ncprefs.plist ~/Desktop/com.apple.ncprefs.plist.backup
+
+echo "Running ejectfix script..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+python3 "$SCRIPT_DIR/ejectfix.py"
+
+echo ""
+echo "Done! If no errors appeared, the fix worked."
+echo "You'll still get notifications, but they'll auto-dismiss after a few seconds."
+echo "Backup saved to: ~/Desktop/com.apple.ncprefs.plist.backup"
