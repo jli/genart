@@ -43,4 +43,4 @@ echo ""
 echo "Press Ctrl+C to stop"
 echo ""
 
-watchexec -w "$SOURCE_DIR" -- rsync -av "$SOURCE_DIR" "$DEST"
+watchexec -w "$SOURCE_DIR" -- rsync -avL "$SOURCE_DIR" "$DEST"
