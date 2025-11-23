@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:learn.adafruit.com)"
+      "WebFetch(domain:learn.adafruit.com)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
