@@ -1,2 +1,6 @@
-libraries
-adafruit-circuitpython-*
+# CircuitPython build/temp files
+**/.Trashes
+**/.fseventsd
+**/.metadata_never_index
+**/.TemporaryItems
+**/boot_out.txt

@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 Tim Cocks for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
+Adafruit-Blinka
+adafruit-circuitpython-usb-host-descriptors

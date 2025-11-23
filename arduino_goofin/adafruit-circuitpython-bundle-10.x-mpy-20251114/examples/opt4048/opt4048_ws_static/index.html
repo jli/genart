@@ -1,0 +1,202 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2025 Tim C for Adafruit Industries
+SPDX-License-Identifier: MIT
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OPT4048 CIE Color Plotter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 8px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      flex: 1;
+    }
+    .controls {
+      flex: 1;
+      min-width: 230px;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .visualization {
+      flex: 2;
+      min-width: 280px;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    #cie-diagram {
+      position: relative;
+      width: 100%;
+      max-width: 450px;
+      margin: 0 auto 10px auto;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #cie-diagram img {
+      width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    #data-point {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background-color: white;
+      border-radius: 50%;
+      border: 3px solid black;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+      z-index: 10;
+    }
+    #color-sample {
+      width: 30px;
+      height: 30px;
+      border: 1px solid #ccc;
+      margin: 0 auto;
+      border-radius: 50%;
+    }
+    #serial-log {
+      flex: 1;
+      min-height: 80px;
+      max-height: 150px;
+      overflow-y: auto;
+      background-color: #f5f5f5;
+      padding: 8px;
+      border: 1px solid #ddd;
+      font-family: monospace;
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+    button {
+      padding: 8px 12px;
+      margin: 4px 4px 4px 0;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    .data-display {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .data-box {
+      flex: 1;
+      min-width: 100px;
+      margin: 0;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .data-box h3 {
+      margin: 0 0 5px 0;
+      font-size: 14px;
+    }
+    .data-value {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    /* Responsive adjustments for very small screens */
+    @media (max-height: 600px) {
+      h1 { font-size: 20px !important; margin: 5px 0 !important; }
+      h2 { font-size: 16px; margin: 8px 0 5px 0; }
+      p { font-size: 12px !important; margin: 5px 0 !important; }
+      .data-box { padding: 5px; }
+      .data-box h3 { font-size: 12px; margin: 0 0 3px 0; }
+      .data-value { font-size: 14px; }
+      #serial-log { min-height: 60px; max-height: 100px; }
+      button { padding: 6px 10px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+
+  <div class="container">
+    <div class="controls">
+      <h2 style="margin: 10px 0; font-size: 24px;">OPT4048 CIE Color Plotter</h2>
+      <p style="margin: 8px 0; font-size: 14px;">Connect your Arduino with OPT4048 sensor to visualize color measurements on a CIE diagram.</p>
+
+      <button id="clear-button">Clear Log</button>
+      <button id="test-plot-button" style="display: none;">Test Plot Point</button>
+
+      <h2>Connection Status</h2>
+      <p id="status">Not connected</p>
+
+      <h2 style="margin-bottom: 5px;">Serial Monitor</h2>
+      <div id="serial-log"></div>
+    </div>
+
+    <div class="visualization">
+      <h2 style="margin: 10px 0; font-size: 24px;">CIE 1931 Chromaticity Diagram</h2>
+      <div id="cie-diagram">
+        <img src="cie1931_diagram.svg" alt="CIE 1931 Chromaticity Diagram">
+        <div id="data-point" style="display: none;"></div>
+        <!-- Debug info: will show exact location of measured color -->
+        <div id="debug-coordinates" style="position: absolute; bottom: 3px; right: 3px; font-size: 10px; background: rgba(255,255,255,0.7); padding: 2px; border: 1px solid #ccc; display: block;"></div>
+      </div>
+
+      <div class="data-display">
+        <div class="data-box">
+          <h3>CIE x</h3>
+          <div id="cie-x" class="data-value">-</div>
+        </div>
+        <div class="data-box">
+          <h3>CIE y</h3>
+          <div id="cie-y" class="data-value">-</div>
+        </div>
+        <div class="data-box">
+          <h3>Lux</h3>
+          <div id="lux" class="data-value">-</div>
+        </div>
+        <div class="data-box">
+          <h3>CCT (K)</h3>
+          <div id="cct" class="data-value">-</div>
+        </div>
+      </div>
+
+      <div class="data-box">
+        <h3>Color Approximation</h3>
+        <div id="color-sample"></div>
+        <small>(Note: This is a rough approximation)</small>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

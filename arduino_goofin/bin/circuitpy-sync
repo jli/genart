@@ -1,0 +1,46 @@
+#!/bin/bash
+# CircuitPython project sync script
+# Watches a local directory and syncs changes to CIRCUITPY drive
+
+set -euo pipefail
+
+usage() {
+    echo "Usage: $0 <source-dir> [destination]"
+    echo ""
+    echo "Watches source-dir and syncs changes to CircuitPython device"
+    echo ""
+    echo "Arguments:"
+    echo "  source-dir    Local directory to watch (e.g., roku_vol_ir/)"
+    echo "  destination   Target path (default: /Volumes/CIRCUITPY)"
+    echo ""
+    echo "Example:"
+    echo "  $0 roku_vol_ir/"
+    echo "  $0 roku_vol_ir/ /Volumes/CIRCUITPY"
+    exit 1
+}
+
+if [ $# -lt 1 ]; then
+    usage
+fi
+
+SOURCE_DIR="$1"
+DEST="${2:-/Volumes/CIRCUITPY}"
+
+if [ ! -d "$SOURCE_DIR" ]; then
+    echo "Error: Source directory '$SOURCE_DIR' does not exist"
+    exit 1
+fi
+
+if [ ! -d "$DEST" ]; then
+    echo "Error: Destination '$DEST' does not exist"
+    echo "Is your CircuitPython device mounted?"
+    exit 1
+fi
+
+echo "Watching: $SOURCE_DIR"
+echo "Syncing to: $DEST"
+echo ""
+echo "Press Ctrl+C to stop"
+echo ""
+
+watchexec -w "$SOURCE_DIR" -- rsync -av "$SOURCE_DIR" "$DEST"

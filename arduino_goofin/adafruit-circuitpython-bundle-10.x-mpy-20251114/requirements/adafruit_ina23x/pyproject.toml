@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2022 Alec Delaney, written for Adafruit Industries
+# SPDX-FileCopyrightText: Copyright (c) 2025 Liz Clark for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
+[build-system]
+requires = [
+    "setuptools",
+    "wheel",
+    "setuptools-scm",
+]
+
+[project]
+name = "adafruit-circuitpython-ina23x"
+description = "CircuitPython driver for the INA237 and INA238 DC Current Voltage Power Monitor"
+version = "0.0.0+auto.0"
+readme = "README.rst"
+authors = [
+    {name = "Adafruit Industries", email = "circuitpython@adafruit.com"}
+]
+urls = {Homepage = "https://github.com/adafruit/Adafruit_CircuitPython_INA23x"}
+keywords = [
+    "adafruit",
+    "blinka",
+    "circuitpython",
+    "micropython",
+    "ina23x",
+    "INA237,",
+    "INA238,",
+    "power",
+    "monitor",
+]
+license = {text = "MIT"}
+classifiers = [
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Embedded Systems",
+    "Topic :: System :: Hardware",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+dynamic = ["dependencies", "optional-dependencies"]
+
+[tool.setuptools]
+# TODO: IF LIBRARY FILES ARE A PACKAGE FOLDER,
+#       CHANGE `py_modules = ['...']` TO `packages = ['...']`
+py-modules = ["adafruit_ina23x"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+optional-dependencies = {optional = {file = ["optional_requirements.txt"]}}

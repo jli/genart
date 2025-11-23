@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 Mikey Sklar for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+# Wi-Fi credentials
+CIRCUITPY_WIFI_SSID = "YourSSID"
+CIRCUITPY_WIFI_PASSWORD = "YourPassword"
+
+# NTP settings
+# Common UTC offsets (hours):
+#   0   UTC / Zulu
+#   1   CET  (Central Europe)
+#   2   EET  (Eastern Europe)
+#   3   FET  (Further Eastern Europe)
+#  -5   EST  (Eastern US)
+#  -6   CST  (Central US)
+#  -7   MST  (Mountain US)
+#  -8   PST  (Pacific US)
+#  -9   AKST (Alaska)
+# -10   HST  (Hawaii, no DST)
+
+NTP_SERVER   = "pool.ntp.org"   # NTP host (default pool.ntp.org)
+NTP_TZ       = -5               # timezone offset in hours
+NTP_DST      = 1                # daylight saving (0=no, 1=yes)
+NTP_INTERVAL = 3600             # re-sync interval (seconds)
+
+# Optional tuning
+NTP_TIMEOUT        = "1.0"       # socket timeout in seconds
+NTP_CACHE_SECONDS  = 0           # cache results (0 = always fetch)
+NTP_REQUIRE_YEAR   = 2022        # sanity check minimum year
+
+# Retries
+NTP_RETRIES   = 8         # number of NTP fetch attempts
+NTP_DELAY_S   = "1.5"     # delay between attempts (seconds)
