@@ -20,7 +20,7 @@
 #define NUM_LEDS    64
 #define GRID_W      8
 #define GRID_H      8
-#define NUM_PATTERNS 9
+#define NUM_PATTERNS 13
 #define NUM_PALETTES 4
 #define MAX_BRIGHT   50
 #define DEFAULT_BRIGHT 10
@@ -30,10 +30,21 @@
 #define DOTSTAR_CLK   INTERNAL_DS_CLK
 #define RED_LED_PIN   13
 
-#define ENC_COUNTS_PER_DETENT 2
+#define DEBUG_BAUD     115200
+#define DEBUG_INTERVAL 200  // ticks between heartbeats (~10s at 50ms/tick)
+
+static const char *PATTERN_NAMES[NUM_PATTERNS] = {
+  "checker", "breathe", "sweep", "rings", "sparkle", "face",
+  "rainbow", "spiral", "snake", "fire", "plasma", "balls", "lissajous"
+};
+static const char *PALETTE_NAMES[NUM_PALETTES] = {
+  "warm", "cool", "red", "rainbow"
+};
+
+#define ENC_COUNTS_PER_DETENT 4
 
 Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
-Adafruit_DotStar onboardDot(1, DOTSTAR_DATA, DOTSTAR_CLK, DOTSTAR_BRG);
+Adafruit_DotStar onboardDot(1, DOTSTAR_DATA, DOTSTAR_CLK, DOTSTAR_BGR);
 
 volatile int encPos = 0;
 int currentPattern = 0;
@@ -95,9 +106,9 @@ void clearGrid() {
 // --- Status LED helpers ---
 void updateOnboardDot() {
   uint32_t c = palettes[currentPalette].indicatorColor;
-  uint8_t r = ((c >> 16) & 0xFF) / 16;
-  uint8_t g = ((c >> 8) & 0xFF) / 16;
-  uint8_t b = (c & 0xFF) / 16;
+  uint8_t r = (c >> 16) & 0xFF;
+  uint8_t g = (c >> 8) & 0xFF;
+  uint8_t b = c & 0xFF;
   onboardDot.setPixelColor(0, r, g, b);
   onboardDot.show();
 }
@@ -113,11 +124,15 @@ void blinkRedLed() {
 void patternCheckerboard() {
   float phase = (float)(tick % 80) / 80.0 * 2.0 * PI;
   float blend = (sin(phase) + 1.0) / 2.0;
+  uint8_t hueVal = (tick / 4) % 256;
 
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
-      float b = ((x + y) & 1) ? blend : (1.0 - blend);
-      strip.setPixelColor(xy(x, y), paletteColor(128, 255, (uint8_t)(b * 255)));
+      if ((x + y) & 1) {
+        strip.setPixelColor(xy(x, y), paletteColor(hueVal, 255, (uint8_t)(blend * 255)));
+      } else {
+        strip.setPixelColor(xy(x, y), strip.ColorHSV(paletteHue(hueVal), 0, (uint8_t)((1.0 - blend) * 255)));
+      }
     }
   }
 }
@@ -235,7 +250,7 @@ void patternRainbow() {
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
       uint8_t val = (x + y) * 16 + tick * 2;
-      strip.setPixelColor(xy(x, y), paletteColor(val, 255, 200));
+      strip.setPixelColor(xy(x, y), paletteColor(val, 255, val));
     }
   }
 }
@@ -248,72 +263,56 @@ bool spiralBuilt = false;
 
 void buildSpiral() {
   if (spiralBuilt) return;
-  bool visited[GRID_W][GRID_H] = {};
-  const int8_t dx[] = { 1, 0, -1, 0 };
-  const int8_t dy[] = { 0, 1, 0, -1 };
+  int top = 0, bottom = GRID_H - 1, left = 0, right = GRID_W - 1;
+  uint8_t idx = 0;
 
-  int x = 3, y = 3;
-  int dir = 0;
-  for (uint8_t i = 0; i < NUM_LEDS; i++) {
-    spiralOrder[i] = xy(x, y);
-    visited[x][y] = true;
-
-    int tryDir = (dir + 1) % 4;
-    int nx = x + dx[tryDir];
-    int ny = y + dy[tryDir];
-    if (nx >= 0 && nx < GRID_W && ny >= 0 && ny < GRID_H && !visited[nx][ny]) {
-      dir = tryDir;
-      x = nx;
-      y = ny;
-    } else {
-      nx = x + dx[dir];
-      ny = y + dy[dir];
-      if (nx >= 0 && nx < GRID_W && ny >= 0 && ny < GRID_H && !visited[nx][ny]) {
-        x = nx;
-        y = ny;
-      } else {
-        dir = (dir + 3) % 4;
-        x += dx[dir];
-        y += dy[dir];
-      }
+  while (top <= bottom && left <= right) {
+    for (int x = left;  x <= right;  x++) spiralOrder[idx++] = xy(x, top);
+    top++;
+    for (int y = top;   y <= bottom; y++) spiralOrder[idx++] = xy(right, y);
+    right--;
+    if (top <= bottom) {
+      for (int x = right; x >= left; x--) spiralOrder[idx++] = xy(x, bottom);
+      bottom--;
+    }
+    if (left <= right) {
+      for (int y = bottom; y >= top; y--) spiralOrder[idx++] = xy(left, y);
+      left++;
     }
   }
   spiralBuilt = true;
 }
 
+// Returns the i-th pixel in fill order: inward = outside→center, outward = center→outside
+uint8_t spiralAt(uint8_t i, bool inward) {
+  return inward ? spiralOrder[i] : spiralOrder[NUM_LEDS - 1 - i];
+}
+
 void patternSpiral() {
   clearGrid();
-  uint8_t cycle = tick / 3 % 160;
-
-  uint8_t fillCount;
-  if (cycle < NUM_LEDS) {
-    fillCount = cycle + 1;
-  } else if (cycle < NUM_LEDS + 16) {
-    fillCount = NUM_LEDS;
-  } else if (cycle < NUM_LEDS * 2 + 16) {
-    uint8_t unfilled = cycle - (NUM_LEDS + 16);
-    fillCount = NUM_LEDS;
-    for (uint8_t i = 0; i < unfilled + 1; i++) {
-      strip.setPixelColor(spiralOrder[i], 0);
-    }
-  } else {
-    fillCount = 0;
-  }
-
-  for (uint8_t i = 0; i < fillCount; i++) {
-    uint8_t hueVal = i * 4;
-    strip.setPixelColor(spiralOrder[i], paletteColor(hueVal, 255, 255));
-  }
+  unsigned long t3 = tick / 3;
+  uint8_t cycle = t3 % 144;
+  bool inward = (t3 / 144) % 2 == 0;
 
   if (cycle < NUM_LEDS) {
-    strip.setPixelColor(spiralOrder[cycle], strip.Color(255, 255, 255));
+    // Phase 1: fill — pixels 0..cycle-1 lit, cycle is white tracer
+    for (uint8_t i = 0; i < cycle; i++)
+      strip.setPixelColor(spiralAt(i, inward), paletteColor(i * 4, 255, 255));
+    strip.setPixelColor(spiralAt(cycle, inward), strip.Color(255, 255, 255));
+
+  } else if (cycle < NUM_LEDS + 8) {
+    // Phase 2: hold full
+    for (uint8_t i = 0; i < NUM_LEDS; i++)
+      strip.setPixelColor(spiralAt(i, inward), paletteColor(i * 4, 255, 255));
+
+  } else if (cycle < NUM_LEDS * 2 + 8) {
+    // Phase 3: erase in same order — eraseIdx is white tracer, pixels after remain lit
+    uint8_t eraseIdx = cycle - (NUM_LEDS + 8);
+    for (uint8_t i = eraseIdx + 1; i < NUM_LEDS; i++)
+      strip.setPixelColor(spiralAt(i, inward), paletteColor(i * 4, 255, 255));
+    strip.setPixelColor(spiralAt(eraseIdx, inward), strip.Color(255, 255, 255));
   }
-  if (cycle >= NUM_LEDS + 16 && cycle < NUM_LEDS * 2 + 16) {
-    uint8_t unfilled = cycle - (NUM_LEDS + 16);
-    if (unfilled < NUM_LEDS) {
-      strip.setPixelColor(spiralOrder[unfilled], strip.Color(255, 255, 255));
-    }
-  }
+  // Phase 4: hold empty — clearGrid() already handled it
 }
 
 // =============================================================
@@ -374,6 +373,8 @@ bool snakeHitsSelf(int8_t x, int8_t y) {
 }
 
 void snakeDie() {
+  Serial.print("snake died len="); Serial.print(snakeLen);
+  Serial.print(" at ("); Serial.print(snakeX[0]); Serial.print(","); Serial.print(snakeY[0]); Serial.println(")");
   for (uint8_t i = 0; i < NUM_LEDS; i++) {
     deathFrame[i] = strip.getPixelColor(i);
   }
@@ -472,6 +473,7 @@ void patternSnake() {
         snakeX[snakeLen - 1] = snakeX[snakeLen - 2];
         snakeY[snakeLen - 1] = snakeY[snakeLen - 2];
       }
+      Serial.print("snake apple len="); Serial.println(snakeLen);
       placeApple();
     }
 
@@ -483,12 +485,162 @@ void patternSnake() {
 
   clearGrid();
   uint8_t appleBright = 150 + 105 * ((tick / 2) % 2);
-  strip.setPixelColor(xy(appleX, appleY), paletteColor(0, 255, appleBright));
+  strip.setPixelColor(xy(appleX, appleY), strip.Color(appleBright, appleBright, appleBright));
 
   for (uint8_t i = 0; i < snakeLen; i++) {
     uint8_t hueVal = i * (256 / snakeLen);
     uint8_t bright = (i == 0) ? 255 : 180;
     strip.setPixelColor(xy(snakeX[i], snakeY[i]), paletteColor(hueVal, 255, bright));
+  }
+}
+
+// =============================================================
+// Pattern 9: Fire
+// =============================================================
+uint8_t fireHeat[NUM_LEDS];
+
+void patternFire() {
+  // Diffuse heat upward (y=0 is top, y=7 is bottom/source)
+  for (int8_t y = 0; y < GRID_H - 1; y++) {
+    for (uint8_t x = 0; x < GRID_W; x++) {
+      uint16_t sum = fireHeat[xy(x, y + 1)];
+      uint8_t cnt = 1;
+      if (x > 0)         { sum += fireHeat[xy(x - 1, y + 1)]; cnt++; }
+      if (x < GRID_W-1)  { sum += fireHeat[xy(x + 1, y + 1)]; cnt++; }
+      uint8_t avg = sum / (cnt + 1);  // lossy: attenuates ~25% per row
+      uint8_t cool = random(3);
+      fireHeat[xy(x, y)] = avg > cool ? avg - cool : 0;
+    }
+  }
+  for (uint8_t x = 0; x < GRID_W; x++)
+    fireHeat[xy(x, GRID_H - 1)] = 200 + random(56);
+
+  for (uint8_t y = 0; y < GRID_H; y++) {
+    for (uint8_t x = 0; x < GRID_W; x++) {
+      uint8_t h = fireHeat[xy(x, y)];
+      uint32_t c;
+      if (h < 85)        c = strip.Color((uint8_t)(h * 3), 0, 0);
+      else if (h < 170)  c = strip.Color(255, (uint8_t)((h - 85) * 3), 0);
+      else               c = strip.Color(255, 255, (uint8_t)((h - 170) * 3));
+      strip.setPixelColor(xy(x, y), c);
+    }
+  }
+}
+
+// =============================================================
+// Pattern 10: Plasma (sine wave interference)
+// =============================================================
+void patternPlasma() {
+  for (uint8_t y = 0; y < GRID_H; y++) {
+    for (uint8_t x = 0; x < GRID_W; x++) {
+      float t = tick * 0.05f;
+      float v = sinf(x * 0.9f + t)
+              + sinf(y * 0.9f + t * 1.3f)
+              + sinf((x + y) * 0.6f + t * 0.7f)
+              + sinf(sqrtf((float)(x * x + y * y)) * 0.8f + t);
+      uint8_t hue = (uint8_t)((v + 4.0f) * 31.875f);
+      strip.setPixelColor(xy(x, y), strip.ColorHSV((uint16_t)hue << 8, 255, 200));
+    }
+  }
+}
+
+// =============================================================
+// Pattern 11: Bouncing balls with trails
+// =============================================================
+#define NUM_BALLS 2
+
+float ballX[NUM_BALLS], ballY[NUM_BALLS];
+float ballVX[NUM_BALLS], ballVY[NUM_BALLS];
+uint8_t ballHue[NUM_BALLS];
+uint8_t ballTrailBright[NUM_LEDS];
+uint8_t ballTrailHue[NUM_LEDS];
+bool ballsInited = false;
+
+void ballsInit() {
+  for (uint8_t i = 0; i < NUM_BALLS; i++) {
+    ballX[i]  = 1.0f + random(6);
+    ballY[i]  = 1.0f + random(6);
+    float spd = 0.25f + random(3) * 0.1f;
+    ballVX[i] = spd * (random(2) ? 1.0f : -1.0f);
+    ballVY[i] = spd * (random(2) ? 1.0f : -1.0f);
+    ballHue[i] = i * 128;  // opposite sides of color wheel
+  }
+  memset(ballTrailBright, 0, NUM_LEDS);
+  ballsInited = true;
+}
+
+void patternBalls() {
+  if (!ballsInited) ballsInit();
+
+  for (uint8_t i = 0; i < NUM_LEDS; i++) {
+    if (ballTrailBright[i] > 18) ballTrailBright[i] -= 18;
+    else ballTrailBright[i] = 0;
+  }
+
+  for (uint8_t i = 0; i < NUM_BALLS; i++) {
+    ballX[i] += ballVX[i];
+    ballY[i] += ballVY[i];
+
+    if (ballX[i] < 0.0f)          { ballX[i] = 0.0f;          ballVX[i] = -ballVX[i]; }
+    if (ballX[i] > GRID_W - 1.0f) { ballX[i] = GRID_W - 1.0f; ballVX[i] = -ballVX[i]; }
+    if (ballY[i] < 0.0f)          { ballY[i] = 0.0f;          ballVY[i] = -ballVY[i]; }
+    if (ballY[i] > GRID_H - 1.0f) { ballY[i] = GRID_H - 1.0f; ballVY[i] = -ballVY[i]; }
+
+    uint8_t px = (uint8_t)(ballX[i] + 0.5f);
+    uint8_t py = (uint8_t)(ballY[i] + 0.5f);
+    if (px >= GRID_W) px = GRID_W - 1;
+    if (py >= GRID_H) py = GRID_H - 1;
+    ballTrailBright[xy(px, py)] = 255;
+    ballTrailHue[xy(px, py)]    = ballHue[i];
+  }
+
+  clearGrid();
+  for (uint8_t y = 0; y < GRID_H; y++) {
+    for (uint8_t x = 0; x < GRID_W; x++) {
+      if (ballTrailBright[xy(x, y)] > 0)
+        strip.setPixelColor(xy(x, y),
+          paletteColor(ballTrailHue[xy(x, y)], 255, ballTrailBright[xy(x, y)]));
+    }
+  }
+  for (uint8_t i = 0; i < NUM_BALLS; i++) {
+    uint8_t px = (uint8_t)(ballX[i] + 0.5f);
+    uint8_t py = (uint8_t)(ballY[i] + 0.5f);
+    if (px >= GRID_W) px = GRID_W - 1;
+    if (py >= GRID_H) py = GRID_H - 1;
+    strip.setPixelColor(xy(px, py), paletteColor(ballHue[i], 200, 255));
+  }
+}
+
+// =============================================================
+// Pattern 12: Lissajous tracer
+// =============================================================
+uint8_t lissTrail[NUM_LEDS];
+
+void patternLissajous() {
+  for (uint8_t i = 0; i < NUM_LEDS; i++) {
+    if (lissTrail[i] > 10) lissTrail[i] -= 10;
+    else lissTrail[i] = 0;
+  }
+
+  float t  = tick * 0.1f;
+  float a  = 2.0f + 0.7f * sinf(tick * 0.004f);  // ratio drifts ~2:3 over time
+  float xf = sinf(a * t);
+  float yf = sinf(3.0f * t + 1.2f);
+
+  uint8_t px = (uint8_t)((xf + 1.0f) * 0.5f * (GRID_W - 1) + 0.5f);
+  uint8_t py = (uint8_t)((yf + 1.0f) * 0.5f * (GRID_H - 1) + 0.5f);
+  if (px >= GRID_W) px = GRID_W - 1;
+  if (py >= GRID_H) py = GRID_H - 1;
+  lissTrail[xy(px, py)] = 255;
+
+  clearGrid();
+  uint8_t hueShift = tick / 2;
+  for (uint8_t y = 0; y < GRID_H; y++) {
+    for (uint8_t x = 0; x < GRID_W; x++) {
+      if (lissTrail[xy(x, y)] > 0)
+        strip.setPixelColor(xy(x, y),
+          paletteColor(hueShift + x * 16 + y * 8, 255, lissTrail[xy(x, y)]));
+    }
   }
 }
 
@@ -510,20 +662,30 @@ void setup() {
   strip.show();
 
   onboardDot.begin();
-  onboardDot.setBrightness(30);
+  onboardDot.setBrightness(80);
   updateOnboardDot();
 
   randomSeed(analogRead(A4));
 
   buildSpiral();
+
+  Serial.begin(DEBUG_BAUD);
+  Serial.print("sulagrid ready  patterns="); Serial.print(NUM_PATTERNS);
+  Serial.print(" palettes="); Serial.print(NUM_PALETTES);
+  Serial.print(" maxbright="); Serial.println(MAX_BRIGHT);
 }
 
 void loop() {
   // --- Potentiometer → brightness ---
+  static uint8_t lastReportedBright = 0;
   uint16_t potVal = analogRead(POT_PIN);
   uint8_t bright = map(potVal, 0, 1023, 0, MAX_BRIGHT);
   if (bright < 1) bright = 1;
   strip.setBrightness(bright);
+  if (abs((int)bright - (int)lastReportedBright) > 2) {
+    Serial.print("bright="); Serial.println(bright);
+    lastReportedBright = bright;
+  }
 
   // --- Encoder → pattern selection ---
   noInterrupts();
@@ -538,6 +700,9 @@ void loop() {
     blinkRedLed();
     snakeInited = false;
     exploding = false;
+    ballsInited = false;
+    Serial.print("pattern -> "); Serial.print(currentPattern);
+    Serial.print(" ("); Serial.print(PATTERN_NAMES[currentPattern]); Serial.println(")");
   }
 
   // --- Button → cycle color palette ---
@@ -547,6 +712,8 @@ void loop() {
       lastBtnPress = millis();
       updateOnboardDot();
       blinkRedLed();
+      Serial.print("palette -> "); Serial.print(currentPalette);
+      Serial.print(" ("); Serial.print(PALETTE_NAMES[currentPalette]); Serial.println(")");
     }
   }
 
@@ -566,10 +733,21 @@ void loop() {
     case 5: patternFace();         break;
     case 6: patternRainbow();      break;
     case 7: patternSpiral();       break;
-    case 8: patternSnake();        break;
+    case 8:  patternSnake();      break;
+    case 9:  patternFire();       break;
+    case 10: patternPlasma();     break;
+    case 11: patternBalls();      break;
+    case 12: patternLissajous();  break;
   }
   strip.show();
-  tick++;
 
+  if (tick % DEBUG_INTERVAL == 0) {
+    Serial.print("tick="); Serial.print(tick);
+    Serial.print(" pat="); Serial.print(PATTERN_NAMES[currentPattern]);
+    Serial.print(" pal="); Serial.print(PALETTE_NAMES[currentPalette]);
+    Serial.print(" bright="); Serial.println(bright);
+  }
+
+  tick++;
   delay(50);
 }
