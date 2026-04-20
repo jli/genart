@@ -20,10 +20,11 @@
 #define NUM_LEDS    64
 #define GRID_W      8
 #define GRID_H      8
-#define NUM_PATTERNS 13
+#define NUM_PATTERNS 11
 #define NUM_PALETTES 4
-#define MAX_BRIGHT   50
+#define MAX_BRIGHT     50
 #define DEFAULT_BRIGHT 10
+#define DEFAULT_PATTERN 5  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous
 
 // Built-in LEDs
 #define DOTSTAR_DATA  INTERNAL_DS_DATA
@@ -35,7 +36,7 @@
 
 static const char *PATTERN_NAMES[NUM_PATTERNS] = {
   "checker", "breathe", "sweep", "rings", "sparkle", "face",
-  "rainbow", "spiral", "snake", "fire", "plasma", "balls", "lissajous"
+  "rainbow", "spiral", "snake", "balls", "lissajous"
 };
 static const char *PALETTE_NAMES[NUM_PALETTES] = {
   "warm", "cool", "red", "rainbow"
@@ -46,8 +47,8 @@ static const char *PALETTE_NAMES[NUM_PALETTES] = {
 Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_DotStar onboardDot(1, DOTSTAR_DATA, DOTSTAR_CLK, DOTSTAR_BGR);
 
-volatile int encPos = 0;
-int currentPattern = 0;
+volatile int encPos = DEFAULT_PATTERN * ENC_COUNTS_PER_DETENT;
+int currentPattern = DEFAULT_PATTERN;
 int currentPalette = 0;
 unsigned long lastBtnPress = 0;
 unsigned long tick = 0;
@@ -55,7 +56,7 @@ unsigned long redLedOff = 0;
 
 // --- Pixel index from (x, y) — straight wiring ---
 uint8_t xy(uint8_t x, uint8_t y) {
-  return y * GRID_W + x;
+  return (GRID_H - 1 - y) * GRID_W + (GRID_W - 1 - x);
 }
 
 // --- Encoder ISR (gray code state table) ---
@@ -69,7 +70,7 @@ volatile uint8_t encState = 0;
 
 void encoderISR() {
   encState <<= 2;
-  encState |= (digitalRead(ENC_A) << 1) | digitalRead(ENC_B);
+  encState |= (digitalRead(ENC_B) << 1) | digitalRead(ENC_A);
   encPos += encTable[encState & 0x0F];
 }
 
@@ -221,26 +222,106 @@ void patternSparkle() {
 // =============================================================
 // Pattern 5: Simple face with blinking eyes
 // =============================================================
+// :)  ;)  :D  :P  :O
+static const char *EXPR_NAMES[] = { ":)", ";)", ":D", ":P", ":O" };
+#define NUM_EXPRS 5
+
 void patternFace() {
   clearGrid();
-  uint32_t skin  = paletteColor(128, 100, 60);
-  uint32_t eye   = strip.Color(255, 255, 255);
-  uint32_t mouth = paletteColor(0, 255, 200);
 
-  strip.fill(skin);
+  static uint8_t lastExpr = 255;
+  static bool lastBlink = false;
 
-  bool blinking = (tick % 80) > 75;
-  if (!blinking) {
-    strip.setPixelColor(xy(2, 2), eye);
-    strip.setPixelColor(xy(5, 2), eye);
+  uint32_t eyeC   = strip.Color(255, 255, 255);
+  uint32_t mouthC = paletteColor(0, 255, 220);
+
+  uint8_t blinkPhase = tick % 50;
+  bool eyesFull = blinkPhase < 47;
+  bool eyesHalf = blinkPhase == 47;
+
+  uint8_t expr = (tick / 100) % NUM_EXPRS;
+
+  if (expr != lastExpr) {
+    Serial.print("face -> "); Serial.println(EXPR_NAMES[expr]);
+    lastExpr = expr;
+  }
+  bool blinking = !eyesFull && !eyesHalf;
+  if (blinking && !lastBlink) Serial.println("face blink");
+  lastBlink = blinking;
+
+  // --- Eyes ---
+  switch (expr) {
+    case 1: // ;) wink — left closed dash, right open 2×2
+      strip.setPixelColor(xy(1, 2), eyeC); strip.setPixelColor(xy(2, 2), eyeC);
+      strip.setPixelColor(xy(5, 1), eyeC); strip.setPixelColor(xy(6, 1), eyeC);
+      strip.setPixelColor(xy(5, 2), eyeC); strip.setPixelColor(xy(6, 2), eyeC);
+      break;
+
+    case 4: // :O surprised — wide open, no blink
+      strip.setPixelColor(xy(1, 1), eyeC); strip.setPixelColor(xy(2, 1), eyeC);
+      strip.setPixelColor(xy(5, 1), eyeC); strip.setPixelColor(xy(6, 1), eyeC);
+      strip.setPixelColor(xy(1, 2), eyeC); strip.setPixelColor(xy(2, 2), eyeC);
+      strip.setPixelColor(xy(5, 2), eyeC); strip.setPixelColor(xy(6, 2), eyeC);
+      break;
+
+    default: // :) :D :P — normal 2×2 with blink
+      if (eyesFull) {
+        strip.setPixelColor(xy(1, 1), eyeC); strip.setPixelColor(xy(2, 1), eyeC);
+        strip.setPixelColor(xy(5, 1), eyeC); strip.setPixelColor(xy(6, 1), eyeC);
+        strip.setPixelColor(xy(1, 2), eyeC); strip.setPixelColor(xy(2, 2), eyeC);
+        strip.setPixelColor(xy(5, 2), eyeC); strip.setPixelColor(xy(6, 2), eyeC);
+      } else if (eyesHalf) {
+        strip.setPixelColor(xy(1, 2), eyeC); strip.setPixelColor(xy(2, 2), eyeC);
+        strip.setPixelColor(xy(5, 2), eyeC); strip.setPixelColor(xy(6, 2), eyeC);
+      }
+      break;
   }
 
-  strip.setPixelColor(xy(2, 5), mouth);
-  strip.setPixelColor(xy(3, 5), mouth);
-  strip.setPixelColor(xy(4, 5), mouth);
-  strip.setPixelColor(xy(5, 5), mouth);
-  strip.setPixelColor(xy(2, 4), mouth);
-  strip.setPixelColor(xy(5, 4), mouth);
+  // --- Mouth ---
+  switch (expr) {
+    case 0: // :) smile
+    case 1: // ;) wink
+      // . M . . . . M .
+      strip.setPixelColor(xy(1, 5), mouthC); strip.setPixelColor(xy(6, 5), mouthC);
+      // . . M M M M . .
+      strip.setPixelColor(xy(2, 6), mouthC); strip.setPixelColor(xy(3, 6), mouthC);
+      strip.setPixelColor(xy(4, 6), mouthC); strip.setPixelColor(xy(5, 6), mouthC);
+      break;
+
+    case 2: // :D open grin — D shape
+      // . M M M M M M .
+      strip.setPixelColor(xy(1, 5), mouthC); strip.setPixelColor(xy(2, 5), mouthC);
+      strip.setPixelColor(xy(3, 5), mouthC); strip.setPixelColor(xy(4, 5), mouthC);
+      strip.setPixelColor(xy(5, 5), mouthC); strip.setPixelColor(xy(6, 5), mouthC);
+      // . M . . . . M .
+      strip.setPixelColor(xy(1, 6), mouthC); strip.setPixelColor(xy(6, 6), mouthC);
+      // . . M M M M . .
+      strip.setPixelColor(xy(2, 7), mouthC); strip.setPixelColor(xy(3, 7), mouthC);
+      strip.setPixelColor(xy(4, 7), mouthC); strip.setPixelColor(xy(5, 7), mouthC);
+      break;
+
+    case 3: // :P flat mouth + tongue hanging from right side
+      // . M M M M M M .
+      strip.setPixelColor(xy(1, 5), mouthC); strip.setPixelColor(xy(2, 5), mouthC);
+      strip.setPixelColor(xy(3, 5), mouthC); strip.setPixelColor(xy(4, 5), mouthC);
+      strip.setPixelColor(xy(5, 5), mouthC); strip.setPixelColor(xy(6, 5), mouthC);
+      // . . . . M M M .
+      strip.setPixelColor(xy(4, 6), mouthC);
+      strip.setPixelColor(xy(5, 6), mouthC);
+      strip.setPixelColor(xy(6, 6), mouthC);
+      break;
+
+    case 4: // :O rounded O — corners omitted
+      // . . . M M . . .
+      strip.setPixelColor(xy(3, 4), mouthC); strip.setPixelColor(xy(4, 4), mouthC);
+      // . . M . . M . .
+      strip.setPixelColor(xy(2, 5), mouthC); strip.setPixelColor(xy(5, 5), mouthC);
+      // . . M . . M . .
+      strip.setPixelColor(xy(2, 6), mouthC); strip.setPixelColor(xy(5, 6), mouthC);
+      // . . . M M . . .
+      strip.setPixelColor(xy(3, 7), mouthC); strip.setPixelColor(xy(4, 7), mouthC);
+      break;
+  }
 }
 
 // =============================================================
@@ -250,7 +331,7 @@ void patternRainbow() {
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
       uint8_t val = (x + y) * 16 + tick * 2;
-      strip.setPixelColor(xy(x, y), paletteColor(val, 255, val));
+      strip.setPixelColor(xy(x, y), paletteColor(val, 255, 200));
     }
   }
 }
@@ -495,57 +576,7 @@ void patternSnake() {
 }
 
 // =============================================================
-// Pattern 9: Fire
-// =============================================================
-uint8_t fireHeat[NUM_LEDS];
-
-void patternFire() {
-  // Diffuse heat upward (y=0 is top, y=7 is bottom/source)
-  for (int8_t y = 0; y < GRID_H - 1; y++) {
-    for (uint8_t x = 0; x < GRID_W; x++) {
-      uint16_t sum = fireHeat[xy(x, y + 1)];
-      uint8_t cnt = 1;
-      if (x > 0)         { sum += fireHeat[xy(x - 1, y + 1)]; cnt++; }
-      if (x < GRID_W-1)  { sum += fireHeat[xy(x + 1, y + 1)]; cnt++; }
-      uint8_t avg = sum / (cnt + 1);  // lossy: attenuates ~25% per row
-      uint8_t cool = random(3);
-      fireHeat[xy(x, y)] = avg > cool ? avg - cool : 0;
-    }
-  }
-  for (uint8_t x = 0; x < GRID_W; x++)
-    fireHeat[xy(x, GRID_H - 1)] = 200 + random(56);
-
-  for (uint8_t y = 0; y < GRID_H; y++) {
-    for (uint8_t x = 0; x < GRID_W; x++) {
-      uint8_t h = fireHeat[xy(x, y)];
-      uint32_t c;
-      if (h < 85)        c = strip.Color((uint8_t)(h * 3), 0, 0);
-      else if (h < 170)  c = strip.Color(255, (uint8_t)((h - 85) * 3), 0);
-      else               c = strip.Color(255, 255, (uint8_t)((h - 170) * 3));
-      strip.setPixelColor(xy(x, y), c);
-    }
-  }
-}
-
-// =============================================================
-// Pattern 10: Plasma (sine wave interference)
-// =============================================================
-void patternPlasma() {
-  for (uint8_t y = 0; y < GRID_H; y++) {
-    for (uint8_t x = 0; x < GRID_W; x++) {
-      float t = tick * 0.05f;
-      float v = sinf(x * 0.9f + t)
-              + sinf(y * 0.9f + t * 1.3f)
-              + sinf((x + y) * 0.6f + t * 0.7f)
-              + sinf(sqrtf((float)(x * x + y * y)) * 0.8f + t);
-      uint8_t hue = (uint8_t)((v + 4.0f) * 31.875f);
-      strip.setPixelColor(xy(x, y), strip.ColorHSV((uint16_t)hue << 8, 255, 200));
-    }
-  }
-}
-
-// =============================================================
-// Pattern 11: Bouncing balls with trails
+// Pattern 9: Bouncing balls with trails
 // =============================================================
 #define NUM_BALLS 2
 
@@ -612,7 +643,7 @@ void patternBalls() {
 }
 
 // =============================================================
-// Pattern 12: Lissajous tracer
+// Pattern 10: Lissajous tracer
 // =============================================================
 uint8_t lissTrail[NUM_LEDS];
 
@@ -622,16 +653,19 @@ void patternLissajous() {
     else lissTrail[i] = 0;
   }
 
-  float t  = tick * 0.1f;
   float a  = 2.0f + 0.7f * sinf(tick * 0.004f);  // ratio drifts ~2:3 over time
-  float xf = sinf(a * t);
-  float yf = sinf(3.0f * t + 1.2f);
-
-  uint8_t px = (uint8_t)((xf + 1.0f) * 0.5f * (GRID_W - 1) + 0.5f);
-  uint8_t py = (uint8_t)((yf + 1.0f) * 0.5f * (GRID_H - 1) + 0.5f);
-  if (px >= GRID_W) px = GRID_W - 1;
-  if (py >= GRID_H) py = GRID_H - 1;
-  lissTrail[xy(px, py)] = 255;
+  float t0 = (tick - 1) * 0.1f;
+  float t1 = tick * 0.1f;
+  for (uint8_t s = 0; s <= 8; s++) {
+    float t  = t0 + (t1 - t0) * s / 8.0f;
+    float xf = sinf(a * t);
+    float yf = sinf(3.0f * t + 1.2f);
+    uint8_t px = (uint8_t)((xf + 1.0f) * 0.5f * (GRID_W - 1) + 0.5f);
+    uint8_t py = (uint8_t)((yf + 1.0f) * 0.5f * (GRID_H - 1) + 0.5f);
+    if (px >= GRID_W) px = GRID_W - 1;
+    if (py >= GRID_H) py = GRID_H - 1;
+    lissTrail[xy(px, py)] = 255;
+  }
 
   clearGrid();
   uint8_t hueShift = tick / 2;
@@ -734,10 +768,8 @@ void loop() {
     case 6: patternRainbow();      break;
     case 7: patternSpiral();       break;
     case 8:  patternSnake();      break;
-    case 9:  patternFire();       break;
-    case 10: patternPlasma();     break;
-    case 11: patternBalls();      break;
-    case 12: patternLissajous();  break;
+    case 9:  patternBalls();      break;
+    case 10: patternLissajous();  break;
   }
   strip.show();
 

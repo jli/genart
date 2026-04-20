@@ -15,6 +15,6 @@ monitor:
 	arduino-cli monitor -p $(PORT) --config baudrate=$(BAUD)
 
 watch:
-	watchexec -e ino -- sh -c 'make compile && make upload && sleep 2 && make monitor'
+	watchexec -e ino --stop-timeout 0 -- sh -c 'make compile && make upload && sleep 2 && make monitor'
 
 .PHONY: compile upload all monitor watch

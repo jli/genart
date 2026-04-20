@@ -16,10 +16,8 @@ Rotary encoder selects pattern; potentiometer controls brightness; encoder butto
 | 6 | rainbow | Diagonal rainbow wipe |
 | 7 | spiral | Spiral fill/unfill |
 | 8 | snake | Autonomous greedy snake with death explosion |
-| 9 | fire | Fire simulation |
-| 10 | plasma | Sine wave interference |
-| 11 | balls | Bouncing balls with trails |
-| 12 | lissajous | Drifting Lissajous tracer |
+| 9 | balls | Bouncing balls with trails |
+| 10 | lissajous | Drifting Lissajous tracer |
 
 Encoder button cycles 4 palettes: **warm** · **cool** · **red** · **rainbow**.
 Onboard DotStar reflects current palette color.
