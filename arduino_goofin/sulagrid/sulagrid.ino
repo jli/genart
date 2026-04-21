@@ -27,10 +27,10 @@
 #define GRID_W      8
 #define GRID_H      8
 #define NUM_LEDS    GRID_W * GRID_H
-#define NUM_PATTERNS 11
-#define NUM_PALETTES 4
 
 // Config
+#define NUM_PATTERNS 11
+#define NUM_PALETTES 4
 #define MAX_BRIGHT     50
 #define DEFAULT_BRIGHT 10
 #define DEFAULT_PATTERN 0  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous
@@ -51,7 +51,12 @@ static const char *PALETTE_NAMES[NUM_PALETTES] = {
 Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_DotStar onboardDot(1, DOTSTAR_DATA, DOTSTAR_CLK, DOTSTAR_BGR);
 
-volatile int encPos = DEFAULT_PATTERN * ENC_COUNTS_PER_DETENT;
+volatile int     encPos     = DEFAULT_PATTERN * ENC_COUNTS_PER_DETENT;
+// Debug counters incremented inside the ISR — can't Serial.print from there,
+// so we read these in the main loop under noInterrupts().
+volatile uint16_t encCW      = 0;  // valid CW transitions (table returned +1)
+volatile uint16_t encCCW     = 0;  // valid CCW transitions (table returned -1)
+volatile uint16_t encInvalid = 0;  // table returned 0: impossible state, usually bounce
 int currentPattern = DEFAULT_PATTERN;
 int currentPalette = 0;
 unsigned long lastBtnPress = 0;
@@ -63,7 +68,76 @@ uint8_t xy(uint8_t x, uint8_t y) {
   return (GRID_H - 1 - y) * GRID_W + (GRID_W - 1 - x);
 }
 
-// --- Encoder ISR (gray code state table) ---
+// --- Encoder ISR (gray code / quadrature state machine) ---
+//
+// HOW QUADRATURE ENCODERS WORK
+// ─────────────────────────────
+// The encoder has two output pins (A and B). As the shaft turns, each
+// pin produces a square wave. The two waves are 90° out of phase — hence
+// "quadrature". With pull-up resistors, both pins idle HIGH between clicks.
+//
+// One full detent (click) produces exactly 4 signal edges:
+//
+//   CW  rotation:   A ‾|_|‾    B _|‾|_    (A leads B)
+//   CCW rotation:   A _|‾|_    B ‾|_|‾    (B leads A)
+//
+// Each edge fires our ISR (CHANGE interrupts on both pins). We pack the
+// previous and current states of both pins into a 4-bit index:
+//
+//   bits 3:2 = (prevB, prevA)  — the reading from last ISR call
+//   bits 1:0 = (currB, currA)  — just read
+//
+// encTable[index] maps that 4-bit pattern to +1 (CW), -1 (CCW), or 0
+// (invalid / noise). Over one full detent we accumulate ±4 counts; dividing
+// by ENC_COUNTS_PER_DETENT converts that to ±1 pattern step.
+//
+// Table layout (rows = prevBA, cols = currBA):
+//            curr 00  01  10  11
+//   prev 00:   0  -1  +1   0
+//   prev 01:  +1   0   0  -1
+//   prev 10:  -1   0   0  +1
+//   prev 11:   0  +1  -1   0
+//
+// The zeros on the diagonal (no change) and on the anti-diagonal (two bits
+// changed simultaneously — physically impossible in one step) both map to 0.
+//
+// WHY IT GETS WONKY
+// ─────────────────
+// 1. Contact bounce: mechanical encoders don't make clean transitions.
+//    A single detent can trigger 10–20 ISR calls. The state table discards
+//    impossible transitions (the 0-entries), but if bounce creates an even
+//    number of spurious valid-looking transitions they can cancel a real
+//    step or inject a phantom one.
+//
+// 2. ISR latency: digitalRead() is relatively slow. If A and B change
+//    within a few microseconds of each other (common at the start of a
+//    detent), the second ISR call may see a state that has already moved
+//    past the intermediate value — recording a jump of two bits, which
+//    maps to 0 (discarded). That's a lost step.
+//
+// 3. ENC_COUNTS_PER_DETENT mismatch: some encoders produce only 2 edges
+//    per detent, not 4. If every other click is silently ignored, try
+//    changing ENC_COUNTS_PER_DETENT to 2.
+//
+// DEBUGGING STRATEGY
+// ──────────────────
+// encCW / encCCW count valid transitions; encInvalid counts 0-table hits.
+//
+//   High encInvalid relative to (encCW+encCCW) → contact bounce.
+//   Fix: 100 Ω series + 10 nF to GND on each encoder pin (RC low-pass),
+//   or add software debounce (but that can eat real fast edges).
+//
+//   "enc [partial]" in the log means encPos moved but landed between
+//   detents. A series of partials with no clean landing = lost transition.
+//   Try slowing down turns; if it only misbehaves at high speed, the ISR
+//   is losing edges (latency problem).
+//
+//   "enc BOUNCE" in the log = invalid count exceeded valid count in a
+//   single 50 ms loop iteration — heavy bounce, hardware filter advised.
+//
+//   Pattern jumps by 2 or skips backward: accumulated phantom ±4 from
+//   bounce. Hardware filter is the reliable fix.
+
 static const int8_t encTable[16] = {
    0, -1,  1,  0,
    1,  0,  0, -1,
@@ -75,7 +149,12 @@ volatile uint8_t encState = 0;
 void encoderISR() {
   encState <<= 2;
   encState |= (digitalRead(ENC_B) << 1) | digitalRead(ENC_A);
-  encPos += encTable[encState & 0x0F];
+  int8_t delta = encTable[encState & 0x0F];
+  encPos += delta;
+  // Increment debug counters — no Serial here, ISR must be fast.
+  if      (delta > 0) encCW++;
+  else if (delta < 0) encCCW++;
+  else                encInvalid++;  // noise, bounce, or simultaneous edge
 }
 
 // --- Color palettes ---
@@ -729,9 +808,40 @@ void loop() {
   }
 
   // --- Encoder → pattern selection ---
+  // Read pos and all debug counters in one critical section so they're
+  // consistent with each other (an ISR between two separate reads could
+  // increment counters against a pos we've already consumed).
+  static int     lastLogPos = DEFAULT_PATTERN * ENC_COUNTS_PER_DETENT;
+  static uint16_t lastCW = 0, lastCCW = 0, lastInv = 0;
+
   noInterrupts();
-  int pos = encPos;
+  int      pos = encPos;
+  uint16_t cw  = encCW;
+  uint16_t ccw = encCCW;
+  uint16_t inv = encInvalid;
   interrupts();
+
+  // Log every raw position change. "[partial]" means we're mid-detent —
+  // normal while turning, but if you only ever see partial and never a
+  // clean multiple of ENC_COUNTS_PER_DETENT, a transition is being lost.
+  if (pos != lastLogPos) {
+    Serial.print("enc pos="); Serial.print(pos);
+    Serial.print(" delta="); Serial.print(pos - lastLogPos);
+    if (pos % ENC_COUNTS_PER_DETENT != 0) Serial.print(" [partial]");
+    Serial.println();
+    lastLogPos = pos;
+  }
+
+  // Bounce warning: fires when invalid transitions outnumber valid ones
+  // within this loop tick. Hardware RC filter (100Ω + 10nF) is the fix.
+  uint16_t newValid = (cw - lastCW) + (ccw - lastCCW);
+  uint16_t newInv   = inv - lastInv;
+  if (newInv > newValid && newInv > 0) {
+    Serial.print("enc BOUNCE cw="); Serial.print(cw);
+    Serial.print(" ccw="); Serial.print(ccw);
+    Serial.print(" inv="); Serial.println(inv);
+  }
+  lastCW = cw; lastCCW = ccw; lastInv = inv;
 
   int newPattern = ((pos / ENC_COUNTS_PER_DETENT) % NUM_PATTERNS + NUM_PATTERNS) % NUM_PATTERNS;
   if (newPattern != currentPattern) {
@@ -743,7 +853,11 @@ void loop() {
     exploding = false;
     ballsInited = false;
     Serial.print("pattern -> "); Serial.print(currentPattern);
-    Serial.print(" ("); Serial.print(PATTERN_NAMES[currentPattern]); Serial.println(")");
+    Serial.print(" ("); Serial.print(PATTERN_NAMES[currentPattern]);
+    Serial.print(") encPos="); Serial.print(pos);
+    Serial.print(" cw="); Serial.print(cw);
+    Serial.print(" ccw="); Serial.print(ccw);
+    Serial.print(" inv="); Serial.println(inv);
   }
 
   // --- Button → cycle color palette ---
