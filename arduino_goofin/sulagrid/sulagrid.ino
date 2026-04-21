@@ -32,9 +32,9 @@
 #define NUM_PATTERNS 11
 #define NUM_PALETTES 3
 #define MAX_BRIGHT     50
+#define DEFAULT_PATTERN 8  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous
 #define DEFAULT_BRIGHT 10
-#define DEFAULT_PATTERN 0  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous
-#define TICK_MS        40
+#define TICK_MS        10
 #define DEBUG_BAUD     115200
 #define DEBUG_INTERVAL (10000 / TICK_MS)
 
@@ -276,20 +276,33 @@ void patternBreathe() {
 }
 
 // =============================================================
-// Pattern 2: Sweeping column
+// Pattern 2: Rotating radar sweep
 // =============================================================
 void patternSweep() {
   clearGrid();
-  uint8_t col = (tick / 6) % (GRID_W * 2);
-  if (col >= GRID_W) col = GRID_W * 2 - 1 - col;
-
+  float cx = 3.5f, cy = 3.5f;
+  float sweepAngle = fmodf(tick * 0.08f, 2.0f * PI);
   uint8_t hueVal = (tick / 3) % 256;
+
   for (uint8_t y = 0; y < GRID_H; y++) {
-    strip.setPixelColor(xy(col, y), paletteColor(hueVal, 255, 255));
-    if (col > 0)
-      strip.setPixelColor(xy(col - 1, y), paletteColor(hueVal, 255, 80));
-    if (col < GRID_W - 1)
-      strip.setPixelColor(xy(col + 1, y), paletteColor(hueVal, 255, 80));
+    for (uint8_t x = 0; x < GRID_W; x++) {
+      float dx = x - cx;
+      float dy = y - cy;
+      float angle = atan2f(dy, dx);
+      float diff = angle - sweepAngle;
+      if (diff >  PI) diff -= 2.0f * PI;
+      if (diff < -PI) diff += 2.0f * PI;
+
+      uint8_t bright = 0;
+      if (diff >= -0.2f && diff <= 0.2f) {
+        bright = 255;
+      } else if (diff < -0.2f && diff > -1.8f) {
+        bright = (uint8_t)(255.0f * (1.8f + diff) / 1.6f);
+      }
+
+      if (bright > 0)
+        strip.setPixelColor(xy(x, y), paletteColor(hueVal, 255, bright));
+    }
   }
 }
 
@@ -529,12 +542,11 @@ void patternSpiral() {
 // =============================================================
 // Pattern 8: Autonomous snake (no wrapping, death explosion)
 // =============================================================
-#define SNAKE_MAX_LEN 20
-#define SNAKE_INIT_LEN 3
+#define SNAKE_INIT_LEN 2
 #define SNAKE_SPEED 4
 
-int8_t snakeX[SNAKE_MAX_LEN];
-int8_t snakeY[SNAKE_MAX_LEN];
+int8_t snakeX[NUM_LEDS];
+int8_t snakeY[NUM_LEDS];
 uint8_t snakeLen;
 int8_t snakeDirX, snakeDirY;
 int8_t appleX, appleY;
@@ -544,6 +556,10 @@ bool exploding = false;
 uint8_t explosionTick = 0;
 int8_t explosionX, explosionY;
 uint32_t deathFrame[NUM_LEDS];
+
+bool showingLength = false;
+uint16_t showLengthTick = 0;
+uint8_t finalSnakeLen = 0;
 
 void placeApple() {
   for (uint8_t attempts = 0; attempts < 100; attempts++) {
@@ -595,6 +611,7 @@ void snakeDie() {
   if (explosionX >= GRID_W) explosionX = GRID_W - 1;
   if (explosionY < 0) explosionY = 0;
   if (explosionY >= GRID_H) explosionY = GRID_H - 1;
+  finalSnakeLen = snakeLen;
   exploding = true;
   explosionTick = 0;
 }
@@ -655,6 +672,24 @@ void patternSnake() {
     explosionTick++;
     if (radius > maxRadius) {
       exploding = false;
+      showingLength = true;
+      showLengthTick = 0;
+    }
+    return;
+  }
+
+  if (showingLength) {
+    clearGrid();
+    uint8_t litCount = (showLengthTick / 2 < finalSnakeLen) ? showLengthTick / 2 : finalSnakeLen;
+    for (uint8_t i = 0; i < litCount; i++) {
+      uint8_t row = i / GRID_W;
+      uint8_t col = i % GRID_W;
+      uint8_t x = (row % 2 == 0) ? col : (GRID_W - 1 - col);
+      strip.setPixelColor(xy(x, row), paletteColor(i * 4, 255, 200));
+    }
+    showLengthTick++;
+    if (showLengthTick > (uint16_t)finalSnakeLen * 2 + 50) {
+      showingLength = false;
       snakeInited = false;
     }
     return;
@@ -679,18 +714,11 @@ void patternSnake() {
     }
 
     if (snakeX[0] == appleX && snakeY[0] == appleY) {
-      if (snakeLen < SNAKE_MAX_LEN) {
-        snakeLen++;
-        snakeX[snakeLen - 1] = snakeX[snakeLen - 2];
-        snakeY[snakeLen - 1] = snakeY[snakeLen - 2];
-      }
+      snakeLen++;
+      snakeX[snakeLen - 1] = snakeX[snakeLen - 2];
+      snakeY[snakeLen - 1] = snakeY[snakeLen - 2];
       Serial.print("snake apple len="); Serial.println(snakeLen);
       placeApple();
-    }
-
-    if (snakeLen >= SNAKE_MAX_LEN) {
-      snakeDie();
-      return;
     }
   }
 
@@ -719,11 +747,13 @@ bool ballsInited = false;
 
 void ballsInit() {
   for (uint8_t i = 0; i < NUM_BALLS; i++) {
-    ballX[i]  = 1.0f + random(6);
-    ballY[i]  = 1.0f + random(6);
-    float spd = 0.25f + random(3) * 0.1f;
-    ballVX[i] = spd * (random(2) ? 1.0f : -1.0f);
-    ballVY[i] = spd * (random(2) ? 1.0f : -1.0f);
+    ballX[i]  = 2.0f + random(4);  // 2–5: away from all edges/corners
+    ballY[i]  = 2.0f + random(4);
+    // Non-overlapping ranges guarantee |VX| != |VY|, breaking diagonal lock
+    float spdX = 0.20f + random(4) * 0.10f;  // {0.20, 0.30, 0.40, 0.50}
+    float spdY = 0.25f + random(4) * 0.10f;  // {0.25, 0.35, 0.45, 0.55}
+    ballVX[i] = spdX * (random(2) ? 1.0f : -1.0f);
+    ballVY[i] = spdY * (random(2) ? 1.0f : -1.0f);
     ballHue[i] = i * 128;  // opposite sides of color wheel
   }
   memset(ballTrailBright, 0, NUM_LEDS);
@@ -964,6 +994,7 @@ void loop() {
     blinkRedLed();
     snakeInited = false;
     exploding = false;
+    showingLength = false;
     ballsInited = false;
     Serial.print("pattern -> "); Serial.print(currentPattern);
     Serial.print(" ("); Serial.print(PATTERN_NAMES[currentPattern]);
