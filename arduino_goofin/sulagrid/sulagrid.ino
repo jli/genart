@@ -70,11 +70,12 @@
 #define SPIRAL_HOLD_STEPS          8   // hold duration in spiral-steps (not ticks)
 #define SPIRAL_CYCLE_LEN  (NUM_LEDS * 2 + SPIRAL_HOLD_STEPS * 2)
 
-#define SNAKE_STEP_MS            160   // ms per snake move
+#define SNAKE_STEP_MS            120   // ms per snake move
 #define EXPLOSION_EXPAND_MS       80   // ms per explosion radius step
 #define APPLE_BLINK_MS            80   // ms per apple blink half-period
 #define SNAKE_REVEAL_MS           80   // ms per pixel revealed in length display
-#define SNAKE_HOLD_MS           2000   // ms to hold length display after fill
+#define SNAKE_HOLD_MS           3000   // ms to hold length display after fill
+#define SNAKE_PULSE_MS           600   // ms per brightness pulse cycle during hold
 
 #define BALL_TRAIL_FADE_PER_SEC  450
 #define BALL_TRAIL_FADE  (BALL_TRAIL_FADE_PER_SEC * TICK_MS / 1000 + \
@@ -778,18 +779,33 @@ void patternSnake() {
 
   if (showingLength) {
     clearGrid();
-    uint8_t litCount = (showLengthTick / MS_TO_TICKS(SNAKE_REVEAL_MS) < finalSnakeLen)
-                       ? showLengthTick / MS_TO_TICKS(SNAKE_REVEAL_MS) : finalSnakeLen;
+    uint16_t fillEnd  = (uint16_t)finalSnakeLen * MS_TO_TICKS(SNAKE_REVEAL_MS);
+    uint8_t  litCount = (showLengthTick / MS_TO_TICKS(SNAKE_REVEAL_MS) < finalSnakeLen)
+                        ? showLengthTick / MS_TO_TICKS(SNAKE_REVEAL_MS) : finalSnakeLen;
+
+    uint8_t bright  = 200;
+    uint8_t hueOff  = 0;
+    if (showLengthTick >= fillEnd) {
+      uint16_t holdTick    = showLengthTick - fillEnd;
+      uint16_t pulsePeriod = MS_TO_TICKS(SNAKE_PULSE_MS);
+      uint16_t phase       = holdTick % pulsePeriod;
+      // Triangle wave 60..255
+      bright = (phase < pulsePeriod / 2)
+               ? 60  + (uint8_t)(195UL * phase / (pulsePeriod / 2))
+               : 255 - (uint8_t)(195UL * (phase - pulsePeriod / 2) / (pulsePeriod / 2));
+      hueOff = (uint8_t)holdTick;  // slow hue drift ~1 unit/tick
+    }
+
     for (uint8_t i = 0; i < litCount; i++) {
       uint8_t row = i / GRID_W;
       uint8_t col = i % GRID_W;
-      uint8_t x = (row % 2 == 0) ? col : (GRID_W - 1 - col);
-      strip.setPixelColor(xy(x, row), paletteColor(i * 4, 255, 200));
+      uint8_t x   = (row % 2 == 0) ? col : (GRID_W - 1 - col);
+      strip.setPixelColor(xy(x, row), paletteColor((uint8_t)(i * 4 + hueOff), 255, bright));
     }
     showLengthTick++;
-    if (showLengthTick > (uint16_t)finalSnakeLen * MS_TO_TICKS(SNAKE_REVEAL_MS) + MS_TO_TICKS(SNAKE_HOLD_MS)) {
+    if (showLengthTick > fillEnd + MS_TO_TICKS(SNAKE_HOLD_MS)) {
       showingLength = false;
-      snakeInited = false;
+      snakeInited   = false;
     }
     return;
   }
