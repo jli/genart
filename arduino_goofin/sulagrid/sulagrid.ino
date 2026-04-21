@@ -907,12 +907,21 @@ void setup() {
   buildSpiral();
 
   Serial.begin(DEBUG_BAUD);
-  Serial.print("sulagrid ready  patterns="); Serial.print(NUM_PATTERNS);
-  Serial.print(" palettes="); Serial.print(NUM_PALETTES);
-  Serial.print(" maxbright="); Serial.println(MAX_BRIGHT);
 }
 
 void loop() {
+  // Print startup banner once — deferred so monitor can connect after upload
+  static bool startupPrinted = false;
+  if (!startupPrinted && Serial) {
+    startupPrinted = true;
+    Serial.print("sulagrid ready  patterns="); Serial.print(NUM_PATTERNS);
+    Serial.print(" palettes="); Serial.print(NUM_PALETTES);
+    Serial.print(" maxbright="); Serial.println(MAX_BRIGHT);
+    Serial.print("startup: DEFAULT_PATTERN="); Serial.print(DEFAULT_PATTERN);
+    Serial.print(" currentPattern="); Serial.print(currentPattern);
+    Serial.print(" encPos="); Serial.println(encPos);
+  }
+
   // --- Potentiometer → brightness ---
   static uint8_t lastReportedBright = 0;
   uint16_t potVal = analogRead(POT_PIN);
