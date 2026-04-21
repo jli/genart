@@ -29,10 +29,10 @@
 #define NUM_LEDS    GRID_W * GRID_H
 
 // Config
-#define NUM_PATTERNS 15
+#define NUM_PATTERNS 13
 #define NUM_PALETTES 3
 #define MAX_BRIGHT     50
-#define DEFAULT_PATTERN 8  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous 11=pong 12=ripple 13=pendulum 14=tetris
+#define DEFAULT_PATTERN 11  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous 11=ripple 12=tetris
 #define DEFAULT_BRIGHT 10
 #define TICK_MS        10
 #define DEBUG_BAUD     115200
@@ -89,42 +89,15 @@
 #define LISS_PHASE_SPEED        2.5f   // phase advance, rad/sec
 #define LISS_HUE_STEP_MS          80
 
-#define PONG_STATE_PLAY    0
-#define PONG_STATE_POINT   1   // flash + brief pause after scoring
-#define PONG_STATE_WIN     2   // celebration after set win
 
-#define PONG_STEP_MS         90    // ms per game tick
-#define PONG_POINT_MS      1000    // ms for point flash
-#define PONG_WIN_MS        2800    // ms for win celebration
-#define PONG_WIN_SCORE        3    // first to this wins the set
-#define PONG_PADDLE_LEN       4    // paddle height in pixels
+#define RIPPLE_MAX           4        // max concurrent stones
+#define RIPPLE_LIFETIME_MS   7000     // ms a ripple lasts
+#define RIPPLE_SPEED_PPS     1.8f     // wave expansion, pixels/sec
+#define RIPPLE_WAVELENGTH    2.5f     // pixels between ring crests
+#define RIPPLE_FADE_DIST     5.5f     // visible wake behind wavefront, pixels
+#define RIPPLE_SPAWN_MIN_MS   500     // min ms between new stones
+#define RIPPLE_SPAWN_MAX_MS  1200     // max ms between new stones
 
-// Miss probability — out of PONG_MISS_DENOM moves, paddle skips PONG_MISS_NUM.
-// ~10 % miss rate for long rallies.
-#define PONG_MISS_NUM     10
-#define PONG_MISS_DENOM  100
-
-#define PONG_TRAIL_FADE_PER_SEC  300
-#define PONG_TRAIL_FADE  (PONG_TRAIL_FADE_PER_SEC * TICK_MS / 1000 + \
-                          (PONG_TRAIL_FADE_PER_SEC * TICK_MS / 1000 == 0))
-
-#define RIPPLE_MAX        2        // max concurrent stones
-#define RIPPLE_LIFETIME_MS   4000  // ms a ripple lasts
-#define RIPPLE_SPEED_PPS     2.5f  // wave expansion, pixels/sec
-#define RIPPLE_WAVELENGTH    2.0f  // pixels between ring crests
-#define RIPPLE_FADE_DIST     3.5f  // visible wake behind wavefront, pixels
-#define RIPPLE_SPAWN_MIN_MS   800  // min ms between new stones
-#define RIPPLE_SPAWN_MAX_MS  2200  // max ms between new stones
-
-#define PEND_TRAIL_FADE_PER_SEC  200
-#define PEND_TRAIL_FADE  (PEND_TRAIL_FADE_PER_SEC * TICK_MS / 1000 + \
-                          (PEND_TRAIL_FADE_PER_SEC * TICK_MS / 1000 == 0))
-#define PEND_SUBSTEPS      4
-#define PEND_G             9.8f
-#define PEND_L             1.7f    // arm length in pixels (physics l=1, display scale)
-#define PEND_PIVOT_X       3.5f   // grid center
-#define PEND_PIVOT_Y       3.5f
-#define PEND_RESET_TICKS   2000   // new trajectory after ~20s
 
 #define TETRIS_FALL_MS     400   // ms per gravity step
 #define TETRIS_FLASH_MS     80   // ms per line-clear blink half-period
@@ -133,7 +106,7 @@
 
 static const char *PATTERN_NAMES[NUM_PATTERNS] = {
   "checker", "breathe", "sweep", "rings", "sparkle", "face",
-  "rainbow", "spiral", "snake", "balls", "lissajous", "pong", "ripple", "pendulum", "tetris"
+  "rainbow", "spiral", "snake", "balls", "lissajous", "ripple", "tetris"
 };
 static const char *PALETTE_NAMES[NUM_PALETTES] = {
   "warm", "cool", "rainbow"
@@ -996,197 +969,7 @@ void patternLissajous() {
 }
 
 // =============================================================
-// Pattern 11: Pong (AI vs AI)
-// =============================================================
-int8_t  pongBX, pongBY;
-int8_t  pongBVX, pongBVY;
-int8_t  pongLP, pongRP;           // paddle top Y (0 .. GRID_H - PONG_PADDLE_LEN)
-uint8_t pongScoreL, pongScoreR;
-uint8_t pongState;
-uint16_t pongStateTick;
-bool    pongLeftScored;           // who scored the last point
-uint8_t pongTrail[NUM_LEDS];
-bool    pongInited = false;
-
-void pongResetBall(bool serveLeft) {
-  pongBX  = GRID_W / 2 - 1;
-  pongBY  = 2 + random(GRID_H - 4);
-  pongBVX = serveLeft ? -1 : 1;
-  pongBVY = random(2) ? 1 : -1;
-  pongLP  = GRID_H / 2 - 1;
-  pongRP  = GRID_H / 2 - 1;
-  memset(pongTrail, 0, NUM_LEDS);
-}
-
-void pongInit() {
-  pongScoreL    = 0;
-  pongScoreR    = 0;
-  pongState     = PONG_STATE_PLAY;
-  pongStateTick = 0;
-  pongResetBall(random(2));
-  pongInited    = true;
-}
-
-// Move paddle up to 2px per step toward targetY; randomly skips to let scoring happen.
-void pongMovePaddle(int8_t &paddle, int8_t targetY) {
-  if (random(PONG_MISS_DENOM) < PONG_MISS_NUM) return;
-  int8_t maxPos = GRID_H - PONG_PADDLE_LEN;
-  if (targetY < paddle)
-    paddle = (paddle >= 2) ? paddle - 2 : 0;
-  else if (targetY >= paddle + PONG_PADDLE_LEN)
-    paddle = (paddle <= maxPos - 2) ? paddle + 2 : maxPos;
-}
-
-bool pongPaddleCovers(int8_t py, int8_t paddle) {
-  return py >= paddle && py < paddle + PONG_PADDLE_LEN;
-}
-
-void pongStep() {
-  pongMovePaddle(pongLP, pongBY);
-  pongMovePaddle(pongRP, pongBY);
-
-  int8_t nx = pongBX + pongBVX;
-  int8_t ny = pongBY + pongBVY;
-
-  // Top/bottom wall bounce
-  if (ny < 0)        { ny = 0;          pongBVY =  1; }
-  if (ny >= GRID_H)  { ny = GRID_H - 1; pongBVY = -1; }
-
-  // Left edge
-  if (nx <= 0) {
-    if (pongPaddleCovers(ny, pongLP)) {
-      nx      = 1;
-      pongBVX = 1;
-      pongBVY = (ny == pongLP) ? -1 : 1;   // angle off top/bottom of paddle
-    } else {
-      pongScoreR++;
-      pongLeftScored = false;
-      Serial.print("pong R scores "); Serial.print(pongScoreR);
-      Serial.print("-"); Serial.println(pongScoreL);
-      pongState     = PONG_STATE_POINT;
-      pongStateTick = 0;
-      return;
-    }
-  } else if (nx >= GRID_W) {
-    // Right edge
-    if (pongPaddleCovers(ny, pongRP)) {
-      nx      = GRID_W - 2;
-      pongBVX = -1;
-      pongBVY = (ny == pongRP) ? -1 : 1;
-    } else {
-      pongScoreL++;
-      pongLeftScored = true;
-      Serial.print("pong L scores "); Serial.print(pongScoreL);
-      Serial.print("-"); Serial.println(pongScoreR);
-      pongState     = PONG_STATE_POINT;
-      pongStateTick = 0;
-      return;
-    }
-  }
-
-  pongBX = nx;
-  pongBY = ny;
-}
-
-void patternPong() {
-  if (!pongInited) pongInit();
-
-  // --- Win celebration ---
-  if (pongState == PONG_STATE_WIN) {
-    clearGrid();
-    uint16_t pulsePer = MS_TO_TICKS(500);
-    uint16_t ph       = pongStateTick % pulsePer;
-    uint8_t bright    = (ph < pulsePer / 2)
-                        ? 60  + (uint8_t)(195UL * ph / (pulsePer / 2))
-                        : 255 - (uint8_t)(195UL * (ph - pulsePer / 2) / (pulsePer / 2));
-    bool leftWon = pongScoreL >= PONG_WIN_SCORE;
-    for (uint8_t y = 0; y < GRID_H; y++) {
-      for (uint8_t x = 0; x < GRID_W; x++) {
-        bool winSide = leftWon ? (x < GRID_W / 2) : (x >= GRID_W / 2);
-        strip.setPixelColor(xy(x, y),
-          paletteColor(leftWon ? 0 : 128, 220, winSide ? bright : bright / 5));
-      }
-    }
-    // Score dots on top row
-    for (uint8_t i = 0; i < pongScoreL && i < 3; i++)
-      strip.setPixelColor(xy(i + 1, 7), strip.Color(255, 255, 255));
-    for (uint8_t i = 0; i < pongScoreR && i < 3; i++)
-      strip.setPixelColor(xy(GRID_W - 2 - i, 7), strip.Color(255, 255, 255));
-
-    pongStateTick++;
-    if (pongStateTick > MS_TO_TICKS(PONG_WIN_MS)) pongInit();
-    return;
-  }
-
-  // --- Point flash ---
-  if (pongState == PONG_STATE_POINT) {
-    clearGrid();
-    uint16_t flashPer = MS_TO_TICKS(160);
-    if ((pongStateTick / flashPer) % 2 == 0) {
-      uint8_t hue = pongLeftScored ? 0 : 128;
-      uint8_t x0  = pongLeftScored ? 0 : GRID_W / 2;
-      uint8_t x1  = pongLeftScored ? GRID_W / 2 : GRID_W;
-      for (uint8_t y = 0; y < GRID_H; y++)
-        for (uint8_t x = x0; x < x1; x++)
-          strip.setPixelColor(xy(x, y), paletteColor(hue, 200, 180));
-    }
-    pongStateTick++;
-    if (pongStateTick > MS_TO_TICKS(PONG_POINT_MS)) {
-      if (pongScoreL >= PONG_WIN_SCORE || pongScoreR >= PONG_WIN_SCORE) {
-        pongState     = PONG_STATE_WIN;
-        pongStateTick = 0;
-      } else {
-        pongResetBall(pongLeftScored);   // serve toward the side that just scored
-        pongState     = PONG_STATE_PLAY;
-        pongStateTick = 0;
-      }
-    }
-    return;
-  }
-
-  // --- Play ---
-  if ((tick % MS_TO_TICKS(PONG_STEP_MS)) == 0) pongStep();
-  if (pongState != PONG_STATE_PLAY) return;
-
-  // Fade trail
-  for (uint8_t i = 0; i < NUM_LEDS; i++) {
-    if (pongTrail[i] > PONG_TRAIL_FADE) pongTrail[i] -= PONG_TRAIL_FADE;
-    else pongTrail[i] = 0;
-  }
-
-  clearGrid();
-
-  // Dotted center net (zigzag between x=3 and x=4)
-  for (uint8_t y = 0; y < GRID_H; y++)
-    strip.setPixelColor(xy(y % 2 == 0 ? 3 : 4, y), strip.Color(12, 12, 12));
-
-  // Score indicators (dim dots on top row)
-  for (uint8_t i = 0; i < pongScoreL && i < 3; i++)
-    strip.setPixelColor(xy(i + 1, 7), strip.Color(60, 60, 60));
-  for (uint8_t i = 0; i < pongScoreR && i < 3; i++)
-    strip.setPixelColor(xy(GRID_W - 2 - i, 7), strip.Color(60, 60, 60));
-
-  // Paddles
-  for (uint8_t i = 0; i < PONG_PADDLE_LEN; i++) {
-    strip.setPixelColor(xy(0,          pongLP + i), paletteColor(20,  200, 220));
-    strip.setPixelColor(xy(GRID_W - 1, pongRP + i), paletteColor(148, 200, 220));
-  }
-
-  // Trail
-  for (uint8_t y = 0; y < GRID_H; y++)
-    for (uint8_t x = 0; x < GRID_W; x++)
-      if (pongTrail[xy(x, y)] > 0)
-        strip.setPixelColor(xy(x, y), paletteColor(80, 255, pongTrail[xy(x, y)]));
-
-  // Ball (write trail, then draw over it)
-  if (pongBX >= 0 && pongBX < GRID_W && pongBY >= 0 && pongBY < GRID_H) {
-    pongTrail[xy(pongBX, pongBY)] = 200;
-    strip.setPixelColor(xy(pongBX, pongBY), strip.Color(255, 255, 255));
-  }
-}
-
-// =============================================================
-// Pattern 12: Ripple (stone-drop water rings)
+// Pattern 11: Ripple (stone-drop water rings)
 // =============================================================
 struct Ripple {
   float    cx, cy;
@@ -1196,8 +979,9 @@ struct Ripple {
 };
 
 static Ripple   ripples[RIPPLE_MAX];
-static bool     rippleInited    = false;
+static bool     rippleInited     = false;
 static uint16_t rippleSpawnTimer = 0;
+static uint8_t  rippleHueStep    = 0;  // cycles hues 64 apart: red/green/cyan/magenta
 
 static uint16_t rippleNextSpawn() {
   return MS_TO_TICKS(RIPPLE_SPAWN_MIN_MS) +
@@ -1210,7 +994,7 @@ static void rippleDropStone() {
       ripples[i].cx       = (float)random(GRID_W);
       ripples[i].cy       = (float)random(GRID_H);
       ripples[i].ageTicks = 0;
-      ripples[i].hue      = random(256);
+      ripples[i].hue      = rippleHueStep++ * 64;  // 0,64,128,192 → red,green,cyan,magenta
       ripples[i].active   = true;
       return;
     }
@@ -1252,11 +1036,20 @@ void patternRipple() {
   clearGrid();
   const float wavePerTick = RIPPLE_SPEED_PPS * TICK_MS / 1000.0f;
 
+  // Precompute per-ripple hue unit vectors (saves trig in inner pixel loop)
+  float rHueX[RIPPLE_MAX], rHueY[RIPPLE_MAX];
+  for (uint8_t r = 0; r < RIPPLE_MAX; r++) {
+    if (!ripples[r].active) { rHueX[r] = 1.0f; rHueY[r] = 0.0f; continue; }
+    float ha = ripples[r].hue * (2.0f * PI / 256.0f);
+    rHueX[r] = cosf(ha);
+    rHueY[r] = sinf(ha);
+  }
+
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
-      float totalBright = 0.0f;
-      uint8_t bestHue   = 0;
-      float   bestContr = 0.0f;
+      float totalWave   = 0.0f;  // signed sum → real constructive/destructive interference
+      float hueX = 0.0f, hueY = 0.0f;  // circular hue accumulator
+      float totalWeight = 0.0f;
 
       for (uint8_t r = 0; r < RIPPLE_MAX; r++) {
         if (!ripples[r].active) continue;
@@ -1270,162 +1063,42 @@ void patternRipple() {
 
         if (fromFront > 0.5f || fromFront < -RIPPLE_FADE_DIST) continue;
 
-        // Cosine ring pattern; peak at wavefront, then periodic crests in wake
-        float phase     = (fromFront / RIPPLE_WAVELENGTH) * (2.0f * PI);
-        float ringBr    = (cosf(phase) + 1.0f) * 0.5f;
+        // Signed cosine: +1 at crest, -1 at trough — enables true interference
+        float phase   = (fromFront / RIPPLE_WAVELENGTH) * (2.0f * PI);
+        float ringVal = cosf(phase);
 
-        // Linear decay as we trail behind the wavefront
         float wakeDecay = 1.0f - (-fromFront / RIPPLE_FADE_DIST);
+        float ageFrac   = (float)ripples[r].ageTicks / lifetimeTicks;
+        float ageEnv    = (ageFrac < 0.70f) ? 1.0f : (1.0f - ageFrac) / 0.30f;
 
-        // Fade out over the last 30 % of the ripple's lifetime
-        float ageFrac = (float)ripples[r].ageTicks / lifetimeTicks;
-        float ageEnv  = (ageFrac < 0.70f) ? 1.0f : (1.0f - ageFrac) / 0.30f;
+        float contrib = ringVal * wakeDecay * ageEnv;
+        totalWave    += contrib;
 
-        float contrib = ringBr * wakeDecay * ageEnv * 255.0f;
-        totalBright  += contrib;
-        if (contrib > bestContr) { bestContr = contrib; bestHue = ripples[r].hue; }
+        // Hue weight = envelope (always positive), so hue blends at overlap zones
+        float w    = wakeDecay * ageEnv;
+        hueX      += rHueX[r] * w;
+        hueY      += rHueY[r] * w;
+        totalWeight += w;
       }
 
-      if (totalBright > 1.0f) {
-        uint8_t b = (totalBright > 255.0f) ? 255 : (uint8_t)totalBright;
-        strip.setPixelColor(xy(x, y), paletteColor(bestHue, 210, b));
+      // |totalWave| = interference brightness; two in-phase ripples → 2× brightness
+      float brightness = fabsf(totalWave) * 200.0f;
+      if (brightness > 1.0f) {
+        uint8_t b = (brightness > 255.0f) ? 255 : (uint8_t)brightness;
+        uint8_t blendHue = 0;
+        if (totalWeight > 0.01f) {
+          float angle = atan2f(hueY, hueX);
+          if (angle < 0.0f) angle += 2.0f * PI;
+          blendHue = (uint8_t)(angle * (256.0f / (2.0f * PI)));
+        }
+        strip.setPixelColor(xy(x, y), paletteColor(blendHue, 225, b));
       }
     }
   }
 }
 
 // =============================================================
-// Pattern 13: Double pendulum chaos tracer
-//
-// Physics: dimensionless units, l=1, m1=m2=1.
-// Angles θ1, θ2 measured from the downward vertical:
-//   θ=0  → arm hangs straight down
-//   θ=π  → arm points straight up (unstable equilibrium)
-//
-// Equations of motion (Lagrangian, m1=m2=1, l1=l2=1):
-//   denom = 3 - cos(2θ1 - 2θ2)
-//   α1 = [-3g sinθ1 - g sin(θ1-2θ2) - 2 sin(θ1-θ2)(ω2² + ω1² cos(θ1-θ2))] / denom
-//   α2 = [2 sin(θ1-θ2)(2ω1² + 2g cosθ1 + ω2² cos(θ1-θ2))] / denom
-//
-// Display: physics coords scaled by PEND_L pixels, pivot at grid center.
-// Trail left by bob2 (tip) shows the chaotic trajectory.
-// Arms drawn as dim interpolated dots; bobs drawn on top.
-// Resets with random jitter every PEND_RESET_TICKS to show variety.
-// =============================================================
-
-float pendTheta1, pendTheta2;
-float pendOmega1, pendOmega2;
-uint8_t pendTrailBright[NUM_LEDS];
-uint8_t pendTrailHue[NUM_LEDS];
-bool pendInited = false;
-uint16_t pendAge = 0;
-
-void pendInit() {
-  // Start near horizontal (high potential energy) with slight asymmetry for rapid chaos
-  pendTheta1 = PI * 0.5f + 0.1f + (random(80) - 40) * 0.005f;
-  pendTheta2 = PI * 0.5f - 0.4f + (random(80) - 40) * 0.005f;
-  pendOmega1 = 0.0f;
-  pendOmega2 = 0.0f;
-  memset(pendTrailBright, 0, NUM_LEDS);
-  pendAge = 0;
-  pendInited = true;
-  Serial.print("pend init theta1="); Serial.print(pendTheta1);
-  Serial.print(" theta2="); Serial.println(pendTheta2);
-}
-
-void pendPhysicsStep(float dt) {
-  float dTh   = pendTheta1 - pendTheta2;
-  float sinD  = sinf(dTh);
-  float cosD  = cosf(dTh);
-  float denom = 3.0f - cosf(2.0f * dTh);
-
-  float a1 = (-3.0f * PEND_G * sinf(pendTheta1)
-              - PEND_G * sinf(pendTheta1 - 2.0f * pendTheta2)
-              - 2.0f * sinD * (pendOmega2 * pendOmega2 + pendOmega1 * pendOmega1 * cosD))
-             / denom;
-
-  float a2 = (2.0f * sinD * (2.0f * pendOmega1 * pendOmega1
-              + 2.0f * PEND_G * cosf(pendTheta1)
-              + pendOmega2 * pendOmega2 * cosD))
-             / denom;
-
-  pendOmega1 += a1 * dt;
-  pendOmega2 += a2 * dt;
-  pendTheta1 += pendOmega1 * dt;
-  pendTheta2 += pendOmega2 * dt;
-}
-
-void patternPendulum() {
-  if (!pendInited) pendInit();
-  if (pendAge > PEND_RESET_TICKS) { pendInited = false; return; }
-
-  float dt = (float)TICK_MS / 1000.0f / PEND_SUBSTEPS;
-  for (uint8_t s = 0; s < PEND_SUBSTEPS; s++) pendPhysicsStep(dt);
-  pendAge++;
-
-  // Fade trail
-  for (uint8_t i = 0; i < NUM_LEDS; i++) {
-    if (pendTrailBright[i] > PEND_TRAIL_FADE) pendTrailBright[i] -= PEND_TRAIL_FADE;
-    else pendTrailBright[i] = 0;
-  }
-
-  // Bob positions in pixel space (θ from downward vertical)
-  float b1x = PEND_PIVOT_X + PEND_L * sinf(pendTheta1);
-  float b1y = PEND_PIVOT_Y + PEND_L * cosf(pendTheta1);
-  float b2x = b1x + PEND_L * sinf(pendTheta2);
-  float b2y = b1y + PEND_L * cosf(pendTheta2);
-
-  // Stamp trail at bob2
-  int8_t pb2x = (int8_t)(b2x + 0.5f);
-  int8_t pb2y = (int8_t)(b2y + 0.5f);
-  if (pb2x >= 0 && pb2x < GRID_W && pb2y >= 0 && pb2y < GRID_H) {
-    uint8_t idx = xy(pb2x, pb2y);
-    pendTrailBright[idx] = 255;
-    pendTrailHue[idx]    = (uint8_t)(pendAge >> 2);  // slow hue sweep
-  }
-
-  clearGrid();
-
-  // Draw trail
-  for (uint8_t y = 0; y < GRID_H; y++) {
-    for (uint8_t x = 0; x < GRID_W; x++) {
-      uint8_t b = pendTrailBright[xy(x, y)];
-      if (b > 0)
-        strip.setPixelColor(xy(x, y), paletteColor(pendTrailHue[xy(x, y)], 255, b));
-    }
-  }
-
-  // Arm 1: pivot → bob1 (3 interpolated points, dim white)
-  for (uint8_t s = 1; s <= 3; s++) {
-    float t  = s * 0.25f;
-    int8_t ax = (int8_t)(PEND_PIVOT_X + t * (b1x - PEND_PIVOT_X) + 0.5f);
-    int8_t ay = (int8_t)(PEND_PIVOT_Y + t * (b1y - PEND_PIVOT_Y) + 0.5f);
-    if (ax >= 0 && ax < GRID_W && ay >= 0 && ay < GRID_H)
-      strip.setPixelColor(xy(ax, ay), strip.Color(50, 50, 50));
-  }
-
-  // Arm 2: bob1 → bob2 (3 interpolated points, dim white)
-  for (uint8_t s = 1; s <= 3; s++) {
-    float t  = s * 0.25f;
-    int8_t ax = (int8_t)(b1x + t * (b2x - b1x) + 0.5f);
-    int8_t ay = (int8_t)(b1y + t * (b2y - b1y) + 0.5f);
-    if (ax >= 0 && ax < GRID_W && ay >= 0 && ay < GRID_H)
-      strip.setPixelColor(xy(ax, ay), strip.Color(50, 50, 50));
-  }
-
-  // Bob 1 (joint) — palette color, offset hue from trail
-  int8_t pb1x = (int8_t)(b1x + 0.5f);
-  int8_t pb1y = (int8_t)(b1y + 0.5f);
-  if (pb1x >= 0 && pb1x < GRID_W && pb1y >= 0 && pb1y < GRID_H)
-    strip.setPixelColor(xy(pb1x, pb1y), paletteColor((uint8_t)(pendAge >> 2) + 128, 200, 200));
-
-  // Bob 2 (tip) — always bright white so it's visible over trail
-  if (pb2x >= 0 && pb2x < GRID_W && pb2y >= 0 && pb2y < GRID_H)
-    strip.setPixelColor(xy(pb2x, pb2y), strip.Color(255, 255, 255));
-}
-
-// =============================================================
-// Pattern 14: Tetris (autonomous AI demo)
+// Pattern 12: Tetris (autonomous AI demo)
 // =============================================================
 
 // [type][rotation][cell] = {dx, dy} from bounding-box top-left; y grows downward
@@ -1503,18 +1176,22 @@ int tetEval(int8_t px, int8_t py, uint8_t type, uint8_t rot) {
     }
   }
 
+  int colH[GRID_W] = {};
   int total_h = 0, max_h = 0, holes = 0;
   for (uint8_t x = 0; x < GRID_W; x++) {
     bool found = false;
     for (uint8_t y = 0; y < GRID_H; y++) {
       if (tmp[y][x]) {
-        if (!found) { int h = GRID_H - y; total_h += h; if (h > max_h) max_h = h; found = true; }
+        if (!found) { colH[x] = GRID_H - y; total_h += colH[x]; if (colH[x] > max_h) max_h = colH[x]; found = true; }
       } else if (found) {
         holes++;
       }
     }
   }
-  return lines * 100 - total_h - max_h * 2 - holes * 5;
+  int bumpiness = 0;
+  for (uint8_t x = 0; x < GRID_W - 1; x++)
+    bumpiness += abs(colH[x] - colH[x + 1]);
+  return lines * 100 - total_h - max_h * 2 - holes * 20 - bumpiness * 3;
 }
 
 void tetRunAI() {
@@ -1818,9 +1495,7 @@ void loop() {
     exploding = false;
     showingLength = false;
     ballsInited = false;
-    pongInited = false;
     rippleInited = false;
-    pendInited = false;
     tetInited = false;
     Serial.print("pattern -> "); Serial.print(currentPattern);
     Serial.print(" ("); Serial.print(PATTERN_NAMES[currentPattern]);
@@ -1863,10 +1538,8 @@ void loop() {
     case 8:  patternSnake();      break;
     case 9:  patternBalls();      break;
     case 10: patternLissajous();  break;
-    case 11: patternPong();       break;
-    case 12: patternRipple();     break;
-    case 13: patternPendulum();   break;
-    case 14: patternTetris();    break;
+    case 11: patternRipple();     break;
+    case 12: patternTetris();     break;
   }
   strip.show();
 
