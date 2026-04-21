@@ -305,13 +305,16 @@ void patternFace() {
       strip.setPixelColor(xy(1, 5), mouthC); strip.setPixelColor(xy(2, 5), mouthC);
       strip.setPixelColor(xy(3, 5), mouthC); strip.setPixelColor(xy(4, 5), mouthC);
       strip.setPixelColor(xy(5, 5), mouthC); strip.setPixelColor(xy(6, 5), mouthC);
-      // . . . . M M M .
+      // . . . . M   M .
       strip.setPixelColor(xy(4, 6), mouthC);
-      strip.setPixelColor(xy(5, 6), mouthC);
       strip.setPixelColor(xy(6, 6), mouthC);
+      // . . . . M M M .
+      strip.setPixelColor(xy(4, 7), mouthC);
+      strip.setPixelColor(xy(5, 7), mouthC);
+      strip.setPixelColor(xy(6, 7), mouthC);
       break;
 
-    case 4: // :O rounded O — corners omitted
+    case 4: // :O rounded O
       // . . . M M . . .
       strip.setPixelColor(xy(3, 4), mouthC); strip.setPixelColor(xy(4, 4), mouthC);
       // . . M . . M . .
