@@ -38,6 +38,57 @@
 #define DEBUG_BAUD     115200
 #define DEBUG_INTERVAL (10000 / TICK_MS)
 
+// Convert a millisecond duration to a tick count
+#define MS_TO_TICKS(ms)  ((ms) / TICK_MS)
+
+// Pattern timing — all in ms; divide by TICK_MS at use site via MS_TO_TICKS()
+#define CHECKER_FADE_MS         3200   // brightness oscillation period
+#define CHECKER_HUE_STEP_MS      160   // ms per hue index step
+
+#define BREATHE_PERIOD_MS       2400   // inhale/exhale period
+#define BREATHE_HUE_STEP_MS      160
+
+#define SWEEP_ROT_SPEED         2.0f   // rad/sec
+#define SWEEP_HUE_STEP_MS        120
+
+#define RINGS_STEP_MS            200   // ms per ring expansion step
+#define RINGS_HUE_STEP_MS        400
+
+#define SPARKLE_FADE_PER_SEC     100   // brightness units/sec
+// Compile-time per-tick fade amount; minimum 1 so trails always clear
+#define SPARKLE_FADE_AMT  (SPARKLE_FADE_PER_SEC * TICK_MS / 1000 + \
+                           (SPARKLE_FADE_PER_SEC * TICK_MS / 1000 == 0))
+#define SPARKLE_SPAWN_MS         320
+
+#define FACE_BLINK_PERIOD_MS    2000
+#define FACE_EYES_OPEN_MS       1880   // open portion of blink period
+#define FACE_EXPR_MS            4000   // ms per expression
+
+#define RAINBOW_HUE_RATE  (80 / TICK_MS)   // hue units/tick (2 at 40ms, 8 at 10ms)
+
+#define SPIRAL_STEP_MS           120   // ms per spiral advance step
+#define SPIRAL_HOLD_STEPS          8   // hold duration in spiral-steps (not ticks)
+#define SPIRAL_CYCLE_LEN  (NUM_LEDS * 2 + SPIRAL_HOLD_STEPS * 2)
+
+// #define SNAKE_STEP_MS            160   // ms per snake move
+#define SNAKE_STEP_MS            10   // ms per snake move
+#define EXPLOSION_EXPAND_MS       80   // ms per explosion radius step
+#define APPLE_BLINK_MS            80   // ms per apple blink half-period
+#define SNAKE_REVEAL_MS           80   // ms per pixel revealed in length display
+#define SNAKE_HOLD_MS           2000   // ms to hold length display after fill
+
+#define BALL_TRAIL_FADE_PER_SEC  450
+#define BALL_TRAIL_FADE  (BALL_TRAIL_FADE_PER_SEC * TICK_MS / 1000 + \
+                          (BALL_TRAIL_FADE_PER_SEC * TICK_MS / 1000 == 0))
+#define BALL_SPEED_SCALE  ((float)TICK_MS / 40.0f)
+
+#define LISS_TRAIL_FADE_PER_SEC  250
+#define LISS_TRAIL_FADE  (LISS_TRAIL_FADE_PER_SEC * TICK_MS / 1000 + \
+                          (LISS_TRAIL_FADE_PER_SEC * TICK_MS / 1000 == 0))
+#define LISS_DRIFT_SPEED        0.1f   // ratio drift, rad/sec
+#define LISS_PHASE_SPEED        2.5f   // phase advance, rad/sec
+#define LISS_HUE_STEP_MS          80
+
 static const char *PATTERN_NAMES[NUM_PATTERNS] = {
   "checker", "breathe", "sweep", "rings", "sparkle", "face",
   "rainbow", "spiral", "snake", "balls", "lissajous"
@@ -250,9 +301,9 @@ void blinkRedLed() {
 // Pattern 0: Fading checkerboard
 // =============================================================
 void patternCheckerboard() {
-  float phase = (float)(tick % 80) / 80.0 * 2.0 * PI;
+  float phase = (float)(tick % MS_TO_TICKS(CHECKER_FADE_MS)) / MS_TO_TICKS(CHECKER_FADE_MS) * 2.0 * PI;
   float blend = (sin(phase) + 1.0) / 2.0;
-  uint8_t hueVal = (tick / 4) % 256;
+  uint8_t hueVal = (tick / MS_TO_TICKS(CHECKER_HUE_STEP_MS)) % 256;
 
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
@@ -269,9 +320,9 @@ void patternCheckerboard() {
 // Pattern 1: Color breathing pulse
 // =============================================================
 void patternBreathe() {
-  float phase = (float)(tick % 60) / 60.0 * 2.0 * PI;
+  float phase = (float)(tick % MS_TO_TICKS(BREATHE_PERIOD_MS)) / MS_TO_TICKS(BREATHE_PERIOD_MS) * 2.0 * PI;
   uint8_t brightness = (uint8_t)(127.5 + 127.5 * sin(phase));
-  uint8_t hueVal = (tick / 4) % 256;
+  uint8_t hueVal = (tick / MS_TO_TICKS(BREATHE_HUE_STEP_MS)) % 256;
   strip.fill(paletteColor(hueVal, 255, brightness));
 }
 
@@ -281,8 +332,8 @@ void patternBreathe() {
 void patternSweep() {
   clearGrid();
   float cx = 3.5f, cy = 3.5f;
-  float sweepAngle = fmodf(tick * 0.08f, 2.0f * PI);
-  uint8_t hueVal = (tick / 3) % 256;
+  float sweepAngle = fmodf(tick * (SWEEP_ROT_SPEED * TICK_MS / 1000.0f), 2.0f * PI);
+  uint8_t hueVal = (tick / MS_TO_TICKS(SWEEP_HUE_STEP_MS)) % 256;
 
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
@@ -313,8 +364,8 @@ void patternRings() {
   clearGrid();
   float cx = 3.5, cy = 3.5;
   uint8_t maxDist = 5;
-  uint8_t ring = (tick / 5) % (maxDist + 2);
-  uint8_t hueVal = (tick / 10) % 256;
+  uint8_t ring = (tick / MS_TO_TICKS(RINGS_STEP_MS)) % (maxDist + 2);
+  uint8_t hueVal = (tick / MS_TO_TICKS(RINGS_HUE_STEP_MS)) % 256;
 
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
@@ -339,11 +390,11 @@ uint8_t sparkleBright[8];
 
 void patternSparkle() {
   for (uint8_t i = 0; i < 8; i++) {
-    if (sparkleBright[i] > 4) sparkleBright[i] -= 4;
+    if (sparkleBright[i] > SPARKLE_FADE_AMT) sparkleBright[i] -= SPARKLE_FADE_AMT;
     else sparkleBright[i] = 0;
   }
 
-  if ((tick % 8) == 0) {
+  if ((tick % MS_TO_TICKS(SPARKLE_SPAWN_MS)) == 0) {
     uint8_t slot = random(8);
     sparklePixels[slot] = random(NUM_LEDS);
     sparkleHues[slot] = random(256);
@@ -375,11 +426,11 @@ void patternFace() {
   uint32_t eyeC   = strip.Color(255, 255, 255);
   uint32_t mouthC = paletteColor(0, 255, 220);
 
-  uint8_t blinkPhase = tick % 50;
-  bool eyesFull = blinkPhase < 47;
-  bool eyesHalf = blinkPhase == 47;
+  uint8_t blinkPhase = tick % MS_TO_TICKS(FACE_BLINK_PERIOD_MS);
+  bool eyesFull = blinkPhase < MS_TO_TICKS(FACE_EYES_OPEN_MS);
+  bool eyesHalf = blinkPhase == MS_TO_TICKS(FACE_EYES_OPEN_MS);
 
-  uint8_t expr = (tick / 100) % NUM_EXPRS;
+  uint8_t expr = (tick / MS_TO_TICKS(FACE_EXPR_MS)) % NUM_EXPRS;
 
   if (expr != lastExpr) {
     Serial.print("face -> "); Serial.println(EXPR_NAMES[expr]);
@@ -473,7 +524,7 @@ void patternFace() {
 void patternRainbow() {
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
-      uint8_t val = (x + y) * 16 + tick * 2;
+      uint8_t val = (x + y) * 16 + tick * RAINBOW_HUE_RATE;
       strip.setPixelColor(xy(x, y), paletteColor(val, 255, 200));
     }
   }
@@ -514,9 +565,9 @@ uint8_t spiralAt(uint8_t i, bool inward) {
 
 void patternSpiral() {
   clearGrid();
-  unsigned long t3 = tick / 3;
-  uint8_t cycle = t3 % 144;
-  bool inward = (t3 / 144) % 2 == 0;
+  unsigned long ts = tick / MS_TO_TICKS(SPIRAL_STEP_MS);
+  uint8_t cycle = ts % SPIRAL_CYCLE_LEN;
+  bool inward = (ts / SPIRAL_CYCLE_LEN) % 2 == 0;
 
   if (cycle < NUM_LEDS) {
     // Phase 1: fill — pixels 0..cycle-1 lit, cycle is white tracer
@@ -524,14 +575,14 @@ void patternSpiral() {
       strip.setPixelColor(spiralAt(i, inward), paletteColor(i * 4, 255, 255));
     strip.setPixelColor(spiralAt(cycle, inward), strip.Color(255, 255, 255));
 
-  } else if (cycle < NUM_LEDS + 8) {
+  } else if (cycle < NUM_LEDS + SPIRAL_HOLD_STEPS) {
     // Phase 2: hold full
     for (uint8_t i = 0; i < NUM_LEDS; i++)
       strip.setPixelColor(spiralAt(i, inward), paletteColor(i * 4, 255, 255));
 
-  } else if (cycle < NUM_LEDS * 2 + 8) {
+  } else if (cycle < NUM_LEDS * 2 + SPIRAL_HOLD_STEPS) {
     // Phase 3: erase in same order — eraseIdx is white tracer, pixels after remain lit
-    uint8_t eraseIdx = cycle - (NUM_LEDS + 8);
+    uint8_t eraseIdx = cycle - (NUM_LEDS + SPIRAL_HOLD_STEPS);
     for (uint8_t i = eraseIdx + 1; i < NUM_LEDS; i++)
       strip.setPixelColor(spiralAt(i, inward), paletteColor(i * 4, 255, 255));
     strip.setPixelColor(spiralAt(eraseIdx, inward), strip.Color(255, 255, 255));
@@ -543,7 +594,6 @@ void patternSpiral() {
 // Pattern 8: Autonomous snake (no wrapping, death explosion)
 // =============================================================
 #define SNAKE_INIT_LEN 2
-#define SNAKE_SPEED 4
 
 int8_t snakeX[NUM_LEDS];
 int8_t snakeY[NUM_LEDS];
@@ -655,7 +705,7 @@ void snakeChooseDir() {
 void patternSnake() {
   if (exploding) {
     clearGrid();
-    uint8_t radius = explosionTick / 2;
+    uint8_t radius = explosionTick / MS_TO_TICKS(EXPLOSION_EXPAND_MS);
     uint8_t maxRadius = GRID_W + GRID_H;
 
     for (uint8_t y = 0; y < GRID_H; y++) {
@@ -680,7 +730,8 @@ void patternSnake() {
 
   if (showingLength) {
     clearGrid();
-    uint8_t litCount = (showLengthTick / 2 < finalSnakeLen) ? showLengthTick / 2 : finalSnakeLen;
+    uint8_t litCount = (showLengthTick / MS_TO_TICKS(SNAKE_REVEAL_MS) < finalSnakeLen)
+                       ? showLengthTick / MS_TO_TICKS(SNAKE_REVEAL_MS) : finalSnakeLen;
     for (uint8_t i = 0; i < litCount; i++) {
       uint8_t row = i / GRID_W;
       uint8_t col = i % GRID_W;
@@ -688,7 +739,7 @@ void patternSnake() {
       strip.setPixelColor(xy(x, row), paletteColor(i * 4, 255, 200));
     }
     showLengthTick++;
-    if (showLengthTick > (uint16_t)finalSnakeLen * 2 + 50) {
+    if (showLengthTick > (uint16_t)finalSnakeLen * MS_TO_TICKS(SNAKE_REVEAL_MS) + MS_TO_TICKS(SNAKE_HOLD_MS)) {
       showingLength = false;
       snakeInited = false;
     }
@@ -697,7 +748,7 @@ void patternSnake() {
 
   if (!snakeInited) snakeInit();
 
-  if ((tick % SNAKE_SPEED) == 0) {
+  if ((tick % MS_TO_TICKS(SNAKE_STEP_MS)) == 0) {
     snakeChooseDir();
     if (exploding) return;
 
@@ -723,7 +774,7 @@ void patternSnake() {
   }
 
   clearGrid();
-  uint8_t appleBright = 150 + 105 * ((tick / 2) % 2);
+  uint8_t appleBright = 150 + 105 * ((tick / MS_TO_TICKS(APPLE_BLINK_MS)) % 2);
   strip.setPixelColor(xy(appleX, appleY), strip.Color(appleBright, appleBright, appleBright));
 
   for (uint8_t i = 0; i < snakeLen; i++) {
@@ -750,8 +801,8 @@ void ballsInit() {
     ballX[i]  = 2.0f + random(4);  // 2–5: away from all edges/corners
     ballY[i]  = 2.0f + random(4);
     // Non-overlapping ranges guarantee |VX| != |VY|, breaking diagonal lock
-    float spdX = 0.20f + random(4) * 0.10f;  // {0.20, 0.30, 0.40, 0.50}
-    float spdY = 0.25f + random(4) * 0.10f;  // {0.25, 0.35, 0.45, 0.55}
+    float spdX = (0.20f + random(4) * 0.10f) * BALL_SPEED_SCALE;
+    float spdY = (0.25f + random(4) * 0.10f) * BALL_SPEED_SCALE;
     ballVX[i] = spdX * (random(2) ? 1.0f : -1.0f);
     ballVY[i] = spdY * (random(2) ? 1.0f : -1.0f);
     ballHue[i] = i * 128;  // opposite sides of color wheel
@@ -764,7 +815,7 @@ void patternBalls() {
   if (!ballsInited) ballsInit();
 
   for (uint8_t i = 0; i < NUM_LEDS; i++) {
-    if (ballTrailBright[i] > 18) ballTrailBright[i] -= 18;
+    if (ballTrailBright[i] > BALL_TRAIL_FADE) ballTrailBright[i] -= BALL_TRAIL_FADE;
     else ballTrailBright[i] = 0;
   }
 
@@ -809,13 +860,13 @@ uint8_t lissTrail[NUM_LEDS];
 
 void patternLissajous() {
   for (uint8_t i = 0; i < NUM_LEDS; i++) {
-    if (lissTrail[i] > 10) lissTrail[i] -= 10;
+    if (lissTrail[i] > LISS_TRAIL_FADE) lissTrail[i] -= LISS_TRAIL_FADE;
     else lissTrail[i] = 0;
   }
 
-  float a  = 2.0f + 0.7f * sinf(tick * 0.004f);  // ratio drifts ~2:3 over time
-  float t0 = (tick - 1) * 0.1f;
-  float t1 = tick * 0.1f;
+  float a  = 2.0f + 0.7f * sinf(tick * (LISS_DRIFT_SPEED * TICK_MS / 1000.0f));
+  float t0 = (tick - 1) * (LISS_PHASE_SPEED * TICK_MS / 1000.0f);
+  float t1 = tick       * (LISS_PHASE_SPEED * TICK_MS / 1000.0f);
   for (uint8_t s = 0; s <= 8; s++) {
     float t  = t0 + (t1 - t0) * s / 8.0f;
     float xf = sinf(a * t);
@@ -828,7 +879,7 @@ void patternLissajous() {
   }
 
   clearGrid();
-  uint8_t hueShift = tick / 2;
+  uint8_t hueShift = tick / MS_TO_TICKS(LISS_HUE_STEP_MS);
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
       if (lissTrail[xy(x, y)] > 0)

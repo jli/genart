@@ -15,7 +15,7 @@ upload:
 all: compile upload
 
 monitor:
-	arduino-cli monitor -p $(PORT) --config baudrate=$(BAUD)
+	arduino-cli monitor -p $(PORT) --config baudrate=$(BAUD) --timestamp
 
 watch:
 	watchexec -e ino --on-busy-update restart --stop-timeout 0 -- \
