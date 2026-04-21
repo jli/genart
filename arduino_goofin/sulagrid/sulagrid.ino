@@ -12,27 +12,31 @@
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_DotStar.h>
 
-#define LED_PIN     3
+// Wiring
 #define ENC_A       0
 #define ENC_B       1
 #define ENC_BTN     2
+#define LED_PIN     3
 #define POT_PIN     A4  // board pin 4
-#define NUM_LEDS    64
-#define GRID_W      8
-#define GRID_H      8
-#define NUM_PATTERNS 11
-#define NUM_PALETTES 4
-#define MAX_BRIGHT     50
-#define DEFAULT_BRIGHT 10
-#define DEFAULT_PATTERN 5  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous
-
 // Built-in LEDs
 #define DOTSTAR_DATA  INTERNAL_DS_DATA
 #define DOTSTAR_CLK   INTERNAL_DS_CLK
 #define RED_LED_PIN   13
 
+// Grid
+#define GRID_W      8
+#define GRID_H      8
+#define NUM_LEDS    GRID_W * GRID_H
+#define NUM_PATTERNS 11
+#define NUM_PALETTES 4
+
+// Config
+#define MAX_BRIGHT     50
+#define DEFAULT_BRIGHT 10
+#define DEFAULT_PATTERN 0  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous
+#define TICK_MS        40
 #define DEBUG_BAUD     115200
-#define DEBUG_INTERVAL 200  // ticks between heartbeats (~10s at 50ms/tick)
+#define DEBUG_INTERVAL (10000 / TICK_MS)
 
 static const char *PATTERN_NAMES[NUM_PATTERNS] = {
   "checker", "breathe", "sweep", "rings", "sparkle", "face",
@@ -132,7 +136,7 @@ void patternCheckerboard() {
       if ((x + y) & 1) {
         strip.setPixelColor(xy(x, y), paletteColor(hueVal, 255, (uint8_t)(blend * 255)));
       } else {
-        strip.setPixelColor(xy(x, y), strip.ColorHSV(paletteHue(hueVal), 0, (uint8_t)((1.0 - blend) * 255)));
+        strip.setPixelColor(xy(x, y), paletteColor(hueVal, 255, (uint8_t)((1.0 - blend) * 255)));
       }
     }
   }
@@ -183,7 +187,7 @@ void patternRings() {
       uint8_t dist = (uint8_t)(max(dx, dy) + 0.5);
       if (dist == ring) {
         strip.setPixelColor(xy(x, y), paletteColor(hueVal, 255, 255));
-      } else if (dist == ring - 1) {
+      } else if (ring > 0 && dist == ring - 1) {
         strip.setPixelColor(xy(x, y), paletteColor(hueVal, 255, 60));
       }
     }
@@ -784,5 +788,5 @@ void loop() {
   }
 
   tick++;
-  delay(50);
+  delay(TICK_MS);
 }
