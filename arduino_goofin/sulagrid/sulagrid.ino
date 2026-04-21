@@ -30,7 +30,7 @@
 
 // Config
 #define NUM_PATTERNS 11
-#define NUM_PALETTES 4
+#define NUM_PALETTES 3
 #define MAX_BRIGHT     50
 #define DEFAULT_BRIGHT 10
 #define DEFAULT_PATTERN 0  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous
@@ -43,7 +43,7 @@ static const char *PATTERN_NAMES[NUM_PATTERNS] = {
   "rainbow", "spiral", "snake", "balls", "lissajous"
 };
 static const char *PALETTE_NAMES[NUM_PALETTES] = {
-  "warm", "cool", "red", "rainbow"
+  "warm", "cool", "rainbow"
 };
 
 #define ENC_COUNTS_PER_DETENT 4
@@ -51,12 +51,26 @@ static const char *PALETTE_NAMES[NUM_PALETTES] = {
 Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_DotStar onboardDot(1, DOTSTAR_DATA, DOTSTAR_CLK, DOTSTAR_BGR);
 
-volatile int     encPos     = DEFAULT_PATTERN * ENC_COUNTS_PER_DETENT;
+volatile int      encPos     = DEFAULT_PATTERN * ENC_COUNTS_PER_DETENT;
 // Debug counters incremented inside the ISR — can't Serial.print from there,
 // so we read these in the main loop under noInterrupts().
 volatile uint16_t encCW      = 0;  // valid CW transitions (table returned +1)
 volatile uint16_t encCCW     = 0;  // valid CCW transitions (table returned -1)
-volatile uint16_t encInvalid = 0;  // table returned 0: impossible state, usually bounce
+volatile uint16_t encBounced = 0;  // rejected by debounce timer (too soon after last edge)
+volatile uint16_t encNoise   = 0;  // passed timer but table returned 0 (impossible transition)
+
+// Circular trace buffer: every ISR call is logged here — including bounced ones —
+// so you can see the exact timing and state sequence around any turn.
+// Read this from the main loop under noInterrupts() with memcpy.
+#define ENC_TRACE_LEN 32  // must be power of 2
+struct EncEvent {
+  uint16_t dt;     // microseconds since previous ISR call, capped at 65535
+  uint8_t  state;  // encState & 0x0F after update (prevBA in bits 3:2, currBA in 1:0)
+                   // 0xFF for bounce-rejected entries (state machine not updated)
+  int8_t   result; // +1 CW, -1 CCW, 0 noise, -128 bounce-rejected
+};
+EncEvent          encTrace[ENC_TRACE_LEN];  // read under noInterrupts()
+volatile uint8_t  encTraceHead = 0;         // index of next write slot (wraps via & mask)
 int currentPattern = DEFAULT_PATTERN;
 int currentPalette = 0;
 unsigned long lastBtnPress = 0;
@@ -92,7 +106,7 @@ uint8_t xy(uint8_t x, uint8_t y) {
 // by ENC_COUNTS_PER_DETENT converts that to ±1 pattern step.
 //
 // Table layout (rows = prevBA, cols = currBA):
-//            curr 00  01  10  11
+//        curr 00  01  10  11
 //   prev 00:   0  -1  +1   0
 //   prev 01:  +1   0   0  -1
 //   prev 10:  -1   0   0  +1
@@ -121,22 +135,23 @@ uint8_t xy(uint8_t x, uint8_t y) {
 //
 // DEBUGGING STRATEGY
 // ──────────────────
-// encCW / encCCW count valid transitions; encInvalid counts 0-table hits.
+// encCW / encCCW count valid transitions. encBounced counts edges rejected
+// by the debounce timer. encNoise counts edges that passed the timer but
+// produced an impossible state-table entry (two bits changed at once —
+// sign of ISR latency).
 //
-//   High encInvalid relative to (encCW+encCCW) → contact bounce.
-//   Fix: 100 Ω series + 10 nF to GND on each encoder pin (RC low-pass),
-//   or add software debounce (but that can eat real fast edges).
+//   High encBounced → contact bounce. Fix: RC filter (100 Ω + 10 nF to
+//   GND on each encoder pin). ENC_DEBOUNCE_US can reduce symptom in
+//   software but risks eating real edges on fast turns.
 //
-//   "enc [partial]" in the log means encPos moved but landed between
-//   detents. A series of partials with no clean landing = lost transition.
-//   Try slowing down turns; if it only misbehaves at high speed, the ISR
-//   is losing edges (latency problem).
+//   High encNoise → ISR latency. A and B changed so close together that
+//   the second ISR read an already-settled state, skipping the intermediate.
+//   RC filter helps here too by slowing the edge transitions.
 //
-//   "enc BOUNCE" in the log = invalid count exceeded valid count in a
-//   single 50 ms loop iteration — heavy bounce, hardware filter advised.
+//   "[partial]" in the log → encPos landed between detents (lost edge).
+//   Persistent partials after adding RC filter: try lowering ENC_DEBOUNCE_US.
 //
-//   Pattern jumps by 2 or skips backward: accumulated phantom ±4 from
-//   bounce. Hardware filter is the reliable fix.
+//   Both counters are reported on every pattern change alongside the trace.
 
 static const int8_t encTable[16] = {
    0, -1,  1,  0,
@@ -145,16 +160,46 @@ static const int8_t encTable[16] = {
    0,  1, -1,  0
 };
 volatile uint8_t encState = 0;
+volatile uint32_t encLastUs = 0;  // timestamp of last accepted transition
+
+// Minimum microseconds between accepted edges. Bounce typically settles
+// in <1 ms; a fast human turn still produces edges >2 ms apart.
+// If turns feel sluggish or miss at high speed, lower this value.
+// If bounce persists, raise it.
+#define ENC_DEBOUNCE_US 500
 
 void encoderISR() {
+  uint32_t now     = micros();
+  uint32_t elapsed = now - encLastUs;
+  uint16_t dt      = elapsed > 65535 ? 65535 : (uint16_t)elapsed;
+
+  uint8_t slot = encTraceHead & (ENC_TRACE_LEN - 1);
+  encTrace[slot].dt = dt;
+
+  if (elapsed < ENC_DEBOUNCE_US) {
+    // Compute what the state nibble would have been without rejection,
+    // so the trace can show the would-be transition.
+    uint8_t wouldBe = ((encState << 2) | (digitalRead(ENC_B) << 1) | digitalRead(ENC_A)) & 0x0F;
+    encTrace[slot].state  = wouldBe;
+    encTrace[slot].result = -128;   // sentinel: bounce-rejected
+    encTraceHead++;
+    encBounced++;
+    return;
+  }
+  encLastUs = now;
+
   encState <<= 2;
   encState |= (digitalRead(ENC_B) << 1) | digitalRead(ENC_A);
   int8_t delta = encTable[encState & 0x0F];
   encPos += delta;
-  // Increment debug counters — no Serial here, ISR must be fast.
+
+  encTrace[slot].state  = encState & 0x0F;
+  encTrace[slot].result = delta;
+  encTraceHead++;
+
   if      (delta > 0) encCW++;
   else if (delta < 0) encCCW++;
-  else                encInvalid++;  // noise, bounce, or simultaneous edge
+  else                encNoise++;   // passed timer but impossible state — ISR latency glitch
 }
 
 // --- Color palettes ---
@@ -168,7 +213,6 @@ struct Palette {
 Palette palettes[NUM_PALETTES] = {
   {  0,  40, false, 0xFF4400 },  // warm
   { 96, 160, false, 0x0044FF },  // cool
-  {  0,   0, false, 0xFF0000 },  // mono red
   {  0, 255, true,  0xFF00FF },  // full rainbow
 };
 
@@ -765,6 +809,78 @@ void patternLissajous() {
 }
 
 // =============================================================
+// Encoder trace dump
+// =============================================================
+// Prints the last ENC_TRACE_LEN ISR calls in chronological order.
+// Each line: time since previous ISR call, the state transition (prevBA->currBA),
+// and the outcome. Read like a strip-chart of the encoder signal.
+//
+// Example of a clean CW detent (4 edges, ~500us apart, all valid):
+//   +  512us  11->01  CW  +1
+//   +  508us  01->00  CW  +1
+//   +  511us  00->10  CW  +1
+//   +  506us  10->11  CW  +1
+//
+// Example of a bouncy edge (fast spurious edges before settling):
+//   +  510us  11->01  CW  +1
+//   +   38us  BOUNCE          ← rejected: 38us < ENC_DEBOUNCE_US
+//   +   22us  BOUNCE
+//   +  490us  01->00  CW  +1
+//
+// Example of ISR latency eating an edge (NOISE = valid timing, impossible state):
+//   +  505us  11->01  CW  +1
+//   +  498us  01->11  NOISE 0  ← two bits flipped simultaneously, step lost
+
+void dumpEncTrace() {
+  static uint8_t lastHead = 0;
+
+  noInterrupts();
+  uint8_t      head = encTraceHead;
+  EncEvent     buf[ENC_TRACE_LEN];
+  memcpy(buf, encTrace, sizeof(encTrace));
+  interrupts();
+
+  uint8_t count    = head < ENC_TRACE_LEN ? head : ENC_TRACE_LEN;
+  // How many of those events arrived since the last dump (capped at what's in the buffer).
+  uint8_t newCount = (uint8_t)(head - lastHead);
+  if (newCount > count) newCount = count;
+  uint8_t oldCount = count - newCount;
+
+  Serial.print("enc trace ("); Serial.print(count);
+  Serial.print(" events, "); Serial.print(newCount); Serial.println(" new, oldest first):");
+
+  for (uint8_t i = 0; i < count; i++) {
+    uint8_t    idx = (uint8_t)(head - count + i) & (ENC_TRACE_LEN - 1);
+    EncEvent  &e   = buf[idx];
+
+    // "* " marks events that are new since the last dump; "  " are carry-over context
+    Serial.print(i >= oldCount ? "* " : "  ");
+
+    // Right-align dt so columns line up
+    Serial.print("+");
+    if (e.dt < 10000) Serial.print(" ");
+    if (e.dt < 1000)  Serial.print(" ");
+    if (e.dt < 100)   Serial.print(" ");
+    Serial.print(e.dt); Serial.print("us  ");
+
+    // Unpack prevBA (bits 3:2) and currBA (bits 1:0), print as binary digits.
+    // For BOUNCE events this is the would-be transition (pins read but not committed).
+    uint8_t prev = (e.state >> 2) & 0x3;
+    uint8_t curr = e.state & 0x3;
+    Serial.print((prev >> 1) & 1); Serial.print(prev & 1);
+    Serial.print("->");
+    Serial.print((curr >> 1) & 1); Serial.print(curr & 1);
+    Serial.print("  ");
+    if      (e.result == -128) Serial.println("BOUNCE");
+    else if (e.result > 0)     Serial.println("CW  +1");
+    else if (e.result < 0)     Serial.println("CCW -1");
+    else                       Serial.println("NOISE 0");
+  }
+
+  lastHead = head;
+}
+
+// =============================================================
 // Main
 // =============================================================
 
@@ -774,6 +890,7 @@ void setup() {
   pinMode(ENC_BTN, INPUT_PULLUP);
   pinMode(RED_LED_PIN, OUTPUT);
 
+  encState = (digitalRead(ENC_B) << 1) | digitalRead(ENC_A);
   attachInterrupt(digitalPinToInterrupt(ENC_A), encoderISR, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ENC_B), encoderISR, CHANGE);
 
@@ -809,21 +926,19 @@ void loop() {
 
   // --- Encoder → pattern selection ---
   // Read pos and all debug counters in one critical section so they're
-  // consistent with each other (an ISR between two separate reads could
-  // increment counters against a pos we've already consumed).
-  static int     lastLogPos = DEFAULT_PATTERN * ENC_COUNTS_PER_DETENT;
-  static uint16_t lastCW = 0, lastCCW = 0, lastInv = 0;
+  static int lastLogPos = DEFAULT_PATTERN * ENC_COUNTS_PER_DETENT;
 
   noInterrupts();
-  int      pos = encPos;
-  uint16_t cw  = encCW;
-  uint16_t ccw = encCCW;
-  uint16_t inv = encInvalid;
+  int      pos     = encPos;
+  uint16_t cw      = encCW;
+  uint16_t ccw     = encCCW;
+  uint16_t bounced = encBounced;
+  uint16_t noise   = encNoise;
   interrupts();
 
-  // Log every raw position change. "[partial]" means we're mid-detent —
-  // normal while turning, but if you only ever see partial and never a
-  // clean multiple of ENC_COUNTS_PER_DETENT, a transition is being lost.
+  // Log raw position on every change. [partial] = landed between detents,
+  // meaning an edge was lost. If you see persistent partials after adding
+  // the RC filter, try lowering ENC_DEBOUNCE_US.
   if (pos != lastLogPos) {
     Serial.print("enc pos="); Serial.print(pos);
     Serial.print(" delta="); Serial.print(pos - lastLogPos);
@@ -831,17 +946,6 @@ void loop() {
     Serial.println();
     lastLogPos = pos;
   }
-
-  // Bounce warning: fires when invalid transitions outnumber valid ones
-  // within this loop tick. Hardware RC filter (100Ω + 10nF) is the fix.
-  uint16_t newValid = (cw - lastCW) + (ccw - lastCCW);
-  uint16_t newInv   = inv - lastInv;
-  if (newInv > newValid && newInv > 0) {
-    Serial.print("enc BOUNCE cw="); Serial.print(cw);
-    Serial.print(" ccw="); Serial.print(ccw);
-    Serial.print(" inv="); Serial.println(inv);
-  }
-  lastCW = cw; lastCCW = ccw; lastInv = inv;
 
   int newPattern = ((pos / ENC_COUNTS_PER_DETENT) % NUM_PATTERNS + NUM_PATTERNS) % NUM_PATTERNS;
   if (newPattern != currentPattern) {
@@ -857,7 +961,9 @@ void loop() {
     Serial.print(") encPos="); Serial.print(pos);
     Serial.print(" cw="); Serial.print(cw);
     Serial.print(" ccw="); Serial.print(ccw);
-    Serial.print(" inv="); Serial.println(inv);
+    Serial.print(" bnc="); Serial.print(bounced);
+    Serial.print(" nse="); Serial.println(noise);
+    dumpEncTrace();
   }
 
   // --- Button → cycle color palette ---
