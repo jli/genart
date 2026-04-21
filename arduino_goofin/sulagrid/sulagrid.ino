@@ -70,8 +70,7 @@
 #define SPIRAL_HOLD_STEPS          8   // hold duration in spiral-steps (not ticks)
 #define SPIRAL_CYCLE_LEN  (NUM_LEDS * 2 + SPIRAL_HOLD_STEPS * 2)
 
-// #define SNAKE_STEP_MS            160   // ms per snake move
-#define SNAKE_STEP_MS            10   // ms per snake move
+#define SNAKE_STEP_MS            160   // ms per snake move
 #define EXPLOSION_EXPAND_MS       80   // ms per explosion radius step
 #define APPLE_BLINK_MS            80   // ms per apple blink half-period
 #define SNAKE_REVEAL_MS           80   // ms per pixel revealed in length display
@@ -666,6 +665,46 @@ void snakeDie() {
   explosionTick = 0;
 }
 
+// BFS flood-fill from (startX, startY). Returns number of reachable cells.
+// Treats the snake body as walls, except the tail (which vacates next tick).
+// Queue and visited fit on the stack: 64 + 8 bytes, well within SAMD21 limits.
+uint8_t snakeFloodFill(int8_t startX, int8_t startY) {
+  uint8_t visited[8] = {};  // 64-bit bitfield, one bit per cell
+  uint8_t queue[NUM_LEDS];
+  uint8_t head = 0, tail = 0;
+
+  // Block all body segments except the tail (tail vacates on next move)
+  for (uint8_t i = 0; i < snakeLen - 1; i++) {
+    uint8_t idx = snakeY[i] * GRID_W + snakeX[i];
+    visited[idx >> 3] |= (1 << (idx & 7));
+  }
+
+  uint8_t startIdx = startY * GRID_W + startX;
+  visited[startIdx >> 3] |= (1 << (startIdx & 7));
+  queue[tail++] = startIdx;
+
+  static const int8_t dx[] = { 1, -1, 0,  0 };
+  static const int8_t dy[] = { 0,  0, 1, -1 };
+  uint8_t count = 0;
+
+  while (head != tail) {
+    uint8_t cur = queue[head++];
+    int8_t  cx  = cur % GRID_W;
+    int8_t  cy  = cur / GRID_W;
+    count++;
+    for (uint8_t d = 0; d < 4; d++) {
+      int8_t nx = cx + dx[d];
+      int8_t ny = cy + dy[d];
+      if (!snakeInBounds(nx, ny)) continue;
+      uint8_t nidx = ny * GRID_W + nx;
+      if (visited[nidx >> 3] & (1 << (nidx & 7))) continue;
+      visited[nidx >> 3] |= (1 << (nidx & 7));
+      queue[tail++] = nidx;
+    }
+  }
+  return count;
+}
+
 void snakeChooseDir() {
   int8_t dirs[][2] = {
     { snakeDirX, snakeDirY },
@@ -673,33 +712,42 @@ void snakeChooseDir() {
     { snakeDirY, (int8_t)-snakeDirX },
   };
 
-  int bestDist = 999;
-  int8_t bestDX = snakeDirX, bestDY = snakeDirY;
-  bool anyValid = false;
+  // Safe: flood-fill >= snakeLen. Among safe dirs pick closest to apple.
+  // Fallback (all unsafe): pick most open direction.
+  int8_t safeDX = 0, safeDY = 0, fallDX = 0, fallDY = 0;
+  int    safeDist = 999;
+  uint8_t fallSpace = 0;
+  bool   anySafe = false, anyValid = false;
 
   for (uint8_t d = 0; d < 3; d++) {
     int8_t nx = snakeX[0] + dirs[d][0];
     int8_t ny = snakeY[0] + dirs[d][1];
 
     if (!snakeInBounds(nx, ny)) continue;
-    if (snakeHitsSelf(nx, ny)) continue;
-
+    if (snakeHitsSelf(nx, ny))  continue;
     anyValid = true;
-    int dist = abs(nx - appleX) + abs(ny - appleY);
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestDX = dirs[d][0];
-      bestDY = dirs[d][1];
+
+    uint8_t space = snakeFloodFill(nx, ny);
+    int     dist  = abs(nx - appleX) + abs(ny - appleY);
+
+    if (space > fallSpace) {
+      fallSpace = space;
+      fallDX = dirs[d][0]; fallDY = dirs[d][1];
+    }
+    if (space >= snakeLen && (!anySafe || dist < safeDist)) {
+      anySafe  = true;
+      safeDist = dist;
+      safeDX   = dirs[d][0]; safeDY = dirs[d][1];
     }
   }
 
-  if (!anyValid) {
-    snakeDie();
-    return;
-  }
+  if (!anyValid) { snakeDie(); return; }
 
-  snakeDirX = bestDX;
-  snakeDirY = bestDY;
+  if (anySafe) {
+    snakeDirX = safeDX; snakeDirY = safeDY;
+  } else {
+    snakeDirX = fallDX; snakeDirY = fallDY;
+  }
 }
 
 void patternSnake() {
