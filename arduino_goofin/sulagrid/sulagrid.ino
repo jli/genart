@@ -102,11 +102,7 @@
 #define TETRIS_FALL_MS         150   // ms per gravity step
 #define TETRIS_FLASH_MS         80   // ms per line-clear blink half-period
 #define TETRIS_CLEAR_MS        600   // ms for line-clear flash
-#define TETRIS_BLINK_HALF_MS   150   // game-over: half-period per blink flash
-#define TETRIS_BLINK_COUNT       3   // game-over: number of on/off blink cycles
-#define TETRIS_EXPLODE_MS     1500   // game-over: ms for pieces to fly outward
-#define TETRIS_BLINK_MS       (TETRIS_BLINK_COUNT * 2 * TETRIS_BLINK_HALF_MS)
-#define TETRIS_GAMEOVER_MS    (TETRIS_BLINK_MS + TETRIS_EXPLODE_MS)
+#define TETRIS_GAMEOVER_MS    2000   // ms for game-over fade to black
 
 static const char *PATTERN_NAMES[NUM_PATTERNS] = {
   "checker", "breathe", "sweep", "rings", "sparkle", "face",
@@ -1326,9 +1322,9 @@ void patternTetris() {
       if (clearing) {
         bright = ((tetTick / MS_TO_TICKS(TETRIS_FLASH_MS)) % 2) ? 255 : 40;
       } else if (tetState == 2) {
-        if (tetTick >= MS_TO_TICKS(TETRIS_BLINK_MS)) continue;       // explode phase: skip, drawn below
-        if ((tetTick / MS_TO_TICKS(TETRIS_BLINK_HALF_MS)) % 2) continue;  // blink off
-        bright = 220;
+        uint16_t cap = MS_TO_TICKS(TETRIS_GAMEOVER_MS);
+        uint16_t t   = tetTick < cap ? tetTick : cap;
+        bright = (uint8_t)(180UL * (cap - t) / cap);
       } else {
         bright = 180;
       }
@@ -1345,28 +1341,6 @@ void patternTetris() {
     }
   }
 
-  if (tetState == 2 && tetTick >= MS_TO_TICKS(TETRIS_BLINK_MS)) {
-    uint16_t explodeTick = tetTick - MS_TO_TICKS(TETRIS_BLINK_MS);
-    uint16_t explodeDur  = MS_TO_TICKS(TETRIS_EXPLODE_MS);
-    float    tSec        = explodeTick * (TICK_MS / 1000.0f);
-    for (uint8_t by = 0; by < GRID_H; by++) {
-      for (uint8_t bx = 0; bx < GRID_W; bx++) {
-        if (!tetBoard[by][bx]) continue;
-        float dx  = (float)bx - 3.5f;
-        float dy  = (float)by - 3.5f;
-        float mag = sqrtf(dx*dx + dy*dy);
-        float nx  = bx + (dx / mag) * 8.0f * tSec;
-        float ny  = by + (dy / mag) * 8.0f * tSec;
-        int8_t px = (int8_t)floorf(nx + 0.5f);
-        int8_t py = (int8_t)floorf(ny + 0.5f);
-        if (px < 0 || px >= GRID_W || py < 0 || py >= GRID_H) continue;
-        uint16_t elapsed   = min(explodeTick, explodeDur);
-        uint8_t  fadeBright = (uint8_t)(220UL * (explodeDur - elapsed) / explodeDur);
-        if (fadeBright > 0)
-          strip.setPixelColor(xy(px, py), paletteColor(tetBoard[by][bx], 255, fadeBright));
-      }
-    }
-  }
 }
 
 // =============================================================
