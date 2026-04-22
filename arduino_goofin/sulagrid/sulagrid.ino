@@ -32,7 +32,7 @@
 #define NUM_PATTERNS 13
 #define NUM_PALETTES 3
 #define MAX_BRIGHT     50
-#define DEFAULT_PATTERN 11  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous 11=ripple 12=tetris
+#define DEFAULT_PATTERN 12  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous 11=ripple 12=tetris
 #define DEFAULT_BRIGHT 10
 #define TICK_MS        10
 #define DEBUG_BAUD     115200
@@ -104,7 +104,7 @@
 #define TETRIS_CLEAR_MS        600   // ms for line-clear flash
 #define TETRIS_BLINK_HALF_MS   250   // game-over: half-period per gentle blink
 #define TETRIS_BLINK_COUNT       2   // game-over: number of on/off blink cycles
-#define TETRIS_EXPLODE_MS      900   // game-over: ms for pieces to fly outward
+#define TETRIS_EXPLODE_MS     1500   // game-over: ms for pieces to fly outward
 #define TETRIS_BLINK_MS       (TETRIS_BLINK_COUNT * 2 * TETRIS_BLINK_HALF_MS)
 #define TETRIS_GAMEOVER_MS    (TETRIS_BLINK_MS + TETRIS_EXPLODE_MS)
 
@@ -1237,13 +1237,8 @@ void tetSpawn() {
   tetPY = 0;
 
   tetRunAI();  // sets tetPRot, tetTX
+  tetPX = tetTX;  // spawn directly at target column
 
-  maxDX = 0;
-  for (uint8_t c = 0; c < 4; c++)
-    if (TPIECES[tetPType][tetPRot][c][0] > maxDX) maxDX = TPIECES[tetPType][tetPRot][c][0];
-  tetPX = (GRID_W - maxDX - 1) / 2;
-
-  if (!tetValid(tetPX, tetPY, tetPType, tetPRot)) tetPX = tetTX;
   if (!tetValid(tetPX, tetPY, tetPType, tetPRot)) {
     tetState = 2; tetTick = 0;
     return;
