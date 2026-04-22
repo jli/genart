@@ -99,10 +99,14 @@
 #define RIPPLE_SPAWN_MAX_MS  1200     // max ms between new stones
 
 
-#define TETRIS_FALL_MS     400   // ms per gravity step
-#define TETRIS_FLASH_MS     80   // ms per line-clear blink half-period
-#define TETRIS_CLEAR_MS    600   // ms for line-clear flash
-#define TETRIS_GAMEOVER_MS 2000  // ms for game-over fade
+#define TETRIS_FALL_MS         150   // ms per gravity step
+#define TETRIS_FLASH_MS         80   // ms per line-clear blink half-period
+#define TETRIS_CLEAR_MS        600   // ms for line-clear flash
+#define TETRIS_BLINK_HALF_MS   150   // game-over: half-period per blink flash
+#define TETRIS_BLINK_COUNT       3   // game-over: number of on/off blink cycles
+#define TETRIS_EXPLODE_MS     1500   // game-over: ms for pieces to fly outward
+#define TETRIS_BLINK_MS       (TETRIS_BLINK_COUNT * 2 * TETRIS_BLINK_HALF_MS)
+#define TETRIS_GAMEOVER_MS    (TETRIS_BLINK_MS + TETRIS_EXPLODE_MS)
 
 static const char *PATTERN_NAMES[NUM_PATTERNS] = {
   "checker", "breathe", "sweep", "rings", "sparkle", "face",
@@ -1158,6 +1162,8 @@ int8_t tetDropY(int8_t px, uint8_t type, uint8_t rot) {
 
 // Score board after simulating a placement; clears full rows in tmp before scoring.
 // Precondition: all cells (px+dx, py+dy) are in bounds — guaranteed by tetDropY caller.
+// Weights tuned toward Dellacherie/El-Tetris findings: holes are severely punished,
+// aggregate height moderately, bumpiness lightly.
 int tetEval(int8_t px, int8_t py, uint8_t type, uint8_t rot) {
   uint8_t tmp[GRID_H][GRID_W];
   memcpy(tmp, tetBoard, sizeof(tetBoard));
@@ -1177,21 +1183,24 @@ int tetEval(int8_t px, int8_t py, uint8_t type, uint8_t rot) {
   }
 
   int colH[GRID_W] = {};
-  int total_h = 0, max_h = 0, holes = 0;
+  int aggregate_h = 0, max_h = 0, holes = 0, hole_depth = 0;
   for (uint8_t x = 0; x < GRID_W; x++) {
     bool found = false;
+    int depth = 0;
     for (uint8_t y = 0; y < GRID_H; y++) {
       if (tmp[y][x]) {
-        if (!found) { colH[x] = GRID_H - y; total_h += colH[x]; if (colH[x] > max_h) max_h = colH[x]; found = true; }
+        if (!found) { colH[x] = GRID_H - y; aggregate_h += colH[x]; if (colH[x] > max_h) max_h = colH[x]; found = true; }
+        depth++;
       } else if (found) {
         holes++;
+        hole_depth += depth;
       }
     }
   }
   int bumpiness = 0;
   for (uint8_t x = 0; x < GRID_W - 1; x++)
     bumpiness += abs(colH[x] - colH[x + 1]);
-  return lines * 100 - total_h - max_h * 2 - holes * 20 - bumpiness * 3;
+  return lines * 800 - aggregate_h * 50 - max_h * 30 - holes * 320 - hole_depth * 40 - bumpiness * 18;
 }
 
 void tetRunAI() {
@@ -1254,8 +1263,8 @@ void patternTetris() {
   bool fallStep = (tick % MS_TO_TICKS(TETRIS_FALL_MS)) == 0;
 
   if (tetState == 0 && fallStep) {
-    while (tetPX < tetTX && tetValid(tetPX + 1, tetPY, tetPType, tetPRot)) tetPX++;
-    while (tetPX > tetTX && tetValid(tetPX - 1, tetPY, tetPType, tetPRot)) tetPX--;
+    if (tetPX < tetTX && tetValid(tetPX + 1, tetPY, tetPType, tetPRot)) tetPX++;
+    else if (tetPX > tetTX && tetValid(tetPX - 1, tetPY, tetPType, tetPRot)) tetPX--;
 
     if (tetValid(tetPX, tetPY + 1, tetPType, tetPRot)) {
       tetPY++;
@@ -1317,9 +1326,9 @@ void patternTetris() {
       if (clearing) {
         bright = ((tetTick / MS_TO_TICKS(TETRIS_FLASH_MS)) % 2) ? 255 : 40;
       } else if (tetState == 2) {
-        uint16_t cap = MS_TO_TICKS(TETRIS_GAMEOVER_MS);
-        uint16_t t   = tetTick < cap ? tetTick : cap;
-        bright = (uint8_t)(180UL * (cap - t) / cap);
+        if (tetTick >= MS_TO_TICKS(TETRIS_BLINK_MS)) continue;       // explode phase: skip, drawn below
+        if ((tetTick / MS_TO_TICKS(TETRIS_BLINK_HALF_MS)) % 2) continue;  // blink off
+        bright = 220;
       } else {
         bright = 180;
       }
@@ -1328,11 +1337,45 @@ void patternTetris() {
   }
 
   if (tetState == 0) {
+    // Ghost: dim preview at drop position
+    int8_t ghostY = tetDropY(tetPX, tetPType, tetPRot);
+    if (ghostY > tetPY) {
+      for (uint8_t c = 0; c < 4; c++) {
+        int8_t x = tetPX + TPIECES[tetPType][tetPRot][c][0];
+        int8_t y = ghostY + TPIECES[tetPType][tetPRot][c][1];
+        if (x >= 0 && x < GRID_W && y >= 0 && y < GRID_H && !tetBoard[y][x])
+          strip.setPixelColor(xy(x, y), paletteColor(tetPHue, 60, 45));
+      }
+    }
+    // Active piece (drawn on top of ghost)
     for (uint8_t c = 0; c < 4; c++) {
       int8_t x = tetPX + TPIECES[tetPType][tetPRot][c][0];
       int8_t y = tetPY + TPIECES[tetPType][tetPRot][c][1];
       if (x >= 0 && x < GRID_W && y >= 0 && y < GRID_H)
         strip.setPixelColor(xy(x, y), paletteColor(tetPHue, 255, 255));
+    }
+  }
+
+  if (tetState == 2 && tetTick >= MS_TO_TICKS(TETRIS_BLINK_MS)) {
+    uint16_t explodeTick = tetTick - MS_TO_TICKS(TETRIS_BLINK_MS);
+    uint16_t explodeDur  = MS_TO_TICKS(TETRIS_EXPLODE_MS);
+    float    tSec        = explodeTick * (TICK_MS / 1000.0f);
+    for (uint8_t by = 0; by < GRID_H; by++) {
+      for (uint8_t bx = 0; bx < GRID_W; bx++) {
+        if (!tetBoard[by][bx]) continue;
+        float dx  = (float)bx - 3.5f;
+        float dy  = (float)by - 3.5f;
+        float mag = sqrtf(dx*dx + dy*dy);
+        float nx  = bx + (dx / mag) * 8.0f * tSec;
+        float ny  = by + (dy / mag) * 8.0f * tSec;
+        int8_t px = (int8_t)floorf(nx + 0.5f);
+        int8_t py = (int8_t)floorf(ny + 0.5f);
+        if (px < 0 || px >= GRID_W || py < 0 || py >= GRID_H) continue;
+        uint16_t elapsed   = min(explodeTick, explodeDur);
+        uint8_t  fadeBright = (uint8_t)(220UL * (explodeDur - elapsed) / explodeDur);
+        if (fadeBright > 0)
+          strip.setPixelColor(xy(px, py), paletteColor(tetBoard[by][bx], 255, fadeBright));
+      }
     }
   }
 }
@@ -1527,19 +1570,19 @@ void loop() {
 
   // --- Run current pattern ---
   switch (currentPattern) {
-    case 0: patternCheckerboard(); break;
-    case 1: patternBreathe();      break;
-    case 2: patternSweep();        break;
-    case 3: patternRings();        break;
-    case 4: patternSparkle();      break;
-    case 5: patternFace();         break;
-    case 6: patternRainbow();      break;
-    case 7: patternSpiral();       break;
-    case 8:  patternSnake();      break;
-    case 9:  patternBalls();      break;
-    case 10: patternLissajous();  break;
-    case 11: patternRipple();     break;
-    case 12: patternTetris();     break;
+    case 0:  patternCheckerboard(); break;
+    case 1:  patternBreathe();      break;
+    case 2:  patternSweep();        break;
+    case 3:  patternRings();        break;
+    case 4:  patternSparkle();      break;
+    case 5:  patternFace();         break;
+    case 6:  patternRainbow();      break;
+    case 7:  patternSpiral();       break;
+    case 8:  patternSnake();        break;
+    case 9:  patternBalls();        break;
+    case 10: patternLissajous();    break;
+    case 11: patternRipple();       break;
+    case 12: patternTetris();       break;
   }
   strip.show();
 
