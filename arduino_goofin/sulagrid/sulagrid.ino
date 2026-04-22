@@ -1337,17 +1337,6 @@ void patternTetris() {
   }
 
   if (tetState == 0) {
-    // Ghost: dim preview at drop position
-    int8_t ghostY = tetDropY(tetPX, tetPType, tetPRot);
-    if (ghostY > tetPY) {
-      for (uint8_t c = 0; c < 4; c++) {
-        int8_t x = tetPX + TPIECES[tetPType][tetPRot][c][0];
-        int8_t y = ghostY + TPIECES[tetPType][tetPRot][c][1];
-        if (x >= 0 && x < GRID_W && y >= 0 && y < GRID_H && !tetBoard[y][x])
-          strip.setPixelColor(xy(x, y), paletteColor(tetPHue, 60, 45));
-      }
-    }
-    // Active piece (drawn on top of ghost)
     for (uint8_t c = 0; c < 4; c++) {
       int8_t x = tetPX + TPIECES[tetPType][tetPRot][c][0];
       int8_t y = tetPY + TPIECES[tetPType][tetPRot][c][1];
