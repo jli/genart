@@ -38,6 +38,10 @@
 #define DEBUG_BAUD     115200
 #define DEBUG_INTERVAL (10000 / TICK_MS)
 
+// Set to 1 to use pot for speed control (middle = default speed, brightness fixed).
+// Set to 0 for normal brightness control.
+#define POT_SPEED_MODE 1
+
 // Convert a millisecond duration to a tick count
 #define MS_TO_TICKS(ms)  ((ms) / TICK_MS)
 
@@ -1476,8 +1480,30 @@ void loop() {
     Serial.print("startup: DEFAULT_PATTERN="); Serial.print(DEFAULT_PATTERN);
     Serial.print(" currentPattern="); Serial.print(currentPattern);
     Serial.print(" encPos="); Serial.println(encPos);
+#if POT_SPEED_MODE
+    Serial.println("POT_SPEED_MODE=1  pot controls speed, brightness fixed at DEFAULT_BRIGHT");
+#endif
   }
 
+#if POT_SPEED_MODE
+  // --- Potentiometer → speed (dev mode) ---
+  // Middle position (pot≈512) = TICK_MS (default speed).
+  // Left half (0–511): 100ms → 10ms  Right half (512–1023): 10ms → 1ms
+  uint16_t potVal = analogRead(POT_PIN);
+  uint16_t tickDelayMs;
+  if (potVal <= 511) {
+    tickDelayMs = 100 - (uint16_t)potVal * 90 / 511;
+  } else {
+    tickDelayMs = 10 - (uint16_t)(potVal - 512) * 8 / 511;
+  }
+  if (tickDelayMs < 1) tickDelayMs = 1;
+  strip.setBrightness(DEFAULT_BRIGHT);
+  static uint16_t lastReportedDelay = 0;
+  if ((uint16_t)abs((int)tickDelayMs - (int)lastReportedDelay) > 1) {
+    Serial.print("tick_ms="); Serial.println(tickDelayMs);
+    lastReportedDelay = tickDelayMs;
+  }
+#else
   // --- Potentiometer → brightness ---
   static uint8_t lastReportedBright = 0;
   uint16_t potVal = analogRead(POT_PIN);
@@ -1488,6 +1514,7 @@ void loop() {
     Serial.print("bright="); Serial.println(bright);
     lastReportedBright = bright;
   }
+#endif
 
   // --- Encoder → pattern selection ---
   // Read pos and all debug counters in one critical section so they're
@@ -1574,9 +1601,17 @@ void loop() {
     Serial.print("tick="); Serial.print(tick);
     Serial.print(" pat="); Serial.print(PATTERN_NAMES[currentPattern]);
     Serial.print(" pal="); Serial.print(PALETTE_NAMES[currentPalette]);
+#if POT_SPEED_MODE
+    Serial.print(" tick_ms="); Serial.println(tickDelayMs);
+#else
     Serial.print(" bright="); Serial.println(bright);
+#endif
   }
 
   tick++;
+#if POT_SPEED_MODE
+  delay(tickDelayMs);
+#else
   delay(TICK_MS);
+#endif
 }
