@@ -32,7 +32,7 @@
 #define NUM_PATTERNS 13
 #define NUM_PALETTES 3
 #define MAX_BRIGHT     50
-#define DEFAULT_PATTERN 12  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous 11=ripple 12=tetris
+#define DEFAULT_PATTERN 8  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous 11=ripple 12=tetris
 #define DEFAULT_BRIGHT 10
 #define TICK_MS        10
 #define DEBUG_BAUD     115200
@@ -68,7 +68,7 @@
 #define FACE_EYES_OPEN_MS       1880   // open portion of blink period
 #define FACE_EXPR_MS            4000   // ms per expression
 
-#define RAINBOW_HUE_RATE  (80 / TICK_MS)   // hue units/tick (2 at 40ms, 8 at 10ms)
+#define RAINBOW_STEP_MS   20   // ms per 1-unit hue advance (~5s full cycle)
 
 #define SPIRAL_STEP_MS           120   // ms per spiral advance step
 #define SPIRAL_HOLD_STEPS          8   // hold duration in spiral-steps (not ticks)
@@ -94,13 +94,13 @@
 #define LISS_HUE_STEP_MS          80
 
 
-#define RIPPLE_MAX           4        // max concurrent stones
+#define RIPPLE_MAX           2        // max concurrent stones
 #define RIPPLE_LIFETIME_MS   7000     // ms a ripple lasts
 #define RIPPLE_SPEED_PPS     1.8f     // wave expansion, pixels/sec
-#define RIPPLE_WAVELENGTH    2.5f     // pixels between ring crests
-#define RIPPLE_FADE_DIST     5.5f     // visible wake behind wavefront, pixels
-#define RIPPLE_SPAWN_MIN_MS   500     // min ms between new stones
-#define RIPPLE_SPAWN_MAX_MS  1200     // max ms between new stones
+#define RIPPLE_WAVELENGTH    4.0f     // pixels between ring crests (wider = fewer rings visible at once)
+#define RIPPLE_FADE_DIST     3.5f     // visible wake behind wavefront, pixels
+#define RIPPLE_SPAWN_MIN_MS  1500     // min ms between new stones
+#define RIPPLE_SPAWN_MAX_MS  3000     // max ms between new stones
 
 
 #define TETRIS_FALL_MS         150   // ms per gravity step
@@ -368,10 +368,10 @@ void patternSweep() {
       if (diff < -PI) diff += 2.0f * PI;
 
       uint8_t bright = 0;
-      if (diff >= -0.2f && diff <= 0.2f) {
+      if (diff >= -0.1f && diff <= 0.1f) {
         bright = 255;
-      } else if (diff < -0.2f && diff > -1.8f) {
-        bright = (uint8_t)(255.0f * (1.8f + diff) / 1.6f);
+      } else if (diff < -0.1f && diff > -0.9f) {
+        bright = (uint8_t)(255.0f * (0.9f + diff) / 0.8f);
       }
 
       if (bright > 0)
@@ -398,6 +398,8 @@ void patternRings() {
       if (dist == ring) {
         strip.setPixelColor(xy(x, y), paletteColor(hueVal, 255, 255));
       } else if (ring > 0 && dist == ring - 1) {
+        strip.setPixelColor(xy(x, y), paletteColor(hueVal, 255, 150));
+      } else if (ring > 1 && dist == ring - 2) {
         strip.setPixelColor(xy(x, y), paletteColor(hueVal, 255, 60));
       }
     }
@@ -547,7 +549,7 @@ void patternFace() {
 void patternRainbow() {
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
-      uint8_t val = (x + y) * 16 + tick * RAINBOW_HUE_RATE;
+      uint8_t val = (x + y) * 16 + (uint8_t)(tick / MS_TO_TICKS(RAINBOW_STEP_MS));
       strip.setPixelColor(xy(x, y), paletteColor(val, 255, 200));
     }
   }
@@ -689,89 +691,128 @@ void snakeDie() {
   explosionTick = 0;
 }
 
-// BFS flood-fill from (startX, startY). Returns number of reachable cells.
-// Treats the snake body as walls, except the tail (which vacates next tick).
-// Queue and visited fit on the stack: 64 + 8 bytes, well within SAMD21 limits.
-uint8_t snakeFloodFill(int8_t startX, int8_t startY) {
-  uint8_t visited[8] = {};  // 64-bit bitfield, one bit per cell
-  uint8_t queue[NUM_LEDS];
-  uint8_t head = 0, tail = 0;
-
-  // Block all body segments except the tail (tail vacates on next move)
-  for (uint8_t i = 0; i < snakeLen - 1; i++) {
+// BFS flood-fill from (startX, startY).
+// Time-aware flood fill from (startX, startY).
+//
+// Body segment [i] vacates its cell at step (snakeLen-1-i):
+//   tail (i=snakeLen-1) → step 0  (free immediately)
+//   body[i]             → step snakeLen-1-i
+//
+// When expanding to a neighbor at BFS depth d, body[i] at that cell is a wall only
+// if d < snakeLen-1-i (it hasn't moved yet).  Longer paths can thread through cells
+// that the tail will have vacated by the time the snake arrives.
+//
+// Returns reachable cell count; sets tailReach and appleDist via the dist[] array.
+uint8_t snakeFloodFill(int8_t startX, int8_t startY, bool &tailReach, uint8_t &appleDist) {
+  // freeAt[idx]: step at which the occupying body segment vacates (-1 = already free).
+  int8_t freeAt[NUM_LEDS];
+  memset(freeAt, -1, NUM_LEDS);
+  for (uint8_t i = 0; i < snakeLen; i++) {
     uint8_t idx = snakeY[i] * GRID_W + snakeX[i];
-    visited[idx >> 3] |= (1 << (idx & 7));
+    freeAt[idx] = (int8_t)(snakeLen - 1 - i);  // tail→0, neck→1, …
   }
+
+  // dist[idx] = minimum BFS steps to reach cell (255 = unreached).
+  // Each cell is enqueued at most once, so queue[NUM_LEDS] is sufficient.
+  uint8_t dist[NUM_LEDS];
+  memset(dist, 255, NUM_LEDS);
+  uint8_t queue[NUM_LEDS];
+  uint8_t qhead = 0, qtail = 0;
 
   uint8_t startIdx = startY * GRID_W + startX;
-  visited[startIdx >> 3] |= (1 << (startIdx & 7));
-  queue[tail++] = startIdx;
+  dist[startIdx] = 0;
+  queue[qtail++] = startIdx;
 
-  static const int8_t dx[] = { 1, -1, 0,  0 };
-  static const int8_t dy[] = { 0,  0, 1, -1 };
+  static const int8_t dx[] = { 1, -1,  0,  0 };
+  static const int8_t dy[] = { 0,  0,  1, -1 };
   uint8_t count = 0;
 
-  while (head != tail) {
-    uint8_t cur = queue[head++];
-    int8_t  cx  = cur % GRID_W;
-    int8_t  cy  = cur / GRID_W;
+  while (qhead != qtail) {
+    uint8_t cur = queue[qhead++];
+    int8_t  cx  = cur % GRID_W, cy = cur / GRID_W;
+    uint8_t cd  = dist[cur];
     count++;
     for (uint8_t d = 0; d < 4; d++) {
-      int8_t nx = cx + dx[d];
-      int8_t ny = cy + dy[d];
+      int8_t nx = cx + dx[d], ny = cy + dy[d];
       if (!snakeInBounds(nx, ny)) continue;
       uint8_t nidx = ny * GRID_W + nx;
-      if (visited[nidx >> 3] & (1 << (nidx & 7))) continue;
-      visited[nidx >> 3] |= (1 << (nidx & 7));
-      queue[tail++] = nidx;
+      if (dist[nidx] != 255) continue;          // already reached
+      int8_t fa = freeAt[nidx];
+      // fa == -1: empty cell (always passable)
+      // fa == 0:  tail (vacates immediately, always passable)
+      // fa >  0:  body segment; passable only once fa <= arrival time
+      if (fa > 0 && fa > (int8_t)(cd + 1)) continue;
+      dist[nidx] = cd + 1;
+      queue[qtail++] = nidx;
     }
   }
+
+  uint8_t tailIdx = snakeY[snakeLen - 1] * GRID_W + snakeX[snakeLen - 1];
+  tailReach = (dist[tailIdx] != 255);
+  appleDist = dist[appleY * GRID_W + appleX];
   return count;
 }
 
 void snakeChooseDir() {
-  int8_t dirs[][2] = {
-    { snakeDirX, snakeDirY },
-    { (int8_t)-snakeDirY, snakeDirX },
-    { snakeDirY, (int8_t)-snakeDirX },
+  int8_t dirs[3][2] = {
+    {  snakeDirX,              snakeDirY },
+    { (int8_t)-snakeDirY,      snakeDirX },
+    {  snakeDirY,    (int8_t)-snakeDirX },
   };
 
-  // Safe: flood-fill >= snakeLen. Among safe dirs pick closest to apple.
-  // Fallback (all unsafe): pick most open direction.
-  int8_t safeDX = 0, safeDY = 0, fallDX = 0, fallDY = 0;
-  int    safeDist = 999;
-  uint8_t fallSpace = 0;
-  bool   anySafe = false, anyValid = false;
+  // Tier 1: tail reachable + apple reachable → go toward apple (safe).
+  //   tailReach is the real safety guarantee: if the tail is reachable we can
+  //   always survive by chasing it.
+  // Tier 2: apple reachable + ≥½ available space → go toward apple (risky).
+  // Tier 3: no apple path                        → chase own tail to unwind.
+  // Fallback: most open direction.
+  //
+  // Both tailReach and appleDist now come from the time-aware flood fill, which
+  // treats body[i] as a wall only until step (snakeLen-1-i) — the step at which
+  // it naturally vacates.  This lets the snake plan paths that thread through
+  // cells its tail will have cleared by the time it arrives.
+  int8_t  t1X = -1, t1Y = -1;
+  int8_t  t2X = -1, t2Y = -1;
+  int8_t  survX = -1, survY = -1;
+  int8_t  fallX = -1, fallY = -1;
+  int t1Dist = 999, t2Dist = 999, survDist = 999;
+  uint8_t t1Space = 0, t2Space = 0, fallSpace = 0;
+  bool anyValid = false;
+  uint8_t freeTotal = NUM_LEDS - (snakeLen - 1);
 
   for (uint8_t d = 0; d < 3; d++) {
     int8_t nx = snakeX[0] + dirs[d][0];
     int8_t ny = snakeY[0] + dirs[d][1];
-
     if (!snakeInBounds(nx, ny)) continue;
     if (snakeHitsSelf(nx, ny))  continue;
     anyValid = true;
 
-    uint8_t space = snakeFloodFill(nx, ny);
-    int     dist  = abs(nx - appleX) + abs(ny - appleY);
+    bool    tailReach = false;
+    uint8_t appleDist = 255;
+    uint8_t space     = snakeFloodFill(nx, ny, tailReach, appleDist);
+    int     tDist     = abs(nx - snakeX[snakeLen-1]) + abs(ny - snakeY[snakeLen-1]);
 
-    if (space > fallSpace) {
-      fallSpace = space;
-      fallDX = dirs[d][0]; fallDY = dirs[d][1];
+    if (tailReach && appleDist < 255) {
+      if (appleDist < t1Dist || (appleDist == t1Dist && space > t1Space))
+        { t1Dist = appleDist; t1Space = space; t1X = nx; t1Y = ny; }
+    } else if (appleDist < 255 && space * 2 >= freeTotal) {
+      if (appleDist < t2Dist || (appleDist == t2Dist && space > t2Space))
+        { t2Dist = appleDist; t2Space = space; t2X = nx; t2Y = ny; }
     }
-    if (space >= snakeLen && (!anySafe || dist < safeDist)) {
-      anySafe  = true;
-      safeDist = dist;
-      safeDX   = dirs[d][0]; safeDY = dirs[d][1];
-    }
+    if (tDist < survDist)   { survDist = tDist;   survX = nx; survY = ny; }
+    if (space > fallSpace)  { fallSpace = space;  fallX = nx; fallY = ny; }
   }
 
   if (!anyValid) { snakeDie(); return; }
 
-  if (anySafe) {
-    snakeDirX = safeDX; snakeDirY = safeDY;
-  } else {
-    snakeDirX = fallDX; snakeDirY = fallDY;
-  }
+  int8_t chosenX, chosenY;
+  if      (t1X >= 0)   { chosenX = t1X;   chosenY = t1Y;   }
+  else if (t2X >= 0)   { chosenX = t2X;   chosenY = t2Y;   }
+  else if (survX >= 0) { chosenX = survX; chosenY = survY; }
+  else                 { chosenX = fallX; chosenY = fallY; }
+
+  snakeDirX = chosenX - snakeX[0];
+  snakeDirY = chosenY - snakeY[0];
 }
 
 void patternSnake() {
