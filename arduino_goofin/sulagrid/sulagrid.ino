@@ -8,6 +8,13 @@
 //   Pin 4 — Potentiometer wiper (pot ends to 3.3V and GND)
 //   Encoder common pins to GND
 //   WS2812 power to external 5V (not USB)
+//
+// UI:
+//   Button       — advance to next sketch
+//   Encoder      — left/right input for interactive sketches (snake, tetris)
+//                  In snake/tetris, any encoder turn takes control from the AI
+//                  until the game ends (snake dies, tetris tops out).
+//   Onboard dot  — green while user has control, palette color otherwise.
 
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_DotStar.h>
@@ -81,6 +88,13 @@
 #define SNAKE_HOLD_MS           3000   // ms to hold length display after fill
 #define SNAKE_PULSE_MS           600   // ms per brightness pulse cycle during hold
 
+// User-takeover transition: snake holds still while flashing white, then
+// resumes moving with pulsing red.  The pause gives the user a beat to orient
+// before the snake actually responds to their input.
+#define SNAKE_USER_PAUSE_MS      700   // duration of the takeover hold
+#define SNAKE_USER_BLINK_MS      120   // ms per white-flash half-period during pause
+#define SNAKE_USER_BODY_PULSE_MS 700   // ms per red-pulse cycle while moving
+
 #define BALL_TRAIL_FADE_PER_SEC  450
 #define BALL_TRAIL_FADE  (BALL_TRAIL_FADE_PER_SEC * TICK_MS / 1000 + \
                           (BALL_TRAIL_FADE_PER_SEC * TICK_MS / 1000 == 0))
@@ -125,7 +139,7 @@ static const char *PALETTE_NAMES[NUM_PALETTES] = {
 Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_DotStar onboardDot(1, DOTSTAR_DATA, DOTSTAR_CLK, DOTSTAR_BGR);
 
-volatile int      encPos     = DEFAULT_PATTERN * ENC_COUNTS_PER_DETENT;
+volatile int      encPos     = 0;
 // Debug counters incremented inside the ISR — can't Serial.print from there,
 // so we read these in the main loop under noInterrupts().
 volatile uint16_t encCW      = 0;  // valid CW transitions (table returned +1)
@@ -146,10 +160,21 @@ struct EncEvent {
 EncEvent          encTrace[ENC_TRACE_LEN];  // read under noInterrupts()
 volatile uint8_t  encTraceHead = 0;         // index of next write slot (wraps via & mask)
 int currentPattern = DEFAULT_PATTERN;
-int currentPalette = 0;
+int currentPalette = 2;  // rainbow
 unsigned long lastBtnPress = 0;
 unsigned long tick = 0;
 unsigned long redLedOff = 0;
+
+// --- Game input (encoder → left/right) ---
+// Each detent is ~4 raw counts but bounce/missed-edges make that unreliable.
+// We register one input as soon as the raw delta crosses GAME_INPUT_THRESHOLD,
+// then advance the anchor by a full ENC_COUNTS_PER_DETENT — so a single click
+// produces exactly one input even when it lands at 3, 4, or 5 raw counts.
+#define GAME_INPUT_THRESHOLD 3
+int  inputAnchor  = 0;   // raw encPos at last consumed input event
+int  pendingInput = 0;   // signed: +1 per CW detent, -1 per CCW
+bool userControl  = false;  // a game pattern has received user input — disables AI until game ends
+unsigned long userTakeoverTick = 0;  // tick at which userControl flipped to true (for transition animations)
 
 // --- Pixel index from (x, y) — straight wiring ---
 uint8_t xy(uint8_t x, uint8_t y) {
@@ -307,7 +332,8 @@ void clearGrid() {
 
 // --- Status LED helpers ---
 void updateOnboardDot() {
-  uint32_t c = palettes[currentPalette].indicatorColor;
+  uint32_t c = userControl ? 0x00FF40                           // green: user has control
+                           : palettes[currentPalette].indicatorColor;
   uint8_t r = (c >> 16) & 0xFF;
   uint8_t g = (c >> 8) & 0xFF;
   uint8_t b = c & 0xFF;
@@ -661,6 +687,26 @@ void snakeInit() {
   snakeDirY = 0;
   placeApple();
   snakeInited = true;
+  userControl = false;     // AI drives until user touches the encoder
+  pendingInput = 0;
+  updateOnboardDot();
+}
+
+// Apply at most one queued turn — sign of pendingInput. Right turn (CW from above):
+// (dx,dy) → (-dy, dx).  Left turn (CCW): (dx,dy) → (dy, -dx).  We collapse multiple
+// queued events to a single 90° rotation so a noisy double-click can't flip the snake
+// 180° into its own neck.
+void snakeApplyUserTurn() {
+  int net = pendingInput;
+  pendingInput = 0;
+  if (net == 0) return;
+  if (net > 0) {
+    int8_t nx = -snakeDirY, ny = snakeDirX;
+    snakeDirX = nx; snakeDirY = ny;
+  } else {
+    int8_t nx = snakeDirY, ny = -snakeDirX;
+    snakeDirX = nx; snakeDirY = ny;
+  }
 }
 
 bool snakeInBounds(int8_t x, int8_t y) {
@@ -876,8 +922,11 @@ void patternSnake() {
 
   if (!snakeInited) snakeInit();
 
-  if ((tick % MS_TO_TICKS(SNAKE_STEP_MS)) == 0) {
-    snakeChooseDir();
+  bool userPaused = userControl && (tick - userTakeoverTick) < MS_TO_TICKS(SNAKE_USER_PAUSE_MS);
+
+  if (!userPaused && (tick % MS_TO_TICKS(SNAKE_STEP_MS)) == 0) {
+    if (userControl) snakeApplyUserTurn();
+    else             snakeChooseDir();
     if (exploding) return;
 
     for (int i = snakeLen - 1; i > 0; i--) {
@@ -890,6 +939,16 @@ void patternSnake() {
     if (!snakeInBounds(snakeX[0], snakeY[0])) {
       snakeDie();
       return;
+    }
+
+    // AI mode validates pre-move in snakeChooseDir, so this only fires in user mode.
+    if (userControl) {
+      for (uint8_t i = 1; i < snakeLen; i++) {
+        if (snakeX[i] == snakeX[0] && snakeY[i] == snakeY[0]) {
+          snakeDie();
+          return;
+        }
+      }
     }
 
     if (snakeX[0] == appleX && snakeY[0] == appleY) {
@@ -905,10 +964,40 @@ void patternSnake() {
   uint8_t appleBright = 150 + 105 * ((tick / MS_TO_TICKS(APPLE_BLINK_MS)) % 2);
   strip.setPixelColor(xy(appleX, appleY), strip.Color(appleBright, appleBright, appleBright));
 
+  // Pre-compute user-mode body color factors (only used when userControl).
+  // Pause: hard white flash on/off — clear "system handed over" cue.
+  // Active: red body with sin-wave brightness pulse and a tiny hue spread along the
+  // body (red→amber) so it still feels alive instead of dead-flat.
+  bool userFlashOn = false;
+  uint8_t userPulseBright = 0;
+  if (userControl) {
+    if (userPaused) {
+      userFlashOn = ((tick / MS_TO_TICKS(SNAKE_USER_BLINK_MS)) % 2) != 0;
+    } else {
+      float ph = (float)(tick % MS_TO_TICKS(SNAKE_USER_BODY_PULSE_MS))
+                 / MS_TO_TICKS(SNAKE_USER_BODY_PULSE_MS) * 2.0f * PI;
+      userPulseBright = 80 + (uint8_t)(87.5f * (1.0f + sinf(ph)));  // 80..255
+    }
+  }
+
   for (uint8_t i = 0; i < snakeLen; i++) {
-    uint8_t hueVal = i * (256 / snakeLen);
-    uint8_t bright = (i == 0) ? 255 : 180;
-    strip.setPixelColor(xy(snakeX[i], snakeY[i]), paletteColor(hueVal, 255, bright));
+    uint32_t c;
+    if (userControl) {
+      if (userPaused) {
+        uint8_t b = userFlashOn ? 255 : 30;
+        c = strip.Color(b, b, b);
+      } else if (i == 0) {
+        c = strip.Color(255, 255, 255);
+      } else {
+        uint16_t hue = (uint16_t)(i * 3) << 8;     // 0 → ~21 (red → amber)
+        c = strip.ColorHSV(hue, 255, userPulseBright);
+      }
+    } else {
+      uint8_t hueVal = i * (256 / snakeLen);
+      uint8_t bright = (i == 0) ? 255 : 180;
+      c = paletteColor(hueVal, 255, bright);
+    }
+    strip.setPixelColor(xy(snakeX[i], snakeY[i]), c);
   }
 }
 
@@ -1281,8 +1370,13 @@ void tetSpawn() {
   tetPX = (GRID_W - maxDX - 1) / 2;
   tetPY = 0;
 
-  tetRunAI();  // sets tetPRot, tetTX
-  tetPX = tetTX;  // spawn directly at target column
+  if (userControl) {
+    // No AI: piece spawns centered with rot 0; encoder just translates it.
+    tetTX = tetPX;
+  } else {
+    tetRunAI();      // sets tetPRot, tetTX
+    tetPX = tetTX;   // spawn directly at target column
+  }
 
   if (!tetValid(tetPX, tetPY, tetPType, tetPRot)) {
     tetState = 2; tetTick = 0;
@@ -1295,16 +1389,35 @@ void patternTetris() {
   if (!tetInited) {
     memset(tetBoard, 0, sizeof(tetBoard));
     tetState = 0; tetTick = 0;
+    userControl = false;
+    pendingInput = 0;
+    updateOnboardDot();
     tetSpawn();
     tetInited = true;
+  }
+
+  // Drain queued encoder input as horizontal piece moves (only while a piece is falling).
+  // Each pending unit is one cell — multiple units stacked between frames let the user
+  // slide the piece across the board fast.
+  if (tetState == 0 && pendingInput != 0) {
+    int dir = (pendingInput > 0) ? 1 : -1;
+    int steps = (pendingInput > 0) ? pendingInput : -pendingInput;
+    for (int i = 0; i < steps; i++) {
+      if (tetValid(tetPX + dir, tetPY, tetPType, tetPRot)) tetPX += dir;
+      else break;
+    }
+    pendingInput = 0;
+    tetTX = tetPX;  // keep AI target in sync so it doesn't fight the user if mode flips
   }
 
   tetTick++;
   bool fallStep = (tick % MS_TO_TICKS(TETRIS_FALL_MS)) == 0;
 
   if (tetState == 0 && fallStep) {
-    if (tetPX < tetTX && tetValid(tetPX + 1, tetPY, tetPType, tetPRot)) tetPX++;
-    else if (tetPX > tetTX && tetValid(tetPX - 1, tetPY, tetPType, tetPRot)) tetPX--;
+    if (!userControl) {
+      if (tetPX < tetTX && tetValid(tetPX + 1, tetPY, tetPType, tetPRot)) tetPX++;
+      else if (tetPX > tetTX && tetValid(tetPX - 1, tetPY, tetPType, tetPRot)) tetPX--;
+    }
 
     if (tetValid(tetPX, tetPY + 1, tetPType, tetPRot)) {
       tetPY++;
@@ -1352,6 +1465,9 @@ void patternTetris() {
   } else if (tetState == 2) {
     if (tetTick >= MS_TO_TICKS(TETRIS_GAMEOVER_MS)) {
       memset(tetBoard, 0, sizeof(tetBoard));
+      userControl = false;       // game over: AI takes back over for the next round
+      pendingInput = 0;
+      updateOnboardDot();
       tetSpawn();
     }
   }
@@ -1377,11 +1493,13 @@ void patternTetris() {
   }
 
   if (tetState == 0) {
+    uint32_t pieceColor = userControl ? strip.Color(255, 255, 255)
+                                      : paletteColor(tetPHue, 255, 255);
     for (uint8_t c = 0; c < 4; c++) {
       int8_t x = tetPX + TPIECES[tetPType][tetPRot][c][0];
       int8_t y = tetPY + TPIECES[tetPType][tetPRot][c][1];
       if (x >= 0 && x < GRID_W && y >= 0 && y < GRID_H)
-        strip.setPixelColor(xy(x, y), paletteColor(tetPHue, 255, 255));
+        strip.setPixelColor(xy(x, y), pieceColor);
     }
   }
 
@@ -1557,9 +1675,9 @@ void loop() {
   }
 #endif
 
-  // --- Encoder → pattern selection ---
-  // Read pos and all debug counters in one critical section so they're
-  static int lastLogPos = DEFAULT_PATTERN * ENC_COUNTS_PER_DETENT;
+  // --- Encoder → game input (left/right) ---
+  // Read raw position and ISR debug counters in one critical section.
+  static int lastLogPos = 0;
 
   noInterrupts();
   int      pos     = encPos;
@@ -1569,9 +1687,6 @@ void loop() {
   uint16_t noise   = encNoise;
   interrupts();
 
-  // Log raw position on every change. [partial] = landed between detents,
-  // meaning an edge was lost. If you see persistent partials after adding
-  // the RC filter, try lowering ENC_DEBOUNCE_US.
   if (pos != lastLogPos) {
     Serial.print("enc pos="); Serial.print(pos);
     Serial.print(" delta="); Serial.print(pos - lastLogPos);
@@ -1580,39 +1695,54 @@ void loop() {
     lastLogPos = pos;
   }
 
-  int newPattern = ((pos / ENC_COUNTS_PER_DETENT) % NUM_PATTERNS + NUM_PATTERNS) % NUM_PATTERNS;
-  if (newPattern != currentPattern) {
-    currentPattern = newPattern;
+  // Convert raw count delta to discrete input events.  Threshold 3 catches a click
+  // that lost one edge; anchor advances by a full detent so a click that produced
+  // 5 raw counts still registers as exactly one input.
+  bool gamePattern = (currentPattern == 8) || (currentPattern == 12);
+  int rawDelta = pos - inputAnchor;
+  while (rawDelta >= GAME_INPUT_THRESHOLD) {
+    pendingInput++;
+    inputAnchor += ENC_COUNTS_PER_DETENT;
+    rawDelta = pos - inputAnchor;
+    if (gamePattern && !userControl) { userControl = true; userTakeoverTick = tick;
+      updateOnboardDot(); Serial.println("user takes control"); }
+  }
+  while (rawDelta <= -GAME_INPUT_THRESHOLD) {
+    pendingInput--;
+    inputAnchor -= ENC_COUNTS_PER_DETENT;
+    rawDelta = pos - inputAnchor;
+    if (gamePattern && !userControl) { userControl = true; userTakeoverTick = tick;
+      updateOnboardDot(); Serial.println("user takes control"); }
+  }
+  if (!gamePattern) pendingInput = 0;  // discard input outside game patterns
+
+  // --- Button → next sketch (edge-triggered) ---
+  static int lastBtnLevel = HIGH;
+  int btnLevel = digitalRead(ENC_BTN);
+  if (lastBtnLevel == HIGH && btnLevel == LOW && millis() - lastBtnPress > 50) {
+    lastBtnPress = millis();
+    currentPattern = (currentPattern + 1) % NUM_PATTERNS;
     clearGrid();
     strip.show();
     blinkRedLed();
-    snakeInited = false;
-    exploding = false;
+    snakeInited   = false;
+    exploding     = false;
     showingLength = false;
-    ballsInited = false;
-    rippleInited = false;
-    tetInited = false;
+    ballsInited   = false;
+    rippleInited  = false;
+    tetInited     = false;
+    userControl   = false;
+    pendingInput  = 0;
+    inputAnchor   = pos;     // ignore any drift from previous pattern
+    updateOnboardDot();
     Serial.print("pattern -> "); Serial.print(currentPattern);
     Serial.print(" ("); Serial.print(PATTERN_NAMES[currentPattern]);
-    Serial.print(") encPos="); Serial.print(pos);
-    Serial.print(" cw="); Serial.print(cw);
+    Serial.print(") cw="); Serial.print(cw);
     Serial.print(" ccw="); Serial.print(ccw);
     Serial.print(" bnc="); Serial.print(bounced);
     Serial.print(" nse="); Serial.println(noise);
-    dumpEncTrace();
   }
-
-  // --- Button → cycle color palette ---
-  if (digitalRead(ENC_BTN) == LOW) {
-    if (millis() - lastBtnPress > 300) {
-      currentPalette = (currentPalette + 1) % NUM_PALETTES;
-      lastBtnPress = millis();
-      updateOnboardDot();
-      blinkRedLed();
-      Serial.print("palette -> "); Serial.print(currentPalette);
-      Serial.print(" ("); Serial.print(PALETTE_NAMES[currentPalette]); Serial.println(")");
-    }
-  }
+  lastBtnLevel = btnLevel;
 
   // --- Turn off red LED after blink duration ---
   if (redLedOff > 0 && millis() >= redLedOff) {
