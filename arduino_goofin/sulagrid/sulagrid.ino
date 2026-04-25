@@ -177,12 +177,14 @@ int  pendingInput = 0;   // signed: +1 per CW detent, -1 per CCW
 bool userControl  = false;  // a game pattern has received user input — disables AI until game ends
 unsigned long userTakeoverTick = 0;  // tick at which userControl flipped to true (for transition animations)
 
-// Timestamp of the most recent registered input event — used by non-game patterns to
-// decide "is the user actively driving me?".  Patterns check userActive() and blend
-// between manual and autonomous behavior.
-unsigned long lastInputTick = 0;
-#define USER_ACTIVITY_MS 3000
-static inline bool userActive() { return (tick - lastInputTick) < MS_TO_TICKS(USER_ACTIVITY_MS); }
+// User-activity flag: true while the user has touched encoder or button recently.
+// Set on every input event, auto-cleared after USER_ACTIVITY_MS of silence (decay
+// happens at the top of loop()), and explicitly cleared on pattern change so a
+// new sketch always starts in autonomous mode regardless of prior input timing.
+unsigned long lastInputTick   = 0;
+bool          userActiveFlag  = false;
+#define USER_ACTIVITY_MS 5000
+static inline bool userActive() { return userActiveFlag; }
 
 // --- Button input ---
 // Short press (release before BTN_HOLD_MS) → btnAction one-shot consumed by the
@@ -1879,6 +1881,12 @@ void loop() {
 #endif
   }
 
+  // Auto-timeout: drop back to autonomous mode after USER_ACTIVITY_MS of silence.
+  if (userActiveFlag && (tick - lastInputTick) >= MS_TO_TICKS(USER_ACTIVITY_MS)) {
+    userActiveFlag = false;
+    Serial.println("user inactive (timeout)");
+  }
+
 #if POT_SPEED_MODE
   // --- Potentiometer → speed (dev mode) ---
   // Middle position (pot≈512) = TICK_MS (default speed).
@@ -1939,7 +1947,8 @@ void loop() {
     pendingInput++;
     inputAnchor += ENC_COUNTS_PER_DETENT;
     rawDelta = pos - inputAnchor;
-    lastInputTick = tick;
+    lastInputTick  = tick;
+    userActiveFlag = true;
     if (gamePattern && !userControl) { userControl = true; userTakeoverTick = tick;
       updateOnboardDot(); Serial.println("user takes control"); }
   }
@@ -1947,7 +1956,8 @@ void loop() {
     pendingInput--;
     inputAnchor -= ENC_COUNTS_PER_DETENT;
     rawDelta = pos - inputAnchor;
-    lastInputTick = tick;
+    lastInputTick  = tick;
+    userActiveFlag = true;
     if (gamePattern && !userControl) { userControl = true; userTakeoverTick = tick;
       updateOnboardDot(); Serial.println("user takes control"); }
   }
@@ -1979,10 +1989,11 @@ void loop() {
     ballsInited   = false;
     rippleInited  = false;
     tetInited     = false;
-    userControl   = false;
-    pendingInput  = 0;
-    btnAction     = false;
-    inputAnchor   = pos;     // ignore any drift from previous pattern
+    userControl    = false;
+    userActiveFlag = false;  // new sketch starts in autonomous mode
+    pendingInput   = 0;
+    btnAction      = false;
+    inputAnchor    = pos;    // ignore any drift from previous pattern
     // Clear trail arrays so leftover pixels don't flicker on re-entry
     memset(sparkleBright, 0, sizeof(sparkleBright));
     memset(lissTrail,     0, sizeof(lissTrail));
@@ -1995,8 +2006,9 @@ void loop() {
     Serial.print(" nse="); Serial.println(noise);
   }
   if (lastBtnLevel == LOW && btnLevel == HIGH && !btnLongFired) {
-    btnAction     = true;
-    lastInputTick = tick;
+    btnAction      = true;
+    lastInputTick  = tick;
+    userActiveFlag = true;
     Serial.println("btn action");
   }
   lastBtnLevel = btnLevel;
