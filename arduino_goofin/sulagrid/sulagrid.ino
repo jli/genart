@@ -119,6 +119,7 @@
 
 
 #define TETRIS_FALL_MS         150   // ms per gravity step
+#define TETRIS_ROTATE_GRACE_MS 600   // extra delay added on top of TETRIS_FALL_MS after a user rotation
 #define TETRIS_FLASH_MS         80   // ms per line-clear blink half-period
 #define TETRIS_CLEAR_MS        600   // ms for line-clear flash
 #define TETRIS_BLINK_HALF_MS   250   // game-over: half-period per gentle blink
@@ -1510,14 +1511,15 @@ static const int8_t TPIECES[7][4][4][2] = {
 // Non-zero hues (0 means empty in tetBoard)
 static const uint8_t TPIECE_HUES[7] = { 128, 42, 192, 85, 4, 170, 16 };
 
-uint8_t  tetBoard[GRID_H][GRID_W];
-int8_t   tetPX, tetPY;
-uint8_t  tetPType, tetPRot, tetPHue;
-int8_t   tetTX;            // AI target column
-uint8_t  tetState;         // 0=active  1=clearing  2=gameover
-uint16_t tetTick;          // ticks since state entry
-uint8_t  tetClearMask;     // rows being cleared (bitmask, bit 0 = row 0)
-bool     tetInited = false;
+uint8_t       tetBoard[GRID_H][GRID_W];
+int8_t        tetPX, tetPY;
+uint8_t       tetPType, tetPRot, tetPHue;
+int8_t        tetTX;            // AI target column
+uint8_t       tetState;         // 0=active  1=clearing  2=gameover
+uint16_t      tetTick;          // ticks since state entry
+uint8_t       tetClearMask;     // rows being cleared (bitmask, bit 0 = row 0)
+unsigned long tetNextFallAt;    // tick at which the next gravity step is allowed
+bool          tetInited = false;
 
 bool tetValid(int8_t px, int8_t py, uint8_t type, uint8_t rot) {
   for (uint8_t c = 0; c < 4; c++) {
@@ -1626,6 +1628,7 @@ void tetSpawn() {
     return;
   }
   tetState = 0; tetTick = 0;
+  tetNextFallAt = tick + MS_TO_TICKS(TETRIS_FALL_MS);
 }
 
 void patternTetris() {
@@ -1654,21 +1657,26 @@ void patternTetris() {
   }
 
   // Short-press → rotate falling piece CW with a 1-cell wall-kick (in-place, then ±1 x).
+  // Each successful rotation also pushes the next gravity step out by
+  // TETRIS_ROTATE_GRACE_MS so the user gets time to reorient without burning rows.
   if (tetState == 0 && btnAction) {
     uint8_t newRot = (tetPRot + 1) & 0x3;
-    if      (tetValid(tetPX,     tetPY, tetPType, newRot))  { tetPRot = newRot; }
-    else if (tetValid(tetPX - 1, tetPY, tetPType, newRot))  { tetPX--; tetPRot = newRot; }
-    else if (tetValid(tetPX + 1, tetPY, tetPType, newRot))  { tetPX++; tetPRot = newRot; }
+    bool rotated = false;
+    if      (tetValid(tetPX,     tetPY, tetPType, newRot))  { tetPRot = newRot; rotated = true; }
+    else if (tetValid(tetPX - 1, tetPY, tetPType, newRot))  { tetPX--; tetPRot = newRot; rotated = true; }
+    else if (tetValid(tetPX + 1, tetPY, tetPType, newRot))  { tetPX++; tetPRot = newRot; rotated = true; }
     tetTX = tetPX;
+    if (rotated) tetNextFallAt = tick + MS_TO_TICKS(TETRIS_FALL_MS) + MS_TO_TICKS(TETRIS_ROTATE_GRACE_MS);
     if (!userControl) { userControl = true; userTakeoverTick = tick;
       updateOnboardDot(); Serial.println("user takes control"); }
     btnAction = false;
   }
 
   tetTick++;
-  bool fallStep = (tick % MS_TO_TICKS(TETRIS_FALL_MS)) == 0;
+  bool fallStep = (tetState == 0) && (tick >= tetNextFallAt);
 
   if (tetState == 0 && fallStep) {
+    tetNextFallAt = tick + MS_TO_TICKS(TETRIS_FALL_MS);
     if (!userControl) {
       if (tetPX < tetTX && tetValid(tetPX + 1, tetPY, tetPType, tetPRot)) tetPX++;
       else if (tetPX > tetTX && tetValid(tetPX - 1, tetPY, tetPType, tetPRot)) tetPX--;
