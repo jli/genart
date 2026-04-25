@@ -182,13 +182,24 @@ bool userControl  = false;  // a game pattern has received user input — disabl
 unsigned long userTakeoverTick = 0;  // tick at which userControl flipped to true (for transition animations)
 
 // User-activity flag: true while the user has touched encoder or button recently.
-// Set on every input event, auto-cleared after USER_ACTIVITY_MS of silence (decay
+// Set on every input event, auto-cleared after the per-pattern timeout (decay
 // happens at the top of loop()), and explicitly cleared on pattern change so a
 // new sketch always starts in autonomous mode regardless of prior input timing.
+//
+// Visual patterns auto-resume animating quickly after a scrub.  Game patterns
+// keep the flag effectively pinned for the duration of a play session — though
+// note that snake/tetris read userControl, not this flag, so this is mostly
+// for signalling consistency.
 unsigned long lastInputTick   = 0;
 bool          userActiveFlag  = false;
-#define USER_ACTIVITY_MS 5000
+#define USER_ACTIVITY_VIS_MS   1500   // visual patterns: short timeout
+#define USER_ACTIVITY_GAME_MS 60000   // snake / tetris: ~1 min, effectively until game-over
 static inline bool userActive() { return userActiveFlag; }
+static inline unsigned long userActivityWindowTicks() {
+  return (currentPattern == 8 || currentPattern == 12)
+    ? MS_TO_TICKS(USER_ACTIVITY_GAME_MS)
+    : MS_TO_TICKS(USER_ACTIVITY_VIS_MS);
+}
 
 // --- Button input ---
 // Short press (release before BTN_HOLD_MS) → btnAction one-shot consumed by the
@@ -1890,8 +1901,8 @@ void loop() {
 #endif
   }
 
-  // Auto-timeout: drop back to autonomous mode after USER_ACTIVITY_MS of silence.
-  if (userActiveFlag && (tick - lastInputTick) >= MS_TO_TICKS(USER_ACTIVITY_MS)) {
+  // Auto-timeout: drop back to autonomous mode after the per-pattern silence window.
+  if (userActiveFlag && (tick - lastInputTick) >= userActivityWindowTicks()) {
     userActiveFlag = false;
     Serial.println("user inactive (timeout)");
   }
