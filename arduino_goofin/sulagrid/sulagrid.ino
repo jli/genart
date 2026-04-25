@@ -181,6 +181,13 @@ unsigned long lastInputTick = 0;
 #define USER_ACTIVITY_MS 3000
 static inline bool userActive() { return (tick - lastInputTick) < MS_TO_TICKS(USER_ACTIVITY_MS); }
 
+// --- Button input ---
+// Short press (release before BTN_HOLD_MS) → btnAction one-shot consumed by the
+// active pattern (e.g. tetris rotates the falling piece).  Long press / hold past
+// BTN_HOLD_MS skips to the next sketch.
+#define BTN_HOLD_MS 150
+bool btnAction = false;  // one-shot: pattern clears it after consuming
+
 // --- Pixel index from (x, y) — straight wiring ---
 uint8_t xy(uint8_t x, uint8_t y) {
   return (GRID_H - 1 - y) * GRID_W + (GRID_W - 1 - x);
@@ -1533,6 +1540,18 @@ void patternTetris() {
     tetTX = tetPX;  // keep AI target in sync so it doesn't fight the user if mode flips
   }
 
+  // Short-press → rotate falling piece CW with a 1-cell wall-kick (in-place, then ±1 x).
+  if (tetState == 0 && btnAction) {
+    uint8_t newRot = (tetPRot + 1) & 0x3;
+    if      (tetValid(tetPX,     tetPY, tetPType, newRot))  { tetPRot = newRot; }
+    else if (tetValid(tetPX - 1, tetPY, tetPType, newRot))  { tetPX--; tetPRot = newRot; }
+    else if (tetValid(tetPX + 1, tetPY, tetPType, newRot))  { tetPX++; tetPRot = newRot; }
+    tetTX = tetPX;
+    if (!userControl) { userControl = true; userTakeoverTick = tick;
+      updateOnboardDot(); Serial.println("user takes control"); }
+    btnAction = false;
+  }
+
   tetTick++;
   bool fallStep = (tick % MS_TO_TICKS(TETRIS_FALL_MS)) == 0;
 
@@ -1841,11 +1860,22 @@ void loop() {
   }
   // Patterns that don't consume pendingInput just leave it; it's cleared on pattern change.
 
-  // --- Button → next sketch (edge-triggered) ---
-  static int lastBtnLevel = HIGH;
+  // --- Button: short-press = action (consumed by pattern), hold = next sketch ---
+  // Hold path fires once when the threshold is crossed, mid-press; release after that
+  // is a no-op.  Release-before-threshold sets btnAction for the active pattern.
+  static int           lastBtnLevel = HIGH;
+  static unsigned long btnDownAt    = 0;
+  static bool          btnLongFired = false;
   int btnLevel = digitalRead(ENC_BTN);
-  if (lastBtnLevel == HIGH && btnLevel == LOW && millis() - lastBtnPress > 50) {
-    lastBtnPress = millis();
+  unsigned long nowMs = millis();
+
+  if (lastBtnLevel == HIGH && btnLevel == LOW && nowMs - lastBtnPress > 50) {
+    lastBtnPress = nowMs;
+    btnDownAt    = nowMs;
+    btnLongFired = false;
+  }
+  if (btnLevel == LOW && !btnLongFired && nowMs - btnDownAt >= BTN_HOLD_MS) {
+    btnLongFired = true;
     currentPattern = (currentPattern + 1) % NUM_PATTERNS;
     clearGrid();
     strip.show();
@@ -1858,6 +1888,7 @@ void loop() {
     tetInited     = false;
     userControl   = false;
     pendingInput  = 0;
+    btnAction     = false;
     inputAnchor   = pos;     // ignore any drift from previous pattern
     // Clear trail arrays so leftover pixels don't flicker on re-entry
     memset(sparkleBright, 0, sizeof(sparkleBright));
@@ -1869,6 +1900,11 @@ void loop() {
     Serial.print(" ccw="); Serial.print(ccw);
     Serial.print(" bnc="); Serial.print(bounced);
     Serial.print(" nse="); Serial.println(noise);
+  }
+  if (lastBtnLevel == LOW && btnLevel == HIGH && !btnLongFired) {
+    btnAction     = true;
+    lastInputTick = tick;
+    Serial.println("btn action");
   }
   lastBtnLevel = btnLevel;
 
@@ -1894,6 +1930,9 @@ void loop() {
     case 11: patternRipple();       break;
     case 12: patternTetris();       break;
   }
+  // Drop any unconsumed short-press so it doesn't fire spuriously on a later frame
+  // or after a pattern change.  btnAction is strictly a same-tick event.
+  btnAction = false;
   strip.show();
 
   if (tick % DEBUG_INTERVAL == 0) {
