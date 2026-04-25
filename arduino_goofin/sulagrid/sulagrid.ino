@@ -149,9 +149,12 @@ volatile uint16_t encBounced = 0;  // rejected by debounce timer (too soon after
 volatile uint16_t encNoise   = 0;  // passed timer but table returned 0 (impossible transition)
 
 // Circular trace buffer: every ISR call is logged here — including bounced ones —
-// so you can see the exact timing and state sequence around any turn.
-// Read this from the main loop under noInterrupts() with memcpy.
+// so you can see the exact timing and state sequence around any turn.  This is
+// purely a debug aid; flip ENC_TRACE_ENABLED to 0 in production to skip the
+// per-fire memory writes inside the ISR (4–6 bytes plus an index calc).
+#define ENC_TRACE_ENABLED 0
 #define ENC_TRACE_LEN 32  // must be power of 2
+#if ENC_TRACE_ENABLED
 struct EncEvent {
   uint16_t dt;     // microseconds since previous ISR call, capped at 65535
   uint8_t  state;  // encState & 0x0F after update (prevBA in bits 3:2, currBA in 1:0)
@@ -160,6 +163,7 @@ struct EncEvent {
 };
 EncEvent          encTrace[ENC_TRACE_LEN];  // read under noInterrupts()
 volatile uint8_t  encTraceHead = 0;         // index of next write slot (wraps via & mask)
+#endif
 int currentPattern = DEFAULT_PATTERN;
 int currentPalette = 2;  // rainbow
 unsigned long lastBtnPress = 0;
@@ -287,18 +291,17 @@ volatile uint32_t encLastUs = 0;  // timestamp of last accepted transition
 void encoderISR() {
   uint32_t now     = micros();
   uint32_t elapsed = now - encLastUs;
-  uint16_t dt      = elapsed > 65535 ? 65535 : (uint16_t)elapsed;
-
-  uint8_t slot = encTraceHead & (ENC_TRACE_LEN - 1);
-  encTrace[slot].dt = dt;
 
   if (elapsed < ENC_DEBOUNCE_US) {
+#if ENC_TRACE_ENABLED
+    uint8_t slot = encTraceHead & (ENC_TRACE_LEN - 1);
+    encTrace[slot].dt = (elapsed > 65535) ? 65535 : (uint16_t)elapsed;
     // Compute what the state nibble would have been without rejection,
     // so the trace can show the would-be transition.
-    uint8_t wouldBe = ((encState << 2) | (digitalRead(ENC_B) << 1) | digitalRead(ENC_A)) & 0x0F;
-    encTrace[slot].state  = wouldBe;
+    encTrace[slot].state  = ((encState << 2) | (digitalRead(ENC_B) << 1) | digitalRead(ENC_A)) & 0x0F;
     encTrace[slot].result = -128;   // sentinel: bounce-rejected
     encTraceHead++;
+#endif
     encBounced++;
     return;
   }
@@ -309,9 +312,13 @@ void encoderISR() {
   int8_t delta = encTable[encState & 0x0F];
   encPos += delta;
 
+#if ENC_TRACE_ENABLED
+  uint8_t slot = encTraceHead & (ENC_TRACE_LEN - 1);
+  encTrace[slot].dt     = (elapsed > 65535) ? 65535 : (uint16_t)elapsed;
   encTrace[slot].state  = encState & 0x0F;
   encTrace[slot].result = delta;
   encTraceHead++;
+#endif
 
   if      (delta > 0) encCW++;
   else if (delta < 0) encCCW++;
@@ -1787,6 +1794,7 @@ void patternTetris() {
 //   +  505us  11->01  CW  +1
 //   +  498us  01->11  NOISE 0  ← two bits flipped simultaneously, step lost
 
+#if ENC_TRACE_ENABLED
 void dumpEncTrace() {
   static uint8_t lastHead = 0;
 
@@ -1835,6 +1843,7 @@ void dumpEncTrace() {
 
   lastHead = head;
 }
+#endif
 
 // =============================================================
 // Main
