@@ -78,8 +78,9 @@
 #define RAINBOW_STEP_MS   20   // ms per 1-unit hue advance (~5s full cycle)
 
 #define SPIRAL_STEP_MS           120   // ms per spiral advance step
-#define SPIRAL_HOLD_STEPS          8   // hold duration in spiral-steps (not ticks)
-#define SPIRAL_CYCLE_LEN  (NUM_LEDS * 2 + SPIRAL_HOLD_STEPS * 2)
+#define SPIRAL_HOLD_STEPS          8   // hold duration in spiral-steps (not ticks)  (legacy)
+#define SPIRAL_CYCLE_LEN  (NUM_LEDS * 2 + SPIRAL_HOLD_STEPS * 2)                     // legacy
+#define SPIRAL_RESET_MS          600   // total ms for endpoint reset animation (white flash → black)
 
 #define SNAKE_STEP_MS            120   // ms per snake move
 #define EXPLOSION_EXPAND_MS       80   // ms per explosion radius step
@@ -108,13 +109,10 @@
 #define LISS_HUE_STEP_MS          80
 
 
-#define RIPPLE_MAX           2        // max concurrent stones
 #define RIPPLE_LIFETIME_MS   7000     // ms a ripple lasts
 #define RIPPLE_SPEED_PPS     1.8f     // wave expansion, pixels/sec
 #define RIPPLE_WAVELENGTH    4.0f     // pixels between ring crests (wider = fewer rings visible at once)
 #define RIPPLE_FADE_DIST     3.5f     // visible wake behind wavefront, pixels
-#define RIPPLE_SPAWN_MIN_MS  1500     // min ms between new stones
-#define RIPPLE_SPAWN_MAX_MS  3000     // max ms between new stones
 
 
 #define TETRIS_FALL_MS         150   // ms per gravity step
@@ -175,6 +173,13 @@ int  inputAnchor  = 0;   // raw encPos at last consumed input event
 int  pendingInput = 0;   // signed: +1 per CW detent, -1 per CCW
 bool userControl  = false;  // a game pattern has received user input — disables AI until game ends
 unsigned long userTakeoverTick = 0;  // tick at which userControl flipped to true (for transition animations)
+
+// Timestamp of the most recent registered input event — used by non-game patterns to
+// decide "is the user actively driving me?".  Patterns check userActive() and blend
+// between manual and autonomous behavior.
+unsigned long lastInputTick = 0;
+#define USER_ACTIVITY_MS 3000
+static inline bool userActive() { return (tick - lastInputTick) < MS_TO_TICKS(USER_ACTIVITY_MS); }
 
 // --- Pixel index from (x, y) — straight wiring ---
 uint8_t xy(uint8_t x, uint8_t y) {
@@ -350,9 +355,23 @@ void blinkRedLed() {
 // Pattern 0: Fading checkerboard
 // =============================================================
 void patternCheckerboard() {
-  float phase = (float)(tick % MS_TO_TICKS(CHECKER_FADE_MS)) / MS_TO_TICKS(CHECKER_FADE_MS) * 2.0 * PI;
-  float blend = (sin(phase) + 1.0) / 2.0;
-  uint8_t hueVal = (tick / MS_TO_TICKS(CHECKER_HUE_STEP_MS)) % 256;
+  // Encoder scrubs both the brightness oscillation phase and the hue cycle.
+  // Each detent ≈ 1/32 of the fade period — a full sweep takes ~16 clicks.
+  static long          checkerTs   = 0;
+  static unsigned long checkerLast = 0;
+  if (pendingInput != 0) {
+    checkerTs += (long)pendingInput * (MS_TO_TICKS(CHECKER_FADE_MS) / 32);
+    pendingInput = 0;
+  }
+  if (!userActive()) { checkerTs += (long)(tick - checkerLast); }
+  checkerLast = tick;
+
+  const long fadePer = MS_TO_TICKS(CHECKER_FADE_MS);
+  long       phasen  = ((checkerTs % fadePer) + fadePer) % fadePer;
+  float      phase   = (float)phasen / fadePer * 2.0f * PI;
+  float      blend   = (sin(phase) + 1.0f) / 2.0f;
+  const long huePer  = MS_TO_TICKS(CHECKER_HUE_STEP_MS);
+  uint8_t    hueVal  = (uint8_t)((((checkerTs / huePer) % 256) + 256) % 256);
 
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
@@ -369,19 +388,43 @@ void patternCheckerboard() {
 // Pattern 1: Color breathing pulse
 // =============================================================
 void patternBreathe() {
-  float phase = (float)(tick % MS_TO_TICKS(BREATHE_PERIOD_MS)) / MS_TO_TICKS(BREATHE_PERIOD_MS) * 2.0 * PI;
-  uint8_t brightness = (uint8_t)(127.5 + 127.5 * sin(phase));
-  uint8_t hueVal = (tick / MS_TO_TICKS(BREATHE_HUE_STEP_MS)) % 256;
+  // Encoder scrubs the breath — forward = inhale/exhale faster, backward rewinds.
+  static long          breatheTs   = 0;
+  static unsigned long breatheLast = 0;
+  if (pendingInput != 0) {
+    breatheTs += (long)pendingInput * (MS_TO_TICKS(BREATHE_PERIOD_MS) / 24);
+    pendingInput = 0;
+  }
+  if (!userActive()) { breatheTs += (long)(tick - breatheLast); }
+  breatheLast = tick;
+
+  const long per    = MS_TO_TICKS(BREATHE_PERIOD_MS);
+  long       phasen = ((breatheTs % per) + per) % per;
+  float      phase  = (float)phasen / per * 2.0f * PI;
+  uint8_t    brightness = (uint8_t)(127.5f + 127.5f * sin(phase));
+  const long hp     = MS_TO_TICKS(BREATHE_HUE_STEP_MS);
+  uint8_t    hueVal = (uint8_t)((((breatheTs / hp) % 256) + 256) % 256);
   strip.fill(paletteColor(hueVal, 255, brightness));
 }
 
 // =============================================================
-// Pattern 2: Rotating radar sweep
+// Pattern 2: Rotating radar sweep — encoder aims the beam, idle auto-rotates
 // =============================================================
 void patternSweep() {
   clearGrid();
   float cx = 3.5f, cy = 3.5f;
-  float sweepAngle = fmodf(tick * (SWEEP_ROT_SPEED * TICK_MS / 1000.0f), 2.0f * PI);
+  static float sweepAngle = 0.0f;
+
+  if (pendingInput != 0) {
+    sweepAngle += pendingInput * (PI / 8.0f);  // 22.5° per detent — a full turn is 16 clicks
+    pendingInput = 0;
+  }
+  if (!userActive()) {
+    sweepAngle += SWEEP_ROT_SPEED * TICK_MS / 1000.0f;
+  }
+  sweepAngle = fmodf(sweepAngle, 2.0f * PI);
+  if (sweepAngle < 0.0f) sweepAngle += 2.0f * PI;
+
   uint8_t hueVal = (tick / MS_TO_TICKS(SWEEP_HUE_STEP_MS)) % 256;
 
   for (uint8_t y = 0; y < GRID_H; y++) {
@@ -413,8 +456,23 @@ void patternRings() {
   clearGrid();
   float cx = 3.5, cy = 3.5;
   uint8_t maxDist = 5;
-  uint8_t ring = (tick / MS_TO_TICKS(RINGS_STEP_MS)) % (maxDist + 2);
-  uint8_t hueVal = (tick / MS_TO_TICKS(RINGS_HUE_STEP_MS)) % 256;
+  // Encoder steps one ring per detent; idle advances at the original rate.
+  static long          ringsStep = 0;
+  static unsigned long ringsLast = 0;
+  if (pendingInput != 0) {
+    ringsStep += pendingInput;
+    pendingInput = 0;
+  }
+  if (!userActive()) {
+    if (tick - ringsLast >= MS_TO_TICKS(RINGS_STEP_MS)) {
+      ringsStep++;
+      ringsLast = tick;
+    }
+  } else {
+    ringsLast = tick;
+  }
+  uint8_t ring   = (uint8_t)((((ringsStep  % (maxDist + 2)) + (maxDist + 2)) % (maxDist + 2)));
+  uint8_t hueVal = (uint8_t)((((ringsStep / 2 % 256) + 256) % 256));  // hue drifts half as fast
 
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
@@ -445,7 +503,22 @@ void patternSparkle() {
     else sparkleBright[i] = 0;
   }
 
-  if ((tick % MS_TO_TICKS(SPARKLE_SPAWN_MS)) == 0) {
+  // Each encoder detent spawns one sparkle immediately — tactile "fizz".  Direction
+  // doesn't matter; both CW and CCW spawn because you can't un-sparkle.
+  if (pendingInput != 0) {
+    int n = (pendingInput > 0) ? pendingInput : -pendingInput;
+    if (n > 8) n = 8;
+    for (int i = 0; i < n; i++) {
+      uint8_t slot = random(8);
+      sparklePixels[slot] = random(NUM_LEDS);
+      sparkleHues[slot]   = random(256);
+      sparkleBright[slot] = 255;
+    }
+    pendingInput = 0;
+  }
+
+  // Autonomous spawn still fires on the original schedule when the user isn't driving.
+  if (!userActive() && (tick % MS_TO_TICKS(SPARKLE_SPAWN_MS)) == 0) {
     uint8_t slot = random(8);
     sparklePixels[slot] = random(NUM_LEDS);
     sparkleHues[slot] = random(256);
@@ -481,7 +554,15 @@ void patternFace() {
   bool eyesFull = blinkPhase < MS_TO_TICKS(FACE_EYES_OPEN_MS);
   bool eyesHalf = blinkPhase == MS_TO_TICKS(FACE_EYES_OPEN_MS);
 
-  uint8_t expr = (tick / MS_TO_TICKS(FACE_EXPR_MS)) % NUM_EXPRS;
+  // Encoder flips through expressions; idle auto-cycles on the original schedule.
+  static long faceScrub = 0;
+  if (pendingInput != 0) {
+    faceScrub += pendingInput;
+    pendingInput = 0;
+  }
+  uint8_t expr = userActive()
+    ? (uint8_t)((((faceScrub % NUM_EXPRS) + NUM_EXPRS) % NUM_EXPRS))
+    : (uint8_t)((tick / MS_TO_TICKS(FACE_EXPR_MS)) % NUM_EXPRS);
 
   if (expr != lastExpr) {
     Serial.print("face -> "); Serial.println(EXPR_NAMES[expr]);
@@ -573,9 +654,26 @@ void patternFace() {
 // Pattern 6: Slow diagonal rainbow wipe
 // =============================================================
 void patternRainbow() {
+  // Encoder scrolls the rainbow: each detent advances the hue offset by 8 units
+  // (~3% of a full cycle).  Idle advances at the original RAINBOW_STEP_MS cadence.
+  static long          rainbowTs   = 0;
+  static unsigned long rainbowLast = 0;
+  if (pendingInput != 0) {
+    rainbowTs += (long)pendingInput * 8;
+    pendingInput = 0;
+  }
+  if (!userActive()) {
+    if (tick - rainbowLast >= MS_TO_TICKS(RAINBOW_STEP_MS)) {
+      rainbowTs += (long)((tick - rainbowLast) / MS_TO_TICKS(RAINBOW_STEP_MS));
+      rainbowLast = tick;
+    }
+  } else {
+    rainbowLast = tick;
+  }
+  uint8_t offset = (uint8_t)(((rainbowTs % 256) + 256) % 256);
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
-      uint8_t val = (x + y) * 16 + (uint8_t)(tick / MS_TO_TICKS(RAINBOW_STEP_MS));
+      uint8_t val = (x + y) * 16 + offset;
       strip.setPixelColor(xy(x, y), paletteColor(val, 255, 200));
     }
   }
@@ -584,6 +682,8 @@ void patternRainbow() {
 // =============================================================
 // Pattern 7: Spiral fill from center, then unwind
 // =============================================================
+// Packed coords: (y << 3) | x — stored in build order so rotations can be applied
+// at lookup time rather than rebuilding the path for each of the 4 rotations.
 uint8_t spiralOrder[NUM_LEDS];
 bool spiralBuilt = false;
 
@@ -593,52 +693,107 @@ void buildSpiral() {
   uint8_t idx = 0;
 
   while (top <= bottom && left <= right) {
-    for (int x = left;  x <= right;  x++) spiralOrder[idx++] = xy(x, top);
+    for (int x = left;  x <= right;  x++) spiralOrder[idx++] = (top    << 3) | x;
     top++;
-    for (int y = top;   y <= bottom; y++) spiralOrder[idx++] = xy(right, y);
+    for (int y = top;   y <= bottom; y++) spiralOrder[idx++] = (y      << 3) | right;
     right--;
     if (top <= bottom) {
-      for (int x = right; x >= left; x--) spiralOrder[idx++] = xy(x, bottom);
+      for (int x = right; x >= left; x--) spiralOrder[idx++] = (bottom << 3) | x;
       bottom--;
     }
     if (left <= right) {
-      for (int y = bottom; y >= top; y--) spiralOrder[idx++] = xy(left, y);
+      for (int y = bottom; y >= top; y--) spiralOrder[idx++] = (y      << 3) | left;
       left++;
     }
   }
   spiralBuilt = true;
 }
 
-// Returns the i-th pixel in fill order: inward = outside→center, outward = center→outside
-uint8_t spiralAt(uint8_t i, bool inward) {
-  return inward ? spiralOrder[i] : spiralOrder[NUM_LEDS - 1 - i];
+// i-th pixel in fill order, with rotation (rot 0..3 → start corner TL/TR/BR/BL) and
+// inward flag (true = outer→center, false = center→outer).
+uint8_t spiralAt(uint8_t i, bool inward, uint8_t rot) {
+  uint8_t p = spiralOrder[inward ? i : NUM_LEDS - 1 - i];
+  uint8_t x = p & 0x7;
+  uint8_t y = (p >> 3) & 0x7;
+  uint8_t rx, ry;
+  switch (rot & 0x3) {
+    case 1:  rx = GRID_W - 1 - y; ry = x;                break;  // TR
+    case 2:  rx = GRID_W - 1 - x; ry = GRID_H - 1 - y;   break;  // BR
+    case 3:  rx = y;              ry = GRID_H - 1 - x;   break;  // BL
+    default: rx = x;              ry = y;                break;  // TL
+  }
+  return xy(rx, ry);
+}
+
+static long          spiralTs       = 0;   // [0, NUM_LEDS] — how many pixels of the path are lit
+static uint8_t       spiralRot      = 0;   // 0..3: start corner
+static bool          spiralInward   = true;
+static int8_t        spiralAutoDir  = 1;   // +1 fills, -1 empties; flips randomly on reset
+static bool          spiralInReset  = false;
+static unsigned long spiralResetAt  = 0;
+static unsigned long spiralLastAuto = 0;
+static bool          spiralSeeded   = false;
+
+static void spiralReroll() {
+  spiralRot      = random(4);
+  spiralInward   = random(2);
+  spiralAutoDir  = random(2) ? 1 : -1;
+  spiralTs       = (spiralAutoDir > 0) ? 0 : NUM_LEDS;
+  spiralLastAuto = tick;
 }
 
 void patternSpiral() {
   clearGrid();
-  unsigned long ts = tick / MS_TO_TICKS(SPIRAL_STEP_MS);
-  uint8_t cycle = ts % SPIRAL_CYCLE_LEN;
-  bool inward = (ts / SPIRAL_CYCLE_LEN) % 2 == 0;
 
-  if (cycle < NUM_LEDS) {
-    // Phase 1: fill — pixels 0..cycle-1 lit, cycle is white tracer
-    for (uint8_t i = 0; i < cycle; i++)
-      strip.setPixelColor(spiralAt(i, inward), paletteColor(i * 4, 255, 255));
-    strip.setPixelColor(spiralAt(cycle, inward), strip.Color(255, 255, 255));
-
-  } else if (cycle < NUM_LEDS + SPIRAL_HOLD_STEPS) {
-    // Phase 2: hold full
-    for (uint8_t i = 0; i < NUM_LEDS; i++)
-      strip.setPixelColor(spiralAt(i, inward), paletteColor(i * 4, 255, 255));
-
-  } else if (cycle < NUM_LEDS * 2 + SPIRAL_HOLD_STEPS) {
-    // Phase 3: erase in same order — eraseIdx is white tracer, pixels after remain lit
-    uint8_t eraseIdx = cycle - (NUM_LEDS + SPIRAL_HOLD_STEPS);
-    for (uint8_t i = eraseIdx + 1; i < NUM_LEDS; i++)
-      strip.setPixelColor(spiralAt(i, inward), paletteColor(i * 4, 255, 255));
-    strip.setPixelColor(spiralAt(eraseIdx, inward), strip.Color(255, 255, 255));
+  if (!spiralSeeded) {
+    spiralReroll();
+    spiralSeeded = true;
   }
-  // Phase 4: hold empty — clearGrid() already handled it
+
+  // Endpoint reset: full-grid white that fades to black, then re-roll and continue.
+  if (spiralInReset) {
+    unsigned long elapsed = tick - spiralResetAt;
+    if (elapsed < MS_TO_TICKS(SPIRAL_RESET_MS)) {
+      float frac = (float)elapsed / MS_TO_TICKS(SPIRAL_RESET_MS);
+      uint8_t b  = (uint8_t)(255.0f * (1.0f - frac));
+      strip.fill(strip.Color(b, b, b));
+      return;
+    }
+    spiralReroll();
+    spiralInReset = false;
+    // fall through: render fresh spiral in this frame
+  }
+
+  long oldTs = spiralTs;
+  if (pendingInput != 0) {
+    spiralTs += pendingInput;
+    pendingInput = 0;
+  }
+  if (!userActive()) {
+    if (tick - spiralLastAuto >= MS_TO_TICKS(SPIRAL_STEP_MS)) {
+      spiralTs += spiralAutoDir;
+      spiralLastAuto = tick;
+    }
+  } else {
+    spiralLastAuto = tick;
+  }
+  if (spiralTs < 0)         spiralTs = 0;
+  if (spiralTs > NUM_LEDS)  spiralTs = NUM_LEDS;
+
+  // Render current path: pixels [0, spiralTs) lit in rainbow, spiralTs is white tracer
+  // (skipped when at an endpoint — full/empty has no tracer).
+  for (long i = 0; i < spiralTs; i++)
+    strip.setPixelColor(spiralAt(i, spiralInward, spiralRot), paletteColor(i * 4, 255, 255));
+  if (spiralTs > 0 && spiralTs < NUM_LEDS)
+    strip.setPixelColor(spiralAt(spiralTs, spiralInward, spiralRot), strip.Color(255, 255, 255));
+
+  // Trigger endpoint reset on arrival (not on startup, since spiralTs already sat there).
+  bool hitEnd = (spiralTs == 0        && oldTs > 0)
+             || (spiralTs == NUM_LEDS && oldTs < NUM_LEDS);
+  if (hitEnd) {
+    spiralInReset = true;
+    spiralResetAt = tick;
+  }
 }
 
 // =============================================================
@@ -1031,6 +1186,18 @@ void ballsInit() {
 void patternBalls() {
   if (!ballsInited) ballsInit();
 
+  // Each detent nudges every ball's horizontal velocity — fast spin = fast balls.
+  // Clamped so we don't run past the per-tick stability of the bounce step.
+  if (pendingInput != 0) {
+    float kick = (float)pendingInput * 0.05f * BALL_SPEED_SCALE;
+    for (uint8_t i = 0; i < NUM_BALLS; i++) {
+      ballVX[i] += kick;
+      if (ballVX[i] >  0.7f * BALL_SPEED_SCALE) ballVX[i] =  0.7f * BALL_SPEED_SCALE;
+      if (ballVX[i] < -0.7f * BALL_SPEED_SCALE) ballVX[i] = -0.7f * BALL_SPEED_SCALE;
+    }
+    pendingInput = 0;
+  }
+
   for (uint8_t i = 0; i < NUM_LEDS; i++) {
     if (ballTrailBright[i] > BALL_TRAIL_FADE) ballTrailBright[i] -= BALL_TRAIL_FADE;
     else ballTrailBright[i] = 0;
@@ -1081,7 +1248,18 @@ void patternLissajous() {
     else lissTrail[i] = 0;
   }
 
-  float a  = 2.0f + 0.7f * sinf(tick * (LISS_DRIFT_SPEED * TICK_MS / 1000.0f));
+  // Encoder tunes the a-ratio directly (tiny turns → big visual change).
+  // Idle → fall back to the slow auto-drift so the pattern stays alive.
+  static float userA = 2.0f;
+  if (pendingInput != 0) {
+    userA += pendingInput * 0.08f;
+    if (userA < 0.5f) userA = 0.5f;
+    if (userA > 4.5f) userA = 4.5f;
+    pendingInput = 0;
+  }
+  float a = userActive()
+    ? userA
+    : 2.0f + 0.7f * sinf(tick * (LISS_DRIFT_SPEED * TICK_MS / 1000.0f));
   float t0 = (tick - 1) * (LISS_PHASE_SPEED * TICK_MS / 1000.0f);
   float t1 = tick       * (LISS_PHASE_SPEED * TICK_MS / 1000.0f);
   for (uint8_t s = 0; s <= 8; s++) {
@@ -1108,128 +1286,73 @@ void patternLissajous() {
 
 // =============================================================
 // Pattern 11: Ripple (stone-drop water rings)
-// =============================================================
-struct Ripple {
-  float    cx, cy;
-  uint16_t ageTicks;
-  uint8_t  hue;
-  bool     active;
-};
+// One ripple at a time.  The encoder scrubs its age — forward extends the wavefront
+// outward; backward pulls it back toward the drop point.  On forward wrap past
+// lifetime, a new ripple spawns at a random location with the next hue.  Backward
+// clamps at age 0 (you can't rewind past the drop).  Idle auto-advances at the
+// original wave speed.
+static float         ripCx       = 3.5f;
+static float         ripCy       = 3.5f;
+static uint8_t       ripHue      = 0;
+static long          ripAge      = 0;   // in ticks; [0, lifetime]
+static bool          rippleInited = false;
 
-static Ripple   ripples[RIPPLE_MAX];
-static bool     rippleInited     = false;
-static uint16_t rippleSpawnTimer = 0;
-static uint8_t  rippleHueStep    = 0;  // cycles hues 64 apart: red/green/cyan/magenta
-
-static uint16_t rippleNextSpawn() {
-  return MS_TO_TICKS(RIPPLE_SPAWN_MIN_MS) +
-         random(MS_TO_TICKS(RIPPLE_SPAWN_MAX_MS - RIPPLE_SPAWN_MIN_MS));
-}
-
-static void rippleDropStone() {
-  for (uint8_t i = 0; i < RIPPLE_MAX; i++) {
-    if (!ripples[i].active) {
-      ripples[i].cx       = (float)random(GRID_W);
-      ripples[i].cy       = (float)random(GRID_H);
-      ripples[i].ageTicks = 0;
-      ripples[i].hue      = rippleHueStep++ * 64;  // 0,64,128,192 → red,green,cyan,magenta
-      ripples[i].active   = true;
-      return;
-    }
-  }
+static void rippleRespawn() {
+  ripCx  = (float)random(GRID_W);
+  ripCy  = (float)random(GRID_H);
+  ripHue = (ripHue + 64) & 0xFF;  // cycle red/green/cyan/magenta so consecutive ripples contrast
+  ripAge = 0;
 }
 
 void patternRipple() {
+  const long lifetimeTicks = MS_TO_TICKS(RIPPLE_LIFETIME_MS);
+
   if (!rippleInited) {
-    for (uint8_t i = 0; i < RIPPLE_MAX; i++) ripples[i].active = false;
-    rippleDropStone();
-    rippleSpawnTimer = rippleNextSpawn();
+    ripCx  = (float)random(GRID_W);
+    ripCy  = (float)random(GRID_H);
+    ripHue = (uint8_t)random(256);
+    ripAge = 0;
     rippleInited = true;
   }
 
-  // Age ripples, deactivate expired ones
-  uint8_t activeCount = 0;
-  const uint16_t lifetimeTicks = MS_TO_TICKS(RIPPLE_LIFETIME_MS);
-  for (uint8_t i = 0; i < RIPPLE_MAX; i++) {
-    if (!ripples[i].active) continue;
-    ripples[i].ageTicks++;
-    if (ripples[i].ageTicks >= lifetimeTicks) {
-      ripples[i].active = false;
-    } else {
-      activeCount++;
-    }
+  // User scrub: each detent = ~1/16 of the lifetime (smooth hand-over-hand pacing).
+  if (pendingInput != 0) {
+    ripAge += (long)pendingInput * (lifetimeTicks / 16);
+    pendingInput = 0;
   }
+  // Idle: auto-advance at one tick per tick (matches RIPPLE_SPEED_PPS timing).
+  if (!userActive()) ripAge++;
 
-  // Spawn: always keep at least 1, add more on timer (up to max 4)
-  if (rippleSpawnTimer > 0) rippleSpawnTimer--;
-  if (activeCount == 0) {
-    rippleDropStone();
-    rippleSpawnTimer = rippleNextSpawn();
-  } else if (rippleSpawnTimer == 0) {
-    if (activeCount < RIPPLE_MAX) rippleDropStone();
-    rippleSpawnTimer = rippleNextSpawn();
+  // Forward wrap → new ripple; preserve overshoot so fast scrubbing glides through.
+  while (ripAge >= lifetimeTicks) {
+    ripAge -= lifetimeTicks;
+    rippleRespawn();
   }
+  if (ripAge < 0) ripAge = 0;
 
-  // Render
+  // Render — single-ripple wavefront with wake fade and age envelope (same math as before).
   clearGrid();
   const float wavePerTick = RIPPLE_SPEED_PPS * TICK_MS / 1000.0f;
-
-  // Precompute per-ripple hue unit vectors (saves trig in inner pixel loop)
-  float rHueX[RIPPLE_MAX], rHueY[RIPPLE_MAX];
-  for (uint8_t r = 0; r < RIPPLE_MAX; r++) {
-    if (!ripples[r].active) { rHueX[r] = 1.0f; rHueY[r] = 0.0f; continue; }
-    float ha = ripples[r].hue * (2.0f * PI / 256.0f);
-    rHueX[r] = cosf(ha);
-    rHueY[r] = sinf(ha);
-  }
+  float waveFront = ripAge * wavePerTick;
+  float ageFrac   = (float)ripAge / (float)lifetimeTicks;
+  float ageEnv    = (ageFrac < 0.70f) ? 1.0f : (1.0f - ageFrac) / 0.30f;
 
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
-      float totalWave   = 0.0f;  // signed sum → real constructive/destructive interference
-      float hueX = 0.0f, hueY = 0.0f;  // circular hue accumulator
-      float totalWeight = 0.0f;
+      float dx = (float)x - ripCx;
+      float dy = (float)y - ripCy;
+      float dist = sqrtf(dx*dx + dy*dy);
+      float fromFront = dist - waveFront;
+      if (fromFront > 0.5f || fromFront < -RIPPLE_FADE_DIST) continue;
 
-      for (uint8_t r = 0; r < RIPPLE_MAX; r++) {
-        if (!ripples[r].active) continue;
+      float phase     = (fromFront / RIPPLE_WAVELENGTH) * (2.0f * PI);
+      float ringVal   = cosf(phase);
+      float wakeDecay = 1.0f - (-fromFront / RIPPLE_FADE_DIST);
+      float brightness = fabsf(ringVal * wakeDecay * ageEnv) * 220.0f;
 
-        float dx   = (float)x - ripples[r].cx;
-        float dy   = (float)y - ripples[r].cy;
-        float dist = sqrtf(dx*dx + dy*dy);
-
-        float waveFront = ripples[r].ageTicks * wavePerTick;
-        float fromFront = dist - waveFront;  // negative = in the wake
-
-        if (fromFront > 0.5f || fromFront < -RIPPLE_FADE_DIST) continue;
-
-        // Signed cosine: +1 at crest, -1 at trough — enables true interference
-        float phase   = (fromFront / RIPPLE_WAVELENGTH) * (2.0f * PI);
-        float ringVal = cosf(phase);
-
-        float wakeDecay = 1.0f - (-fromFront / RIPPLE_FADE_DIST);
-        float ageFrac   = (float)ripples[r].ageTicks / lifetimeTicks;
-        float ageEnv    = (ageFrac < 0.70f) ? 1.0f : (1.0f - ageFrac) / 0.30f;
-
-        float contrib = ringVal * wakeDecay * ageEnv;
-        totalWave    += contrib;
-
-        // Hue weight = envelope (always positive), so hue blends at overlap zones
-        float w    = wakeDecay * ageEnv;
-        hueX      += rHueX[r] * w;
-        hueY      += rHueY[r] * w;
-        totalWeight += w;
-      }
-
-      // |totalWave| = interference brightness; two in-phase ripples → 2× brightness
-      float brightness = fabsf(totalWave) * 200.0f;
       if (brightness > 1.0f) {
         uint8_t b = (brightness > 255.0f) ? 255 : (uint8_t)brightness;
-        uint8_t blendHue = 0;
-        if (totalWeight > 0.01f) {
-          float angle = atan2f(hueY, hueX);
-          if (angle < 0.0f) angle += 2.0f * PI;
-          blendHue = (uint8_t)(angle * (256.0f / (2.0f * PI)));
-        }
-        strip.setPixelColor(xy(x, y), paletteColor(blendHue, 225, b));
+        strip.setPixelColor(xy(x, y), paletteColor(ripHue, 225, b));
       }
     }
   }
@@ -1618,7 +1741,7 @@ void setup() {
   strip.show();
 
   onboardDot.begin();
-  onboardDot.setBrightness(80);
+  onboardDot.setBrightness(200);   // bright enough to be obvious under room light
   updateOnboardDot();
 
   randomSeed(analogRead(A4));
@@ -1704,6 +1827,7 @@ void loop() {
     pendingInput++;
     inputAnchor += ENC_COUNTS_PER_DETENT;
     rawDelta = pos - inputAnchor;
+    lastInputTick = tick;
     if (gamePattern && !userControl) { userControl = true; userTakeoverTick = tick;
       updateOnboardDot(); Serial.println("user takes control"); }
   }
@@ -1711,10 +1835,11 @@ void loop() {
     pendingInput--;
     inputAnchor -= ENC_COUNTS_PER_DETENT;
     rawDelta = pos - inputAnchor;
+    lastInputTick = tick;
     if (gamePattern && !userControl) { userControl = true; userTakeoverTick = tick;
       updateOnboardDot(); Serial.println("user takes control"); }
   }
-  if (!gamePattern) pendingInput = 0;  // discard input outside game patterns
+  // Patterns that don't consume pendingInput just leave it; it's cleared on pattern change.
 
   // --- Button → next sketch (edge-triggered) ---
   static int lastBtnLevel = HIGH;
@@ -1734,6 +1859,9 @@ void loop() {
     userControl   = false;
     pendingInput  = 0;
     inputAnchor   = pos;     // ignore any drift from previous pattern
+    // Clear trail arrays so leftover pixels don't flicker on re-entry
+    memset(sparkleBright, 0, sizeof(sparkleBright));
+    memset(lissTrail,     0, sizeof(lissTrail));
     updateOnboardDot();
     Serial.print("pattern -> "); Serial.print(currentPattern);
     Serial.print(" ("); Serial.print(PATTERN_NAMES[currentPattern]);
@@ -1744,11 +1872,11 @@ void loop() {
   }
   lastBtnLevel = btnLevel;
 
-  // --- Turn off red LED after blink duration ---
-  if (redLedOff > 0 && millis() >= redLedOff) {
-    digitalWrite(RED_LED_PIN, LOW);
-    redLedOff = 0;
-  }
+  // --- Red LED: solid-on while user has game control; transient blinks otherwise ---
+  bool redSolid = userControl;
+  bool redTransient = (redLedOff > 0 && millis() < redLedOff);
+  digitalWrite(RED_LED_PIN, (redSolid || redTransient) ? HIGH : LOW);
+  if (redLedOff > 0 && millis() >= redLedOff) redLedOff = 0;
 
   // --- Run current pattern ---
   switch (currentPattern) {
