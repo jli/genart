@@ -61,9 +61,11 @@
 
 #define SWEEP_ROT_SPEED         2.0f   // rad/sec
 #define SWEEP_HUE_STEP_MS        120
+#define SWEEP_PING_MS            220   // short-press flash duration (white halo decay)
 
 #define RINGS_STEP_MS            200   // ms per ring expansion step
 #define RINGS_HUE_STEP_MS        400
+#define RINGS_BOOM_MS            350   // short-press: all rings full-bright, fade together
 
 #define SPARKLE_FADE_PER_SEC     100   // brightness units/sec
 // Compile-time per-tick fade amount; minimum 1 so trails always clear
@@ -74,6 +76,7 @@
 #define FACE_BLINK_PERIOD_MS    2000
 #define FACE_EYES_OPEN_MS       1880   // open portion of blink period
 #define FACE_EXPR_MS            4000   // ms per expression
+#define FACE_WINK_MS             450   // short-press: force ;) expression briefly
 
 #define RAINBOW_STEP_MS   20   // ms per 1-unit hue advance (~5s full cycle)
 
@@ -420,11 +423,16 @@ void patternBreathe() {
 void patternSweep() {
   clearGrid();
   float cx = 3.5f, cy = 3.5f;
-  static float sweepAngle = 0.0f;
+  static float         sweepAngle = 0.0f;
+  static unsigned long pingUntil  = 0;  // short-press: white halo overlay decays to here
 
   if (pendingInput != 0) {
     sweepAngle += pendingInput * (PI / 8.0f);  // 22.5° per detent — a full turn is 16 clicks
     pendingInput = 0;
+  }
+  if (btnAction) {
+    pingUntil = tick + MS_TO_TICKS(SWEEP_PING_MS);
+    btnAction = false;
   }
   if (!userActive()) {
     sweepAngle += SWEEP_ROT_SPEED * TICK_MS / 1000.0f;
@@ -454,6 +462,22 @@ void patternSweep() {
         strip.setPixelColor(xy(x, y), paletteColor(hueVal, 255, bright));
     }
   }
+
+  // Ping overlay: additive white flash on every pixel, decaying over SWEEP_PING_MS.
+  if (pingUntil > tick) {
+    float frac = (float)(pingUntil - tick) / (float)MS_TO_TICKS(SWEEP_PING_MS);
+    uint8_t add = (uint8_t)(180.0f * frac);
+    for (uint16_t i = 0; i < NUM_LEDS; i++) {
+      uint32_t c = strip.getPixelColor(i);
+      uint8_t r = (c >> 16) & 0xFF;
+      uint8_t g = (c >>  8) & 0xFF;
+      uint8_t b =  c        & 0xFF;
+      r = (r + add > 255) ? 255 : r + add;
+      g = (g + add > 255) ? 255 : g + add;
+      b = (b + add > 255) ? 255 : b + add;
+      strip.setPixelColor(i, r, g, b);
+    }
+  }
 }
 
 // =============================================================
@@ -466,9 +490,14 @@ void patternRings() {
   // Encoder steps one ring per detent; idle advances at the original rate.
   static long          ringsStep = 0;
   static unsigned long ringsLast = 0;
+  static unsigned long boomUntil = 0;  // short-press: every ring blooms full-bright together
   if (pendingInput != 0) {
     ringsStep += pendingInput;
     pendingInput = 0;
+  }
+  if (btnAction) {
+    boomUntil = tick + MS_TO_TICKS(RINGS_BOOM_MS);
+    btnAction = false;
   }
   if (!userActive()) {
     if (tick - ringsLast >= MS_TO_TICKS(RINGS_STEP_MS)) {
@@ -480,6 +509,16 @@ void patternRings() {
   }
   uint8_t ring   = (uint8_t)((((ringsStep  % (maxDist + 2)) + (maxDist + 2)) % (maxDist + 2)));
   uint8_t hueVal = (uint8_t)((((ringsStep / 2 % 256) + 256) % 256));  // hue drifts half as fast
+
+  // Boom overrides normal ring rendering: every ring (every cell) lit at fading brightness.
+  if (boomUntil > tick) {
+    float frac = (float)(boomUntil - tick) / (float)MS_TO_TICKS(RINGS_BOOM_MS);
+    uint8_t b = (uint8_t)(255.0f * frac);
+    for (uint8_t y = 0; y < GRID_H; y++)
+      for (uint8_t x = 0; x < GRID_W; x++)
+        strip.setPixelColor(xy(x, y), paletteColor(hueVal, 255, b));
+    return;
+  }
 
   for (uint8_t y = 0; y < GRID_H; y++) {
     for (uint8_t x = 0; x < GRID_W; x++) {
@@ -524,6 +563,16 @@ void patternSparkle() {
     pendingInput = 0;
   }
 
+  // Short-press → full burst: all 8 slots fresh at full brightness.
+  if (btnAction) {
+    for (uint8_t i = 0; i < 8; i++) {
+      sparklePixels[i] = random(NUM_LEDS);
+      sparkleHues[i]   = random(256);
+      sparkleBright[i] = 255;
+    }
+    btnAction = false;
+  }
+
   // Autonomous spawn still fires on the original schedule when the user isn't driving.
   if (!userActive() && (tick % MS_TO_TICKS(SPARKLE_SPAWN_MS)) == 0) {
     uint8_t slot = random(8);
@@ -562,14 +611,24 @@ void patternFace() {
   bool eyesHalf = blinkPhase == MS_TO_TICKS(FACE_EYES_OPEN_MS);
 
   // Encoder flips through expressions; idle auto-cycles on the original schedule.
-  static long faceScrub = 0;
+  static long          faceScrub = 0;
+  static unsigned long winkUntil = 0;  // short-press forces ;) expression until this tick
   if (pendingInput != 0) {
     faceScrub += pendingInput;
     pendingInput = 0;
   }
-  uint8_t expr = userActive()
-    ? (uint8_t)((((faceScrub % NUM_EXPRS) + NUM_EXPRS) % NUM_EXPRS))
-    : (uint8_t)((tick / MS_TO_TICKS(FACE_EXPR_MS)) % NUM_EXPRS);
+  if (btnAction) {
+    winkUntil = tick + MS_TO_TICKS(FACE_WINK_MS);
+    btnAction = false;
+  }
+  uint8_t expr;
+  if (tick < winkUntil) {
+    expr = 1;  // ;)
+  } else if (userActive()) {
+    expr = (uint8_t)((((faceScrub % NUM_EXPRS) + NUM_EXPRS) % NUM_EXPRS));
+  } else {
+    expr = (uint8_t)((tick / MS_TO_TICKS(FACE_EXPR_MS)) % NUM_EXPRS);
+  }
 
   if (expr != lastExpr) {
     Serial.print("face -> "); Serial.println(EXPR_NAMES[expr]);
@@ -755,6 +814,13 @@ void patternSpiral() {
   if (!spiralSeeded) {
     spiralReroll();
     spiralSeeded = true;
+  }
+
+  // Short-press → kick endpoint reset right now (white flash + reroll).
+  if (btnAction && !spiralInReset) {
+    spiralInReset = true;
+    spiralResetAt = tick;
+    btnAction = false;
   }
 
   // Endpoint reset: full-grid white that fades to black, then re-roll and continue.
@@ -1166,26 +1232,35 @@ void patternSnake() {
 // =============================================================
 // Pattern 9: Bouncing balls with trails
 // =============================================================
-#define NUM_BALLS 2
+// NUM_BALLS is the capacity; ballsActive starts at NUM_BALLS_INITIAL and grows
+// on short-press up to capacity, then wraps round-robin (replaces oldest).
+#define NUM_BALLS         6
+#define NUM_BALLS_INITIAL 2
 
 float ballX[NUM_BALLS], ballY[NUM_BALLS];
 float ballVX[NUM_BALLS], ballVY[NUM_BALLS];
 uint8_t ballHue[NUM_BALLS];
 uint8_t ballTrailBright[NUM_LEDS];
 uint8_t ballTrailHue[NUM_LEDS];
-bool ballsInited = false;
+bool    ballsInited  = false;
+uint8_t ballsActive  = 0;
+uint8_t ballNextSlot = 0;  // round-robin replacement index once at capacity
+
+static void ballSpawn(uint8_t slot, uint8_t hue) {
+  ballX[slot]  = 2.0f + random(4);  // 2–5: away from all edges/corners
+  ballY[slot]  = 2.0f + random(4);
+  // Non-overlapping ranges guarantee |VX| != |VY|, breaking diagonal lock
+  float spdX = (0.20f + random(4) * 0.10f) * BALL_SPEED_SCALE;
+  float spdY = (0.25f + random(4) * 0.10f) * BALL_SPEED_SCALE;
+  ballVX[slot] = spdX * (random(2) ? 1.0f : -1.0f);
+  ballVY[slot] = spdY * (random(2) ? 1.0f : -1.0f);
+  ballHue[slot] = hue;
+}
 
 void ballsInit() {
-  for (uint8_t i = 0; i < NUM_BALLS; i++) {
-    ballX[i]  = 2.0f + random(4);  // 2–5: away from all edges/corners
-    ballY[i]  = 2.0f + random(4);
-    // Non-overlapping ranges guarantee |VX| != |VY|, breaking diagonal lock
-    float spdX = (0.20f + random(4) * 0.10f) * BALL_SPEED_SCALE;
-    float spdY = (0.25f + random(4) * 0.10f) * BALL_SPEED_SCALE;
-    ballVX[i] = spdX * (random(2) ? 1.0f : -1.0f);
-    ballVY[i] = spdY * (random(2) ? 1.0f : -1.0f);
-    ballHue[i] = i * 128;  // opposite sides of color wheel
-  }
+  ballsActive  = NUM_BALLS_INITIAL;
+  ballNextSlot = 0;
+  for (uint8_t i = 0; i < NUM_BALLS_INITIAL; i++) ballSpawn(i, i * 128);  // opposite hues
   memset(ballTrailBright, 0, NUM_LEDS);
   ballsInited = true;
 }
@@ -1197,7 +1272,7 @@ void patternBalls() {
   // Clamped so we don't run past the per-tick stability of the bounce step.
   if (pendingInput != 0) {
     float kick = (float)pendingInput * 0.05f * BALL_SPEED_SCALE;
-    for (uint8_t i = 0; i < NUM_BALLS; i++) {
+    for (uint8_t i = 0; i < ballsActive; i++) {
       ballVX[i] += kick;
       if (ballVX[i] >  0.7f * BALL_SPEED_SCALE) ballVX[i] =  0.7f * BALL_SPEED_SCALE;
       if (ballVX[i] < -0.7f * BALL_SPEED_SCALE) ballVX[i] = -0.7f * BALL_SPEED_SCALE;
@@ -1205,12 +1280,25 @@ void patternBalls() {
     pendingInput = 0;
   }
 
+  // Short-press → spawn a new ball; round-robin replace once at capacity.
+  if (btnAction) {
+    uint8_t slot;
+    if (ballsActive < NUM_BALLS) {
+      slot = ballsActive++;
+    } else {
+      slot = ballNextSlot;
+      ballNextSlot = (ballNextSlot + 1) % NUM_BALLS;
+    }
+    ballSpawn(slot, random(256));
+    btnAction = false;
+  }
+
   for (uint8_t i = 0; i < NUM_LEDS; i++) {
     if (ballTrailBright[i] > BALL_TRAIL_FADE) ballTrailBright[i] -= BALL_TRAIL_FADE;
     else ballTrailBright[i] = 0;
   }
 
-  for (uint8_t i = 0; i < NUM_BALLS; i++) {
+  for (uint8_t i = 0; i < ballsActive; i++) {
     ballX[i] += ballVX[i];
     ballY[i] += ballVY[i];
 
@@ -1235,7 +1323,7 @@ void patternBalls() {
           paletteColor(ballTrailHue[xy(x, y)], 255, ballTrailBright[xy(x, y)]));
     }
   }
-  for (uint8_t i = 0; i < NUM_BALLS; i++) {
+  for (uint8_t i = 0; i < ballsActive; i++) {
     uint8_t px = (uint8_t)(ballX[i] + 0.5f);
     uint8_t py = (uint8_t)(ballY[i] + 0.5f);
     if (px >= GRID_W) px = GRID_W - 1;
@@ -1326,6 +1414,11 @@ void patternRipple() {
   if (pendingInput != 0) {
     ripAge += (long)pendingInput * (lifetimeTicks / 16);
     pendingInput = 0;
+  }
+  // Short-press → drop a fresh stone at a new random spot, immediately.
+  if (btnAction) {
+    rippleRespawn();
+    btnAction = false;
   }
   // Idle: auto-advance at one tick per tick (matches RIPPLE_SPEED_PPS timing).
   if (!userActive()) ripAge++;
