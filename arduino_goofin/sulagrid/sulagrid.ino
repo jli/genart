@@ -188,7 +188,7 @@ static inline bool userActive() { return (tick - lastInputTick) < MS_TO_TICKS(US
 // Short press (release before BTN_HOLD_MS) → btnAction one-shot consumed by the
 // active pattern (e.g. tetris rotates the falling piece).  Long press / hold past
 // BTN_HOLD_MS skips to the next sketch.
-#define BTN_HOLD_MS 150
+#define BTN_HOLD_MS 500
 bool btnAction = false;  // one-shot: pattern clears it after consuming
 
 // --- Pixel index from (x, y) — straight wiring ---
