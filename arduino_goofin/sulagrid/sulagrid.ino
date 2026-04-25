@@ -119,7 +119,7 @@
 
 
 #define TETRIS_FALL_MS         150   // ms per gravity step
-#define TETRIS_ROTATE_GRACE_MS 600   // extra delay added on top of TETRIS_FALL_MS after a user rotation
+#define TETRIS_ROTATE_GRACE_MS 300   // extra delay added on top of TETRIS_FALL_MS after a user rotation
 #define TETRIS_FLASH_MS         80   // ms per line-clear blink half-period
 #define TETRIS_CLEAR_MS        600   // ms for line-clear flash
 #define TETRIS_BLINK_HALF_MS   250   // game-over: half-period per gentle blink
@@ -1522,11 +1522,15 @@ unsigned long tetNextFallAt;    // tick at which the next gravity step is allowe
 bool          tetInited = false;
 
 bool tetValid(int8_t px, int8_t py, uint8_t type, uint8_t rot) {
+  // Off-board cells with y < 0 are allowed (piece can poke above the field) so
+  // rotations near the top can lift the piece up by a few cells.  Off-board
+  // cells don't collide with the (nonexistent) board contents, but they do
+  // count as occupied at lock time → top-out.
   for (uint8_t c = 0; c < 4; c++) {
     int8_t x = px + TPIECES[type][rot][c][0];
     int8_t y = py + TPIECES[type][rot][c][1];
-    if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H) return false;
-    if (tetBoard[y][x]) return false;
+    if (x < 0 || x >= GRID_W || y >= GRID_H) return false;
+    if (y >= 0 && tetBoard[y][x]) return false;
   }
   return true;
 }
@@ -1656,15 +1660,29 @@ void patternTetris() {
     tetTX = tetPX;  // keep AI target in sync so it doesn't fight the user if mode flips
   }
 
-  // Short-press → rotate falling piece CW with a 1-cell wall-kick (in-place, then ±1 x).
-  // Each successful rotation also pushes the next gravity step out by
-  // TETRIS_ROTATE_GRACE_MS so the user gets time to reorient without burning rows.
+  // Short-press → rotate falling piece CW.  Wall-kick search tries in-place first,
+  // then horizontal ±1, then lifting up 1–3 cells (vertical I-piece can poke
+  // above the field).  First fit wins, keeping the piece as low as possible
+  // while still allowing the rotation.  Each successful rotation pushes the
+  // next gravity step out by TETRIS_ROTATE_GRACE_MS so the user gets time to
+  // reorient without burning rows.
   if (tetState == 0 && btnAction) {
+    static const int8_t kicks[][2] = {
+      { 0,  0}, {-1,  0}, {+1,  0},
+      { 0, -1}, {-1, -1}, {+1, -1},
+      { 0, -2}, { 0, -3},
+    };
     uint8_t newRot = (tetPRot + 1) & 0x3;
     bool rotated = false;
-    if      (tetValid(tetPX,     tetPY, tetPType, newRot))  { tetPRot = newRot; rotated = true; }
-    else if (tetValid(tetPX - 1, tetPY, tetPType, newRot))  { tetPX--; tetPRot = newRot; rotated = true; }
-    else if (tetValid(tetPX + 1, tetPY, tetPType, newRot))  { tetPX++; tetPRot = newRot; rotated = true; }
+    for (uint8_t k = 0; k < sizeof(kicks) / sizeof(kicks[0]); k++) {
+      int8_t nx = tetPX + kicks[k][0];
+      int8_t ny = tetPY + kicks[k][1];
+      if (tetValid(nx, ny, tetPType, newRot)) {
+        tetPX = nx; tetPY = ny; tetPRot = newRot;
+        rotated = true;
+        break;
+      }
+    }
     tetTX = tetPX;
     if (rotated) tetNextFallAt = tick + MS_TO_TICKS(TETRIS_FALL_MS) + MS_TO_TICKS(TETRIS_ROTATE_GRACE_MS);
     if (!userControl) { userControl = true; userTakeoverTick = tick;
@@ -1685,15 +1703,23 @@ void patternTetris() {
     if (tetValid(tetPX, tetPY + 1, tetPType, tetPRot)) {
       tetPY++;
     } else {
+      bool topOut = false;
       for (uint8_t c = 0; c < 4; c++) {
-        uint8_t bx = tetPX + TPIECES[tetPType][tetPRot][c][0];
-        uint8_t by = tetPY + TPIECES[tetPType][tetPRot][c][1];
+        int8_t bx = tetPX + TPIECES[tetPType][tetPRot][c][0];
+        int8_t by = tetPY + TPIECES[tetPType][tetPRot][c][1];
+        if (by < 0) { topOut = true; continue; }   // off-board cell at lock = top-out
         tetBoard[by][bx] = tetPHue;
       }
       Serial.print("tetris lock type="); Serial.print(tetPType);
       Serial.print(" rot="); Serial.print(tetPRot);
       Serial.print(" x="); Serial.print(tetPX);
       Serial.print(" y="); Serial.println(tetPY);
+
+      if (topOut) {
+        Serial.println("tetris top out (locked off-board)");
+        tetState = 2; tetTick = 0;
+        return;
+      }
 
       uint8_t mask = 0;
       for (uint8_t y = 0; y < GRID_H; y++) {
