@@ -86,6 +86,7 @@
 #define SPIRAL_RESET_MS          600   // total ms for endpoint reset animation (white flash → black)
 
 #define SNAKE_STEP_MS            120   // ms per snake move
+#define SNAKE_ROLLOUT_DEPTH       12   // greedy max-flood-fill rollout depth for Tier 3 fallback
 #define EXPLOSION_EXPAND_MS       80   // ms per explosion radius step
 #define APPLE_BLINK_MS            80   // ms per apple blink half-period
 #define SNAKE_REVEAL_MS           80   // ms per pixel revealed in length display
@@ -1048,6 +1049,135 @@ uint8_t snakeFloodFill(int8_t startX, int8_t startY, bool &tailReach, uint8_t &a
   return count;
 }
 
+// Parallel sim arrays for rollout. We never touch real snakeX/snakeY during rollout.
+int8_t  simSnakeX[NUM_LEDS];
+int8_t  simSnakeY[NUM_LEDS];
+uint8_t simSnakeLen;
+int8_t  simAppleX, simAppleY;
+
+// Take one sim step. Returns false if the move dies (wall/self).
+// Apple-eating in sim grows the snake but doesn't respawn the apple — we just
+// mark it gone, since the rollout only cares about survival from here.
+static bool simStep(int8_t dx, int8_t dy) {
+  int8_t nx = simSnakeX[0] + dx;
+  int8_t ny = simSnakeY[0] + dy;
+  if (nx < 0 || nx >= GRID_W || ny < 0 || ny >= GRID_H) return false;
+  bool eats = (nx == simAppleX && ny == simAppleY);
+  uint8_t bodyEnd = eats ? simSnakeLen : (uint8_t)(simSnakeLen - 1);
+  for (uint8_t i = 0; i < bodyEnd; i++) {
+    if (simSnakeX[i] == nx && simSnakeY[i] == ny) return false;
+  }
+  if (eats && simSnakeLen < NUM_LEDS) simSnakeLen++;
+  for (int8_t i = simSnakeLen - 1; i > 0; i--) {
+    simSnakeX[i] = simSnakeX[i - 1];
+    simSnakeY[i] = simSnakeY[i - 1];
+  }
+  simSnakeX[0] = nx;
+  simSnakeY[0] = ny;
+  if (eats) { simAppleX = -1; simAppleY = -1; }
+  return true;
+}
+
+// Time-aware flood fill on sim arrays. Same semantics as snakeFloodFill but no
+// tailReach/appleDist outputs (rollout only needs the count).
+static uint8_t simFloodFillSpace() {
+  int8_t freeAt[NUM_LEDS];
+  memset(freeAt, -1, NUM_LEDS);
+  for (uint8_t i = 0; i < simSnakeLen; i++) {
+    uint8_t idx = simSnakeY[i] * GRID_W + simSnakeX[i];
+    freeAt[idx] = (int8_t)(simSnakeLen - 1 - i);
+  }
+  uint8_t dist[NUM_LEDS];
+  memset(dist, 255, NUM_LEDS);
+  uint8_t queue[NUM_LEDS];
+  uint8_t qhead = 0, qtail = 0;
+  uint8_t startIdx = simSnakeY[0] * GRID_W + simSnakeX[0];
+  dist[startIdx] = 0;
+  queue[qtail++] = startIdx;
+  static const int8_t ddx[] = { 1, -1,  0,  0 };
+  static const int8_t ddy[] = { 0,  0,  1, -1 };
+  uint8_t count = 0;
+  while (qhead != qtail) {
+    uint8_t cur = queue[qhead++];
+    int8_t cx = cur % GRID_W, cy = cur / GRID_W;
+    uint8_t cd = dist[cur];
+    count++;
+    for (uint8_t d = 0; d < 4; d++) {
+      int8_t nx = cx + ddx[d], ny = cy + ddy[d];
+      if (nx < 0 || nx >= GRID_W || ny < 0 || ny >= GRID_H) continue;
+      uint8_t nidx = ny * GRID_W + nx;
+      if (dist[nidx] != 255) continue;
+      int8_t fa = freeAt[nidx];
+      if (fa > 0 && fa > (int8_t)(cd + 1)) continue;
+      dist[nidx] = cd + 1;
+      queue[qtail++] = nidx;
+    }
+  }
+  return count;
+}
+
+// Rollout score: take the candidate first move, then play `depth` more greedy
+// max-flood-fill stall steps. Higher = better. Returns survival count + the
+// final reachable-space count (lex-ordered: survival first, then space).
+static uint16_t snakeRollout(int8_t firstDx, int8_t firstDy, uint8_t depth) {
+  // Copy real snake → sim.
+  for (uint8_t i = 0; i < snakeLen; i++) { simSnakeX[i] = snakeX[i]; simSnakeY[i] = snakeY[i]; }
+  simSnakeLen = snakeLen;
+  simAppleX = appleX; simAppleY = appleY;
+
+  if (!simStep(firstDx, firstDy)) return 0;
+  uint8_t survived = 1;
+  uint8_t lastSpace = simFloodFillSpace();
+
+  static const int8_t ddx[] = { 1, -1,  0,  0 };
+  static const int8_t ddy[] = { 0,  0,  1, -1 };
+  // Backup buffers (one set, reused). Keep on stack — ~256 B.
+  int8_t backX[NUM_LEDS], backY[NUM_LEDS];
+
+  for (uint8_t step = 0; step < depth; step++) {
+    uint8_t bestSpace = 0;
+    int8_t  bestDx = 0, bestDy = 0;
+    bool    foundAny = false;
+    int8_t  curHX = simSnakeX[0], curHY = simSnakeY[0];
+    int8_t  neckX = simSnakeLen > 1 ? simSnakeX[1] : -1;
+    int8_t  neckY = simSnakeLen > 1 ? simSnakeY[1] : -1;
+
+    // Snapshot before probing the 4 candidates.
+    uint8_t backLen = simSnakeLen;
+    int8_t  backAppleX = simAppleX, backAppleY = simAppleY;
+    for (uint8_t i = 0; i < simSnakeLen; i++) { backX[i] = simSnakeX[i]; backY[i] = simSnakeY[i]; }
+
+    for (uint8_t d = 0; d < 4; d++) {
+      // Reject reverse-into-neck.
+      if (curHX + ddx[d] == neckX && curHY + ddy[d] == neckY) continue;
+      if (!simStep(ddx[d], ddy[d])) {
+        // restore
+        for (uint8_t i = 0; i < backLen; i++) { simSnakeX[i] = backX[i]; simSnakeY[i] = backY[i]; }
+        simSnakeLen = backLen; simAppleX = backAppleX; simAppleY = backAppleY;
+        continue;
+      }
+      uint8_t space = simFloodFillSpace();
+      if (!foundAny || space > bestSpace) {
+        bestSpace = space;
+        bestDx = ddx[d]; bestDy = ddy[d];
+        foundAny = true;
+      }
+      // restore for next probe
+      for (uint8_t i = 0; i < backLen; i++) { simSnakeX[i] = backX[i]; simSnakeY[i] = backY[i]; }
+      simSnakeLen = backLen; simAppleX = backAppleX; simAppleY = backAppleY;
+    }
+    if (!foundAny) break;
+    if (!simStep(bestDx, bestDy)) break;
+    survived++;
+    lastSpace = bestSpace;
+  }
+
+  // Pack: survival in upper 8 bits, space in lower 8. Survival dominates.
+  if (survived > 255) survived = 255;
+  if (lastSpace > 255) lastSpace = 255;
+  return ((uint16_t)survived << 8) | (uint16_t)lastSpace;
+}
+
 void snakeChooseDir() {
   int8_t dirs[3][2] = {
     {  snakeDirX,              snakeDirY },
@@ -1059,19 +1189,17 @@ void snakeChooseDir() {
   //   tailReach is the real safety guarantee: if the tail is reachable we can
   //   always survive by chasing it.
   // Tier 2: apple reachable + ≥½ available space → go toward apple (risky).
-  // Tier 3: no apple path                        → chase own tail to unwind.
-  // Fallback: most open direction.
-  //
-  // Both tailReach and appleDist now come from the time-aware flood fill, which
-  // treats body[i] as a wall only until step (snakeLen-1-i) — the step at which
-  // it naturally vacates.  This lets the snake plan paths that thread through
-  // cells its tail will have cleared by the time it arrives.
+  // Tier 3: no apple path → rollout-based stall (replaces "chase tail" which
+  //         tended to orbit forever).
+  // Fallback: most open direction (only used when EVERY rollout died on step 1,
+  //         i.e. whichever way we go we die next tick anyway).
   int8_t  t1X = -1, t1Y = -1;
   int8_t  t2X = -1, t2Y = -1;
-  int8_t  survX = -1, survY = -1;
+  int8_t  rollX = -1, rollY = -1;
   int8_t  fallX = -1, fallY = -1;
-  int t1Dist = 999, t2Dist = 999, survDist = 999;
+  int t1Dist = 999, t2Dist = 999;
   uint8_t t1Space = 0, t2Space = 0, fallSpace = 0;
+  uint16_t bestRoll = 0;
   bool anyValid = false;
   uint8_t freeTotal = NUM_LEDS - (snakeLen - 1);
 
@@ -1085,7 +1213,6 @@ void snakeChooseDir() {
     bool    tailReach = false;
     uint8_t appleDist = 255;
     uint8_t space     = snakeFloodFill(nx, ny, tailReach, appleDist);
-    int     tDist     = abs(nx - snakeX[snakeLen-1]) + abs(ny - snakeY[snakeLen-1]);
 
     if (tailReach && appleDist < 255) {
       if (appleDist < t1Dist || (appleDist == t1Dist && space > t1Space))
@@ -1094,17 +1221,28 @@ void snakeChooseDir() {
       if (appleDist < t2Dist || (appleDist == t2Dist && space > t2Space))
         { t2Dist = appleDist; t2Space = space; t2X = nx; t2Y = ny; }
     }
-    if (tDist < survDist)   { survDist = tDist;   survX = nx; survY = ny; }
     if (space > fallSpace)  { fallSpace = space;  fallX = nx; fallY = ny; }
   }
 
   if (!anyValid) { snakeDie(); return; }
 
-  int8_t chosenX, chosenY;
+  int8_t chosenX = -1, chosenY = -1;
   if      (t1X >= 0)   { chosenX = t1X;   chosenY = t1Y;   }
   else if (t2X >= 0)   { chosenX = t2X;   chosenY = t2Y;   }
-  else if (survX >= 0) { chosenX = survX; chosenY = survY; }
-  else                 { chosenX = fallX; chosenY = fallY; }
+  else {
+    // Tier 3: rollout. Only run when the cheaper tiers found nothing — keeps
+    // per-tick cost down on the easy cases.
+    for (uint8_t d = 0; d < 3; d++) {
+      int8_t nx = snakeX[0] + dirs[d][0];
+      int8_t ny = snakeY[0] + dirs[d][1];
+      if (!snakeInBounds(nx, ny)) continue;
+      if (snakeHitsSelf(nx, ny))  continue;
+      uint16_t score = snakeRollout(dirs[d][0], dirs[d][1], SNAKE_ROLLOUT_DEPTH);
+      if (score > bestRoll) { bestRoll = score; rollX = nx; rollY = ny; }
+    }
+    if (rollX >= 0) { chosenX = rollX; chosenY = rollY; }
+    else            { chosenX = fallX; chosenY = fallY; }
+  }
 
   snakeDirX = chosenX - snakeX[0];
   snakeDirY = chosenY - snakeY[0];
