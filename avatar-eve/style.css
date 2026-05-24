@@ -234,6 +234,7 @@ html, body {
 }
 .renderer-modal-header {
   display: flex; justify-content: space-between; align-items: center;
+  flex-shrink: 0;
 }
 .renderer-modal-header h3 { margin: 0; font-size: 16px; text-transform: lowercase; letter-spacing: 1px; }
 .renderer-modal-header button {
@@ -244,6 +245,7 @@ html, body {
 .renderer-grid {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
   overflow-y: auto; padding: 4px 4px 4px;
+  min-height: 0;
 }
 .renderer-card {
   background: var(--soft); border: 2px solid var(--border); border-radius: 12px;
