@@ -2,8 +2,7 @@
 // https://www.dicebear.com/styles/big-smile/
 import { STYLES, BODY, SKULL, BG_OPTS, HAIR_COLOR_PARTS, makeRenderer } from './dicebear-shared.js';
 
-const { createAvatar } = await import('https://cdn.jsdelivr.net/npm/@dicebear/core@9/+esm');
-const { bigSmile }     = await import('https://cdn.jsdelivr.net/npm/@dicebear/collection@9/+esm');
+const { createAvatar, bigSmile } = await import('./vendor/dicebear.js');
 
 const HAIR_OPTS = [
   { id:'shortHair',      name:'short' },

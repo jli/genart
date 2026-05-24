@@ -1,8 +1,7 @@
 // DiceBear Miniavs — compact chibi-style characters
 import { dicebearSvg, BG_OPTS, BG_MAP, SKIN_TONES, SKIN_MAP, HAIR_COLOR_PARTS, HAIR_COLOR_MAP, STYLES, BODY, SKULL, ASPECT_RATIO } from './dicebear-shared.js';
 
-const { createAvatar } = await import('https://cdn.jsdelivr.net/npm/@dicebear/core@9/+esm');
-const { miniavs } = await import('https://cdn.jsdelivr.net/npm/@dicebear/collection@9/+esm');
+const { createAvatar, miniavs } = await import('./vendor/dicebear.js');
 
 export { SKIN_TONES, STYLES, BODY, SKULL, ASPECT_RATIO };
 

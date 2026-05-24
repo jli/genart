@@ -10,8 +10,7 @@
 
 import { dicebearSvg } from './dicebear-shared.js';
 
-const { createAvatar } = await import('https://cdn.jsdelivr.net/npm/@dicebear/core@9/+esm');
-const { lorelei } = await import('https://cdn.jsdelivr.net/npm/@dicebear/collection@9/+esm');
+const { createAvatar, lorelei } = await import('./vendor/dicebear.js');
 
 const SKIN_MAP  = { pale:'ffe6d3', fair:'fcd0a8', olive:'e0a878', brown:'a16e4b', deep:'65422a' };
 const HAIR_COLORS = [

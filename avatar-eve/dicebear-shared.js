@@ -30,18 +30,26 @@ export const HAIR_COLOR_MAP   = Object.fromEntries(HAIR_COLORS.map(h => [h.id, h
 export const HAIR_COLOR_PARTS = HAIR_COLORS.map(h => ({ id: h.id, name: h.name, _hex: h.hex }));
 
 export const BG_OPTS = [
-  { id:'none',    name:'none',     colors:[],                  type:[] },
-  { id:'cream',   name:'cream',    colors:['fdf6e3'],          type:['solid'] },
-  { id:'pink',    name:'pink',     colors:['ffb3c6'],          type:['solid'] },
-  { id:'purple',  name:'purple',   colors:['c9b8ff'],          type:['solid'] },
-  { id:'sky',     name:'sky blue', colors:['b8d8ff'],          type:['solid'] },
-  { id:'mint',    name:'mint',     colors:['b8f0e0'],          type:['solid'] },
-  { id:'yellow',  name:'yellow',   colors:['fff3b8'],          type:['solid'] },
-  { id:'peach',   name:'peach',    colors:['ffd5b0'],          type:['solid'] },
-  { id:'sunset',  name:'sunset',   colors:['ffb347','ff6b6b'], type:['gradientLinear'] },
-  { id:'ocean',   name:'ocean',    colors:['667eea','64b3f4'], type:['gradientLinear'] },
-  { id:'rose',    name:'rose',     colors:['f953c6','b91d73'], type:['gradientLinear'] },
-  { id:'forest',  name:'forest',   colors:['56ab2f','a8e063'], type:['gradientLinear'] },
+  { id:'none',    name:'none',         colors:[],                  type:[] },
+  { id:'cream',   name:'cream',        colors:['fdf6e3'],          type:['solid'] },
+  { id:'pink',    name:'pink',         colors:['ffb3c6'],          type:['solid'] },
+  { id:'purple',  name:'purple',       colors:['c9b8ff'],          type:['solid'] },
+  { id:'sky',     name:'sky blue',     colors:['b8d8ff'],          type:['solid'] },
+  { id:'mint',    name:'mint',         colors:['b8f0e0'],          type:['solid'] },
+  { id:'yellow',  name:'yellow',       colors:['fff3b8'],          type:['solid'] },
+  { id:'peach',   name:'peach',        colors:['ffd5b0'],          type:['solid'] },
+  { id:'sage',    name:'sage',         colors:['c8dcc4'],          type:['solid'] },
+  { id:'blush',   name:'blush',        colors:['f7c5b8'],          type:['solid'] },
+  { id:'lilac',   name:'lilac',        colors:['d8c5f0'],          type:['solid'] },
+  { id:'sunset',  name:'sunset',       colors:['ffb347','ff6b6b'], type:['gradientLinear'] },
+  { id:'ocean',   name:'ocean',        colors:['667eea','64b3f4'], type:['gradientLinear'] },
+  { id:'rose',    name:'rose',         colors:['f953c6','b91d73'], type:['gradientLinear'] },
+  { id:'forest',  name:'forest',       colors:['56ab2f','a8e063'], type:['gradientLinear'] },
+  { id:'aurora',  name:'aurora',       colors:['a8edea','fed6e3'], type:['gradientLinear'] },
+  { id:'dusk',    name:'dusk',         colors:['f093fb','f5576c'], type:['gradientLinear'] },
+  { id:'citrus',  name:'citrus',       colors:['f6d365','fda085'], type:['gradientLinear'] },
+  { id:'cotton',  name:'cotton candy', colors:['fbc2eb','a6c1ee'], type:['gradientLinear'] },
+  { id:'ember',   name:'ember',        colors:['ff9966','ff5e62'], type:['gradientLinear'] },
 ];
 export const BG_MAP = Object.fromEntries(BG_OPTS.map(b => [b.id, b]));
 

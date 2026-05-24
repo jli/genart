@@ -1,8 +1,7 @@
 // DiceBear Pixel Art — retro full-body characters with clothing
 import { dicebearSvg, BG_OPTS, BG_MAP, STYLES, BODY, SKULL, ASPECT_RATIO } from './dicebear-shared.js';
 
-const { createAvatar } = await import('https://cdn.jsdelivr.net/npm/@dicebear/core@9/+esm');
-const { pixelArt } = await import('https://cdn.jsdelivr.net/npm/@dicebear/collection@9/+esm');
+const { createAvatar, pixelArt } = await import('./vendor/dicebear.js');
 
 const rng = (n, pfx) => Array.from({ length: n }, (_, i) => ({
   id: `${pfx}${String(i + 1).padStart(2, '0')}`, name: `${pfx} ${i + 1}`,

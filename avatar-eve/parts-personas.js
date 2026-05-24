@@ -1,8 +1,7 @@
 // DiceBear Personas — professional illustrated characters with full body + clothing
 import { dicebearSvg, BG_OPTS, BG_MAP, STYLES, BODY, SKULL, ASPECT_RATIO } from './dicebear-shared.js';
 
-const { createAvatar } = await import('https://cdn.jsdelivr.net/npm/@dicebear/core@9/+esm');
-const { personas } = await import('https://cdn.jsdelivr.net/npm/@dicebear/collection@9/+esm');
+const { createAvatar, personas } = await import('./vendor/dicebear.js');
 
 export { STYLES, BODY, SKULL, ASPECT_RATIO };
 

@@ -8,27 +8,27 @@
 </head>
 <body>
   <div class="app">
-    <aside class="collection-panel">
-      <header>
-        <h2>collection</h2>
-        <button class="btn-new" id="btn-new">+ new</button>
-      </header>
-      <div class="collection-list" id="collection-list"></div>
-    </aside>
+    <div class="left-col">
+      <main class="stage">
+        <div class="stage-inner">
+          <div class="avatar-canvas" id="avatar-canvas"></div>
+          <div class="stage-bar">
+            <button id="btn-random">🎲</button>
+            <input type="text" id="avatar-name" placeholder="name..." maxlength="32">
+            <button id="btn-save" class="btn-primary">save</button>
+            <button id="btn-renderer">style ▾</button>
+          </div>
+        </div>
+      </main>
 
-    <main class="stage">
-      <div class="stage-inner">
-        <div class="avatar-canvas" id="avatar-canvas"></div>
-        <div class="name-row">
-          <input type="text" id="avatar-name" placeholder="give them a name..." maxlength="32">
-          <button id="btn-save" class="btn-primary">save</button>
-        </div>
-        <div class="stage-controls">
-          <button id="btn-random">🎲 random</button>
-          <button id="btn-renderer">renderer ▾</button>
-        </div>
-      </div>
-    </main>
+      <aside class="collection-panel">
+        <header>
+          <h2>collection</h2>
+          <button class="btn-new" id="btn-new">+ new</button>
+        </header>
+        <div class="collection-list" id="collection-list"></div>
+      </aside>
+    </div>
 
     <section class="customize">
       <nav class="tab-bar" id="tab-bar"></nav>

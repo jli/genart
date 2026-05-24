@@ -2,8 +2,7 @@
 // https://www.dicebear.com/styles/fun-emoji/
 import { STYLES, BODY, SKULL, BG_OPTS, makeRenderer } from './dicebear-shared.js';
 
-const { createAvatar } = await import('https://cdn.jsdelivr.net/npm/@dicebear/core@9/+esm');
-const { funEmoji }     = await import('https://cdn.jsdelivr.net/npm/@dicebear/collection@9/+esm');
+const { createAvatar, funEmoji } = await import('./vendor/dicebear.js');
 
 const EYES_OPTS = [
   { id:'cute',       name:'cute' },

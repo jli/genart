@@ -2,8 +2,7 @@
 // https://www.dicebear.com/styles/avataaars/
 import { STYLES, BODY, SKULL, BG_OPTS, HAIR_COLOR_PARTS, makeRenderer } from './dicebear-shared.js';
 
-const { createAvatar } = await import('https://cdn.jsdelivr.net/npm/@dicebear/core@9/+esm');
-const { avataaars }    = await import('https://cdn.jsdelivr.net/npm/@dicebear/collection@9/+esm');
+const { createAvatar, avataaars } = await import('./vendor/dicebear.js');
 
 const HAIR_OPTS = [
   { id:'bigHair',              name:'big hair' },

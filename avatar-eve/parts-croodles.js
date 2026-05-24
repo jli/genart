@@ -1,8 +1,7 @@
 // DiceBear Croodles — hand-drawn doodle style, no skin color
 import { dicebearSvg, BG_OPTS, BG_MAP, STYLES, BODY, SKULL, ASPECT_RATIO } from './dicebear-shared.js';
 
-const { createAvatar } = await import('https://cdn.jsdelivr.net/npm/@dicebear/core@9/+esm');
-const { croodles } = await import('https://cdn.jsdelivr.net/npm/@dicebear/collection@9/+esm');
+const { createAvatar, croodles } = await import('./vendor/dicebear.js');
 
 export const SKIN_TONES = [];
 export { STYLES, BODY, SKULL, ASPECT_RATIO };

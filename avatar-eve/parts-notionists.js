@@ -9,8 +9,7 @@
 
 import { dicebearSvg } from './dicebear-shared.js';
 
-const { createAvatar } = await import('https://cdn.jsdelivr.net/npm/@dicebear/core@9/+esm');
-const { notionists } = await import('https://cdn.jsdelivr.net/npm/@dicebear/collection@9/+esm');
+const { createAvatar, notionists } = await import('./vendor/dicebear.js');
 
 // notionists figures are black/white — no skinColor support in the style
 export const SKIN_TONES = []; // unused; skin tab hidden for this renderer
