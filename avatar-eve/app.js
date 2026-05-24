@@ -144,7 +144,7 @@ function renderCollection() {
     return `
       <div class="collection-item${state.current && state.current.id === a.id ? ' active' : ''}${isCross ? ' cross-renderer' : ''}" data-id="${a.id}">
         <div class="coll-thumb" id="ct-${a.id}">${thumb}</div>
-        ${isCross ? `<div class="renderer-badge">${RENDERER_LABELS[r] || r}</div>` : ''}
+
         <div class="name">${escapeHtml(a.name || 'unnamed')}</div>
         <button class="delete" data-delete="${a.id}" title="delete">✕</button>
       </div>`;
