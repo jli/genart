@@ -296,8 +296,6 @@ document.getElementById('btn-random').onclick = () => {
   renderCanvas(); renderPartGrid();
 };
 
-document.getElementById('btn-export').onclick = exportPng;
-
 document.getElementById('btn-renderer').textContent = `${RENDERER_LABELS[rendererName] || rendererName} ▾`;
 document.getElementById('btn-renderer').onclick = openRendererModal;
 document.getElementById('renderer-modal-close').onclick = closeRendererModal;
@@ -316,34 +314,6 @@ document.getElementById('renderer-grid').addEventListener('click', e => {
 document.getElementById('avatar-name').addEventListener('input', (e) => {
   state.current.name = e.target.value;
 });
-
-// ─────── png export ───────
-function exportPng() {
-  const canvas = document.getElementById('avatar-canvas');
-  const svgEl  = canvas.tagName.toLowerCase() === 'svg' ? canvas : canvas.querySelector('svg');
-  if (!svgEl) return;
-  svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-  const xml  = new XMLSerializer().serializeToString(svgEl);
-  const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
-  const url  = URL.createObjectURL(blob);
-  const img  = new Image();
-  img.onload = () => {
-    const c   = document.createElement('canvas');
-    c.width   = 800; c.height = 1000;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = '#f1e8d8';
-    ctx.fillRect(0, 0, c.width, c.height);
-    ctx.drawImage(img, 0, 0, c.width, c.height);
-    c.toBlob(b => {
-      const a    = document.createElement('a');
-      a.href     = URL.createObjectURL(b);
-      a.download = (state.current.name || 'avatar') + '.png';
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-  };
-  img.src = url;
-}
 
 function fixTileHeights() {
   const grid = document.getElementById('part-grid');

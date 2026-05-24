@@ -57,12 +57,21 @@ export const range = (n, prefix = 'variant') =>
   }));
 
 export function dicebearSvg(raw) {
-  let s = raw;
-  if (/ width="/.test(s))  s = s.replace(/ width="[^"]*"/, ' width="100%"');
-  else                      s = s.replace('<svg', '<svg width="100%"');
-  if (/ height="/.test(s)) s = s.replace(/ height="[^"]*"/, ' height="100%"');
-  else                      s = s.replace('<svg', '<svg height="100%"');
-  return s;
+  // DiceBear SVGs use fixed (non-seeded) IDs like "viewboxMask". When multiple
+  // SVGs are in the DOM simultaneously, duplicate IDs corrupt clipPath lookups
+  // across all SVGs. Append a unique suffix to every id= and its references.
+  const uid = Math.random().toString(36).slice(2, 8);
+  let s = raw
+    .replace(/ id="([^"]*)"/g, ` id="$1-${uid}"`)
+    .replace(/url\(#([^)]*)\)/g, `url(#$1-${uid})`)
+    .replace(/((?:xlink:)?href)="#([^"]*)"/g, `$1="#$2-${uid}"`);
+
+  return s.replace(/<svg\b([^>]*)>/, (_, attrs) => {
+    const cleaned = attrs
+      .replace(/ (?:width|height)="[^"]*"/g, '')
+      .replace(/ style="[^"]*"/g, '');
+    return `<svg width="100%" height="100%" style="display:block;width:100%;height:100%"${cleaned}>`;
+  });
 }
 
 /**

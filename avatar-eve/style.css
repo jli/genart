@@ -211,7 +211,7 @@ html, body {
 }
 .renderer-grid {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
-  overflow-y: auto; padding-bottom: 4px;
+  overflow-y: auto; padding: 4px 4px 4px;
 }
 .renderer-card {
   background: var(--soft); border: 2px solid var(--border); border-radius: 12px;
@@ -221,7 +221,7 @@ html, body {
 .renderer-card.active { box-shadow: 0 0 0 3px var(--accent); background: white; }
 .renderer-preview {
   aspect-ratio: 1; position: relative; overflow: hidden;
-  background: var(--soft); display: flex; align-items: center; justify-content: center;
+  background: var(--soft);
 }
 .renderer-preview svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .renderer-label {
