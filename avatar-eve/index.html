@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>avatar maker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="collection-panel">
+      <header>
+        <h2>collection</h2>
+        <button class="btn-new" id="btn-new">+ new</button>
+      </header>
+      <div class="collection-list" id="collection-list"></div>
+    </aside>
+
+    <main class="stage">
+      <div class="stage-inner">
+        <div class="avatar-canvas" id="avatar-canvas"></div>
+        <div class="name-row">
+          <input type="text" id="avatar-name" placeholder="give them a name..." maxlength="32">
+          <button id="btn-save" class="btn-primary">save</button>
+        </div>
+        <div class="stage-controls">
+          <button id="btn-random">🎲 random</button>
+          <button id="btn-export">⬇ png</button>
+          <button id="btn-renderer">renderer ▾</button>
+        </div>
+      </div>
+    </main>
+
+    <section class="customize">
+      <nav class="tab-bar" id="tab-bar"></nav>
+      <div class="part-grid" id="part-grid"></div>
+    </section>
+  </div>
+
+  <div id="renderer-modal" class="renderer-modal" hidden>
+    <div class="renderer-modal-backdrop"></div>
+    <div class="renderer-modal-inner">
+      <div class="renderer-modal-header">
+        <h3>choose renderer</h3>
+        <button id="renderer-modal-close">✕</button>
+      </div>
+      <div class="renderer-grid" id="renderer-grid"></div>
+    </div>
+  </div>
+
+  <script src="livereload.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
