@@ -60,7 +60,7 @@ Notes:
 
 ## Power budget
 
-- Brightness is firmware-capped at ~40% (`BRIGHTNESS_CAP = 100/255`) to hit the
+- Brightness is firmware-capped at ~30% (`BRIGHTNESS_CAP = 76/255`) to hit the
   ≥4 hour runtime target and keep the strip/boost cool.
 - 48 FCOB LEDs at full white, full brightness would be well over 1A at 5V; the
   cap and the typical non-white patterns keep average draw far below that.

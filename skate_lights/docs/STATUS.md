@@ -17,7 +17,8 @@ Implemented:
   - core 0 `controlTask`: serial input, motion stub, battery, auto-cycle, sleep.
   - Tasks share only `g_controls` (atomics in `state.h`). The render task is the
     sole owner of `leds[]` and the only caller of `show()`, so no lock is needed.
-- FastLED init: `NUM_LEDS=48`, `WS2812B`, `GRB`. Hard brightness cap enforced
+- FastLED init: `NUM_LEDS` (16 for USB bench bring-up; ~48 for the full strip),
+  `WS2812B`, `GRB`. Hard brightness cap enforced
   every frame in `clampedBrightness()`; patterns never call `setBrightness`.
 - 6 patterns (`patterns.cpp`), table-driven:
   - 0 Ambient Breathe, 3 Solid Color, 4 Rainbow Cycle, 5 Comet (non-motion).
