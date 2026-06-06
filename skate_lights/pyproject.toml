@@ -1,0 +1,14 @@
+[project]
+name = "skate-lights-tooling"
+version = "0.0.0"
+description = "Build tooling (PlatformIO) for the skate_lights ESP32-S3 firmware. Not a Python package; this just pins the toolchain so builds are reproducible via uv."
+requires-python = ">=3.9"
+dependencies = [
+    "platformio>=6.1,<7",
+    # PlatformIO's esptool installs a few Python deps at runtime via pip into its
+    # own package dir. uv venvs omit pip by default, so include it (plus the
+    # build backends pip needs) here or the espressif32 toolchain install fails.
+    "pip",
+    "setuptools",
+    "wheel",
+]

@@ -1,0 +1,8 @@
+# PlatformIO build output
+.pio/
+
+# Python tooling venv (recreate with `make setup`)
+.venv/
+
+# OS cruft
+.DS_Store
