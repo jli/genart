@@ -38,9 +38,9 @@
 // Config
 #define NUM_PATTERNS 13
 #define NUM_PALETTES 3
-#define MAX_BRIGHT     50
+#define MAX_BRIGHT     191   // 75% of full 0-255 scale
 #define DEFAULT_PATTERN 8  // 0=checker 1=breathe 2=sweep 3=rings 4=sparkle 5=face 6=rainbow 7=spiral 8=snake 9=balls 10=lissajous 11=ripple 12=tetris
-#define DEFAULT_BRIGHT 10
+#define DEFAULT_BRIGHT MAX_BRIGHT
 #define TICK_MS        10
 #define DEBUG_BAUD     115200
 #define DEBUG_INTERVAL (10000 / TICK_MS)
@@ -207,7 +207,7 @@ static inline unsigned long userActivityWindowTicks() {
 // Short press (release before BTN_HOLD_MS) → btnAction one-shot consumed by the
 // active pattern (e.g. tetris rotates the falling piece).  Long press / hold past
 // BTN_HOLD_MS skips to the next sketch.
-#define BTN_HOLD_MS 500
+#define BTN_HOLD_MS 400
 bool btnAction = false;  // one-shot: pattern clears it after consuming
 
 // --- Pixel index from (x, y) — straight wiring ---
@@ -2082,20 +2082,20 @@ void loop() {
 #if POT_SPEED_MODE
   // --- Potentiometer → speed (dev mode) ---
   // Middle position (pot≈512) = TICK_MS (default speed).
-  // Left half (0–511): 100ms → 10ms  Right half (512–1023): 10ms → 1ms
+  // Scale shifted up: slow end raised ~50% faster (100→67ms), fast end ~3x faster (2→0.67ms).
+  // Left half (0–511): 67ms → 10ms  Right half (512–1023): 10ms → 0.67ms
   uint16_t potVal = analogRead(POT_PIN);
-  uint16_t tickDelayMs;
+  uint32_t tickDelayUs;
   if (potVal <= 511) {
-    tickDelayMs = 100 - (uint16_t)potVal * 90 / 511;
+    tickDelayUs = 67000 - (uint32_t)potVal * (67000 - 10000) / 511;
   } else {
-    tickDelayMs = 10 - (uint16_t)(potVal - 512) * 8 / 511;
+    tickDelayUs = 10000 - (uint32_t)(potVal - 512) * (10000 - 667) / 511;
   }
-  if (tickDelayMs < 1) tickDelayMs = 1;
   strip.setBrightness(DEFAULT_BRIGHT);
-  static uint16_t lastReportedDelay = 0;
-  if ((uint16_t)abs((int)tickDelayMs - (int)lastReportedDelay) > 1) {
-    Serial.print("tick_ms="); Serial.println(tickDelayMs);
-    lastReportedDelay = tickDelayMs;
+  static uint32_t lastReportedDelay = 0;
+  if ((uint32_t)labs((long)tickDelayUs - (long)lastReportedDelay) > 100) {
+    Serial.print("tick_us="); Serial.println(tickDelayUs);
+    lastReportedDelay = tickDelayUs;
   }
 #else
   // --- Potentiometer → brightness ---
@@ -2237,7 +2237,7 @@ void loop() {
     Serial.print(" pat="); Serial.print(PATTERN_NAMES[currentPattern]);
     Serial.print(" pal="); Serial.print(PALETTE_NAMES[currentPalette]);
 #if POT_SPEED_MODE
-    Serial.print(" tick_ms="); Serial.println(tickDelayMs);
+    Serial.print(" tick_us="); Serial.println(tickDelayUs);
 #else
     Serial.print(" bright="); Serial.println(bright);
 #endif
@@ -2245,7 +2245,8 @@ void loop() {
 
   tick++;
 #if POT_SPEED_MODE
-  delay(tickDelayMs);
+  delay(tickDelayUs / 1000);
+  delayMicroseconds(tickDelayUs % 1000);
 #else
   delay(TICK_MS);
 #endif
