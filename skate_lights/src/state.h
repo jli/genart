@@ -12,7 +12,7 @@
 enum class PowerStatus : uint8_t { Normal, Low, Critical };
 
 struct Controls {
-  std::atomic<uint8_t> patternIndex{0};
+  std::atomic<uint8_t> patternIndex{4};     // boot on Smooth Cycle
   std::atomic<uint8_t> brightnessLevel{1};  // index into BRIGHTNESS_LEVELS (medium)
   std::atomic<bool> autoCycle{true};
   std::atomic<bool> sleeping{false};  // render task blanks the strip when set

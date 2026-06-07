@@ -23,16 +23,16 @@ constexpr uint8_t BATT_ADC_PIN = A2;
 //   #define I2C_SCL_PIN D5
 
 // ---- LED strip -------------------------------------------------------------
-constexpr uint16_t NUM_LEDS = 16;  // USB bench bring-up; full strip is ~48
+constexpr uint16_t NUM_LEDS = 34;  // USB bench bring-up; full strip is ~48
 #define LED_TYPE WS2812B           // XGB1338 is WS2812B-compatible
 #define COLOR_ORDER GRB
 
 // Hard firmware brightness ceiling. Patterns must never exceed this; the render
-// loop clamps every frame. ~30% of full scale keeps current/heat in check.
-constexpr uint8_t BRIGHTNESS_CAP = 76;
+// loop clamps every frame. ~50% of full scale keeps current/heat in check.
+constexpr uint8_t BRIGHTNESS_CAP = 128;
 
 // User-cyclable brightness levels (low / medium / high). All must be <= cap.
-constexpr uint8_t BRIGHTNESS_LEVELS[] = {25, 60, 76};
+constexpr uint8_t BRIGHTNESS_LEVELS[] = {25, 70, 128};
 constexpr uint8_t NUM_BRIGHTNESS_LEVELS = sizeof(BRIGHTNESS_LEVELS);
 
 // Default solid-color pattern (sanity-check pattern). Azure reads clearly and

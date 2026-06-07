@@ -16,7 +16,7 @@ using PatternFn = void (*)(CRGB*, uint16_t, uint32_t, const MotionState&);
 // 0: Ambient Breathe - slow hue drift with a gentle low-intensity breath.
 void pAmbientBreathe(CRGB* leds, uint16_t n, uint32_t now, const MotionState&) {
   uint8_t hue = (now / 60) & 0xFF;
-  uint8_t breath = scale8(sin8(now / 12), 150) + 20;  // ~20..170
+  uint8_t breath = scale8(sin8(now / 12), 140) + 60;  // ~60..200, never fully off
   fill_solid(leds, n, CHSV(hue, 200, breath));
 }
 
@@ -30,21 +30,32 @@ void pStrideReactive(CRGB* leds, uint16_t n, uint32_t now, const MotionState& m)
   uint8_t hue = 120 + (now / 80);               // teal -> green drift
   uint16_t phase = now * speed / 8;
   for (uint16_t i = 0; i < n; i++) {
-    uint8_t v = scale8(sin8(phase + i * 12), amp);
+    uint8_t v = qadd8(30, scale8(sin8(phase + i * 12), amp));  // floor keeps it lit
     leds[i] = CHSV(hue, 200, v);
   }
 }
 
-// 2: Jump Reactive - bright white flash on a Z spike, fading out over a dim base
-// glow. Without the MPU there are no jumps, so it holds a faint purple glow.
+// 2: Jump Reactive - a calm violet wave breathes along the strip, then bursts
+// bright and shifts toward hot pink with a white flash on a Z-axis stomp before
+// decaying back. Without the MPU there are no jumps, so the wave runs on its own
+// as a standalone ambient pattern.
 void pJumpReactive(CRGB* leds, uint16_t n, uint32_t now, const MotionState& m) {
   static uint8_t flash = 0;
   if (m.jumpEvent) flash = 255;
-  flash = qsub8(flash, 12);  // ~1.5s fade at 60fps
+  flash = qsub8(flash, 10);  // ~1.7s decay at 60fps
 
-  fill_solid(leds, n, CHSV(192, 200, 10));  // dim purple base
+  uint8_t hue = 192 + scale8(flash, 32);             // purple -> pink with energy
+  uint8_t breath = scale8(sin8(now / 16), 80) + 30;  // ~30..110 idle brightness
+  uint8_t boost = scale8(flash, 120);                // stomp lifts overall level
+  for (uint16_t i = 0; i < n; i++) {
+    uint8_t wave = sin8((now / 6) + i * 16);                    // traveling wave along the strip
+    uint8_t v = qadd8(30, qadd8(scale8(wave, breath), boost));  // floor keeps it lit
+    leds[i] = CHSV(hue, 220, v);
+  }
+
+  // Stomp: bright white flash layered on top, fading out.
   if (flash) {
-    CRGB white = CHSV(0, 0, flash);
+    CRGB white = CHSV(0, 0, scale8(flash, 220));
     for (uint16_t i = 0; i < n; i++) leds[i] += white;
   }
 }
@@ -54,11 +65,40 @@ void pSolidColor(CRGB* leds, uint16_t n, uint32_t, const MotionState&) {
   fill_solid(leds, n, CRGB(SOLID_R, SOLID_G, SOLID_B));
 }
 
-// 4: Rainbow Cycle - classic moving rainbow.
-void pRainbowCycle(CRGB* leds, uint16_t n, uint32_t now, const MotionState&) {
-  uint8_t hue = now / 20;
-  uint8_t deltaHue = (uint8_t)(255 / n) + 1;
-  fill_rainbow(leds, n, hue, deltaHue);
+// 4: Smooth Cycle - a two-color gradient spans the whole strip (one full sine
+// wave, scaled to however many LEDs are present) and scrolls slowly along it,
+// so both colors are visible at once. The pair holds steady for ~12 s, then over
+// ~6 s the hues migrate a golden angle around the wheel to a fresh, harmonious
+// pair, and hold again. Hue is interpolated on the wheel (not mixed through
+// gray), so every pixel stays vivid and it never goes black.
+void pSmoothCycle(CRGB* leds, uint16_t n, uint32_t now, const MotionState&) {
+  static const uint32_t kHoldMs = 24000;          // dwell on the current pair
+  static const uint32_t kDriftMs = 12000;         // migrate to the next pair
+  static const uint32_t kScrollPeriodMs = 12000;  // time for the wave to scroll once across
+  static const uint8_t kBaseHue = 150;            // starting anchor hue
+  static const uint8_t kDriftStep = 97;           // golden angle on the 0-255 wheel
+  static const uint8_t kSpread = 64;              // wheel distance between the two hues
+  static const uint8_t kSat = 235;
+
+  // Hue A holds the current pair, then eases a golden step to the next pair.
+  const uint32_t epochMs = kHoldMs + kDriftMs;
+  uint32_t epoch = now / epochMs;
+  uint32_t into = now % epochMs;
+  uint8_t hueStart = (uint8_t)(kBaseHue + epoch * kDriftStep);
+  uint8_t hueA = hueStart;
+  if (into >= kHoldMs) {
+    uint8_t t = (uint8_t)((into - kHoldMs) * 255u / kDriftMs);
+    hueA = hueStart + scale8(ease8InOutCubic(t), kDriftStep);
+  }
+
+  // One full sine wave of the A<->B gradient across the strip, scrolling slowly.
+  // scroll is a 0-255 phase mapped onto one scroll period (256 = one wave width).
+  uint8_t scroll = (uint8_t)((now % kScrollPeriodMs) * 256u / kScrollPeriodMs);
+  for (uint16_t i = 0; i < n; i++) {
+    uint8_t pos = (uint8_t)((uint16_t)i * 256u / n);
+    uint8_t f = sin8(pos + scroll);
+    leds[i] = CHSV(hueA + scale8(f, kSpread), kSat, 255);
+  }
 }
 
 // 5: Comet - a bright dot bouncing along the strip with a fading trail.
@@ -77,6 +117,9 @@ void pComet(CRGB* leds, uint16_t n, uint32_t now, const MotionState&) {
     lastMove = now;
   }
   leds[pos] = CHSV(now / 16, 255, 255);
+
+  // Lift the whole strip off pure black with a faint base glow.
+  for (uint16_t i = 0; i < n; i++) leds[i] += CHSV(160, 200, 22);
 }
 
 struct PatternDef {
@@ -92,7 +135,7 @@ const PatternDef kPatterns[] = {
     {"Stride Reactive", true,  pStrideReactive},
     {"Jump Reactive",   true,  pJumpReactive},
     {"Solid Color",     false, pSolidColor},
-    {"Rainbow Cycle",   false, pRainbowCycle},
+    {"Smooth Cycle",    false, pSmoothCycle},
     {"Comet",           false, pComet},
 };
 // clang-format on

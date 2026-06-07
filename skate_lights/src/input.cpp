@@ -26,9 +26,10 @@ void printHelp() {
   Serial.println(F("  0-9    select pattern by index"));
   Serial.println(F("  + -    brightness up / down (capped)"));
   Serial.println(F("  l      toggle auto-cycle"));
-  Serial.println(F("  s      sleep (deep sleep)"));
+  Serial.println(F("  s      sleep (disabled in v0)"));
   Serial.println(F("  b      battery status"));
   Serial.println(F("  h ?    this help"));
+  Serial.flush();  // drain before returning so the dump cannot be truncated
 }
 
 void printPattern() {
@@ -105,8 +106,10 @@ void handle(char c) {
       toggleAutoCycle();
       break;
     case 's':
-      Serial.println(F("[input] sleep requested"));
-      g_controls.sleeping.store(true);
+      // Disabled on the bench: no battery to protect, and v0 deep sleep has no
+      // wake source, so an accidental press would brick the demo until reset.
+      // Re-enable (with button ext0 wake) in Milestone 1.
+      Serial.println(F("[input] sleep disabled in v0 (no battery / no wake source)"));
       break;
     case 'b':
       printBattery();

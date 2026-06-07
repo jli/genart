@@ -101,6 +101,10 @@ void controlTask(void*) {
 }  // namespace
 
 void setup() {
+  // Native USB-CDC has a 256B default TX FIFO; a burst larger than that (the
+  // help dump is ~240B) silently drops the overflow, garbling output. Enlarge
+  // it before begin(). Must be set before Serial.begin to take effect.
+  Serial.setTxBufferSize(1024);
   Serial.begin(115200);
   delay(50);
   Serial.println(F("\n[skate_lights] v0 boot"));
