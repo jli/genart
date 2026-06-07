@@ -74,7 +74,7 @@ void pSolidColor(CRGB* leds, uint16_t n, uint32_t, const MotionState&) {
 void pSmoothCycle(CRGB* leds, uint16_t n, uint32_t now, const MotionState&) {
   static const uint32_t kHoldMs = 24000;          // dwell on the current pair
   static const uint32_t kDriftMs = 12000;         // migrate to the next pair
-  static const uint32_t kScrollPeriodMs = 12000;  // time for the wave to scroll once across
+  static const uint32_t kScrollPeriodMs = 6000;  // time for the wave to scroll once across
   static const uint8_t kBaseHue = 150;            // starting anchor hue
   static const uint8_t kDriftStep = 97;           // golden angle on the 0-255 wheel
   static const uint8_t kSpread = 64;              // wheel distance between the two hues
