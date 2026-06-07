@@ -20,16 +20,23 @@
 
 namespace {
 
+// USB-CDC silently drops bytes when its TX buffer overflows on a multi-line
+// burst, which garbles a rapid help dump. Emit one line and drain it before the
+// next, so the buffer never holds more than a single line.
+void putLine(const __FlashStringHelper* s) {
+  Serial.println(s);
+  Serial.flush();
+}
+
 void printHelp() {
-  Serial.println(F("[input] commands:"));
-  Serial.println(F("  n      next pattern"));
-  Serial.println(F("  0-9    select pattern by index"));
-  Serial.println(F("  + -    brightness up / down (capped)"));
-  Serial.println(F("  l      toggle auto-cycle"));
-  Serial.println(F("  s      sleep (disabled in v0)"));
-  Serial.println(F("  b      battery status"));
-  Serial.println(F("  h ?    this help"));
-  Serial.flush();  // drain before returning so the dump cannot be truncated
+  putLine(F("[input] commands:"));
+  putLine(F("  n      next pattern"));
+  putLine(F("  0-9    select pattern by index"));
+  putLine(F("  + -    brightness up / down (capped)"));
+  putLine(F("  l      toggle auto-cycle"));
+  putLine(F("  s      sleep (disabled in v0)"));
+  putLine(F("  b      battery status"));
+  putLine(F("  h ?    this help"));
 }
 
 void printPattern() {
